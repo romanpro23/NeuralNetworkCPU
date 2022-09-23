@@ -117,7 +117,7 @@ public class NeuralNetwork {
     public static NeuralNetwork read(Scanner scanner) throws Exception {
         if (scanner.nextLine().equals("Neural network")) {
             NeuralNetwork network = new NeuralNetwork()
-                    .addInputLayer(Integer.parseInt(scanner.nextLine()));
+                    .addInputLayer(Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray());
             NeuralLayer.read(scanner, network.layers);
 
             return network;

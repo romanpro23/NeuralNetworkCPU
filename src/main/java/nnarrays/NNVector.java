@@ -36,6 +36,12 @@ public class NNVector extends NNArray {
         return result;
     }
 
+    public void momentumAverage(NNArray array, final float decay) {
+        for (int i = 0; i < size; i++) {
+            data[i] += (array.data[i] - data[i]) * decay;
+        }
+    }
+
     public NNVector mulT(NNMatrix matrix){
         NNVector result = new NNVector(matrix.getColumn());
 

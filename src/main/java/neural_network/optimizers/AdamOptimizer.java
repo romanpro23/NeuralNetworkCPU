@@ -2,6 +2,8 @@ package neural_network.optimizers;
 
 import nnarrays.NNArray;
 
+import java.util.Arrays;
+
 public class AdamOptimizer extends Optimizer {
     /**
      * Adam
@@ -21,8 +23,8 @@ public class AdamOptimizer extends Optimizer {
     @Override
     public void update() {
         t++;
-        b1t = (float) (1 - Math.pow(beta1, t));
-        b2t = (float) (1 - Math.pow(beta2, t));
+        b1t = (float) (1.0f - Math.pow(beta1, t));
+        b2t = (float) (1.0f - Math.pow(beta2, t));
     }
 
     public AdamOptimizer() {

@@ -57,6 +57,19 @@ public final class NNArrays {
     }
 
     @SneakyThrows
+    public static NNVector div(NNVector first, NNVector second){
+        if(first.size != second.size){
+            throw new Exception("Vector has difference size");
+        }
+        NNVector result = new NNVector(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = first.data[i] / second.data[i];
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
     public static NNArray derBinaryCrossEntropy(NNArray outputs, NNArray idealOutputs){
         if(outputs.size != idealOutputs.size){
             throw new Exception("Vector has difference size");

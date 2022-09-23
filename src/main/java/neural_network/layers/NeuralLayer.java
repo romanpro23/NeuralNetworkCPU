@@ -1,10 +1,7 @@
 package neural_network.layers;
 
 import lombok.Setter;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
-import neural_network.layers.dense.DenseNeuralLayer;
-import neural_network.layers.dense.DropoutLayer;
+import neural_network.layers.dense.*;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
@@ -33,8 +30,8 @@ public abstract class NeuralLayer {
 //                case "Variational layer" -> layers.add(VariationalLayer.read(scanner));
                 case "Dropout layer" -> layers.add(DropoutLayer.read(scanner));
                 case "Activation layer" -> layers.add(ActivationLayer.read(scanner));
-//                case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));
-//                case "Batch renormalization layer" -> layers.add(BatchRenormalizationLayer.read(scanner));
+                case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));
+                case "Batch renormalization layer" -> layers.add(BatchRenormalizationLayer.read(scanner));
             }
 
             layer = scanner.nextLine();

@@ -2,6 +2,8 @@ package neural_network.optimizers;
 
 import nnarrays.NNArray;
 
+import java.util.Arrays;
+
 public class SGDOptimizer extends Optimizer {
     /**
      * SGD

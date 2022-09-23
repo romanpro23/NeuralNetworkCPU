@@ -9,6 +9,7 @@ import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class BatchNormalizationLayer extends DenseNeuralLayer {
@@ -19,6 +20,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     private boolean loadWeight;
 
     private final float momentum;
+    private final float epsilon;
 
     //betta
     @Setter
@@ -45,6 +47,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     public BatchNormalizationLayer(double momentum) {
         this.momentum = (float) momentum;
         this.trainable = true;
+        this.epsilon = 0.001f;
     }
 
     @Override
@@ -53,15 +56,18 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
         countNeuron = size[0];
+        mean = new NNVector(countNeuron);
+        var = new NNVector(countNeuron);
+        derBetta = new NNVector(countNeuron);
+        derGamma = new NNVector(countNeuron);
+
         if (!loadWeight) {
-            gamma = new NNVector(countNeuron);
-            derGamma = new NNVector(countNeuron);
             movingMean = new NNVector(countNeuron);
-            mean = new NNVector(countNeuron);
             movingVar = new NNVector(countNeuron);
-            var = new NNVector(countNeuron);
+
             betta = new NNVector(countNeuron);
-            derBetta = new NNVector(countNeuron);
+            gamma = new NNVector(countNeuron);
+
             gamma.fill(1);
             movingVar.fill(1);
         }
@@ -115,7 +121,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     private void normalization(NNVector mean, NNVector var) {
         float[] varSqrt = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
-            varSqrt[i] = (float) (Math.sqrt(var.getData()[i]) + 0.0000001f);
+            varSqrt[i] = (float) (Math.sqrt(var.getData()[i] + epsilon));
         }
         for (int i = 0; i < input.length; i++) {
             output[i] = new NNVector(countNeuron);
@@ -168,17 +174,20 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNVector[errors.length];
+        NNVector[] errorNorm = new NNVector[errors.length];
 
         for (int i = 0; i < errorNL.length; i++) {
             error[i] = new NNVector(countNeuron);
+            errorNorm[i] = new NNVector(countNeuron);
             for (int j = 0; j < errorNL[i].size(); j++) {
-                error[i].getData()[j] = errorNL[i].getData()[j] * gamma.get(j);
+                errorNorm[i].getData()[j] = errorNL[i].getData()[j] * gamma.get(j);
             }
         }
 
-        NNVector errorVariance = derVar(error);
-        NNVector errorMean = derMean(error, errorVariance);
-        derNorm(errorVariance, errorMean);
+        NNVector errorVariance = derVar(errorNorm);
+        NNVector errorMean = derMean(errorNorm, errorVariance);
+
+        derNorm(errorNorm, errorMean, errorVariance);
 
         if (trainable) {
             derivativeWeight(errorNL);
@@ -189,7 +198,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         NNVector derVariance = new NNVector(var);
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
-            dVar[i] = (float) (-0.5 * Math.pow(var.getData()[i] + 0.00000001f, -1.5));
+            dVar[i] = (float) (-0.5 * Math.pow(var.get(i) + epsilon, -1.5));
         }
 
         for (int i = 0; i < error.length; i++) {
@@ -208,35 +217,35 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         float[] dMean = new float[mean.size()];
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
-            dMean[i] = (float) (-1.0f / Math.sqrt(var.getData()[i] + 0.00000001f));
+            dMean[i] = (float) (-1.0f / Math.sqrt(var.getData()[i] + epsilon));
         }
 
         for (int i = 0; i < error.length; i++) {
             for (int j = 0; j < error[i].size(); j++) {
                 derMean.getData()[j] += error[i].get(j);
-                dVar[j] += input[i].getData()[j] - mean.get(j);
+                dVar[j] += input[i].get(j) - mean.get(j);
             }
         }
         for (int i = 0; i < derMean.size(); i++) {
             derMean.getData()[i] *= dMean[i];
-            derMean.getData()[i] += (-2 * derVar.get(i) * dVar[i]) / error.length;
+            derMean.getData()[i] += (-2.0f * derVar.get(i) * dVar[i]) / error.length;
         }
         return derMean;
     }
 
-    public void derNorm(NNVector derMean, NNVector derVar) {
-        derMean.div(error.length);
-        derVar.mul(2.0f / error.length);
+    public void derNorm(NNVector[] errors, NNVector errorMean, NNVector errorVar) {
+        errorMean.div(errors.length);
+        errorVar.mul(2.0f / errors.length);
 
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
-            dVar[i] = (float) (1.0 / Math.sqrt(var.getData()[i] + 0.00000001f));
+            dVar[i] = (float) (1.0 / Math.sqrt(var.getData()[i] + epsilon));
         }
 
         for (int i = 0; i < error.length; i++) {
             for (int j = 0; j < error[i].size(); j++) {
-                error[i].getData()[j] = error[i].get(j) * dVar[j] + derVar.get(j) *
-                        (input[i].get(j) - mean.get(j)) + derMean.get(j);
+                error[i].getData()[j] = errors[i].getData()[j] * dVar[j] + errorVar.get(j) *
+                        (input[i].get(j) - mean.get(j)) + errorMean.get(j);
             }
         }
     }

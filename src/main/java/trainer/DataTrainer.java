@@ -45,4 +45,20 @@ public class DataTrainer {
         }
         return counter * 1.0f / sizeTestEpoch * 100;
     }
+
+    public float score(NeuralNetwork network, DataMetric dataMetric) {
+        int counter = 0;
+        int sizeBatch = sizeTestEpoch/100;
+        double accuracy = 0;
+        for (int j = 0; j < (int) Math.ceil(sizeTestEpoch * 1.0 / sizeBatch); j++) {
+            NNData1D data = loader.getNextTestData(Math.min(sizeBatch, sizeTestEpoch - j * sizeBatch));
+            counter += dataMetric.quality(data.getOutput(), network.query(data.getInput()));
+            accuracy += network.accuracy(data.getOutput());
+        }
+        System.out.println("Результат тренувального датасету: ");
+        System.out.println("Відсоток правильних відповідей: " + String.format("%.2f", counter * 1.0 / sizeTestEpoch * 100) + " %");
+        System.out.println("Точність на тренувальном датасеті: " + String.format("%.5f", accuracy / sizeTestEpoch));
+        System.out.println();
+        return counter * 1.0f / sizeTestEpoch * 100;
+    }
 }
