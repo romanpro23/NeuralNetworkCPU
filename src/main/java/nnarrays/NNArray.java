@@ -1,18 +1,26 @@
 package nnarrays;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 
 import static java.lang.Math.pow;
 
+@NoArgsConstructor
 public class NNArray {
     @Getter
     protected float data[];
     protected int size;
+    @Getter
+    protected int countAxes;
 
     public NNArray(int size) {
         this.size = size;
         this.data = new float[size];
+    }
+
+    public int[] getSize(){
+        return new int[]{size};
     }
 
     public NNArray(float[] data) {

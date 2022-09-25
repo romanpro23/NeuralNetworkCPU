@@ -1,5 +1,6 @@
 package data.mnist;
 
+import data.network_train.NNData1D;
 import nnarrays.NNVector;
 
 import java.io.FileInputStream;

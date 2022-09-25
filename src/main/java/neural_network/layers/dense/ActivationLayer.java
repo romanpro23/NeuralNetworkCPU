@@ -38,11 +38,6 @@ public class ActivationLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void generateTrainOutput(NNArray[] input) {
-        generateOutput(input);
-    }
-
-    @Override
     public void generateError(NNArray[] error) {
         errorNL = getErrorNextLayer(error);
         this.error = new NNVector[errorNL.length];

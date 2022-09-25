@@ -1,7 +1,7 @@
 package trainer;
 
 import data.mnist.DataLoader1D;
-import data.mnist.NNData1D;
+import data.network_train.NNData1D;
 import neural_network.network.NeuralNetwork;
 
 public class DataTrainer {

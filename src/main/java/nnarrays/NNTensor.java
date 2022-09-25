@@ -19,6 +19,7 @@ public class NNTensor extends NNArray{
         this.column = column;
         this.row = row;
         this.depth = depth;
+        countAxes = 3;
 
         initialize();
     }
@@ -40,7 +41,13 @@ public class NNTensor extends NNArray{
         this.column = column;
         this.row = row;
         this.depth = depth;
+        countAxes = 3;
 
         initialize();
+    }
+
+    @Override
+    public int[] getSize(){
+        return new int[]{depth, row, column};
     }
 }

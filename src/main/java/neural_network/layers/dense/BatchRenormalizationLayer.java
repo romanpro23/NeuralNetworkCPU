@@ -241,7 +241,7 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         }
     }
 
-    public NNVector derVar(NNVector[] error) {
+    private NNVector derVar(NNVector[] error) {
         NNVector derVariance = new NNVector(var);
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -259,7 +259,7 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         return derVariance;
     }
 
-    public NNVector derMean(NNVector[] error, NNVector derVar) {
+    private NNVector derMean(NNVector[] error, NNVector derVar) {
         NNVector derMean = new NNVector(mean.size());
         float[] dMean = new float[mean.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -277,7 +277,7 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         return derMean;
     }
 
-    public void derRenorm(NNVector[] errors, NNVector errorMean, NNVector errorVar) {
+    private void derRenorm(NNVector[] errors, NNVector errorMean, NNVector errorVar) {
         errorMean.div(errors.length);
 
         float[] dVar = new float[var.size()];

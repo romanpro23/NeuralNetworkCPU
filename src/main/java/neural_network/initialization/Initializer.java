@@ -1,216 +1,278 @@
 package neural_network.initialization;
 
-import lombok.NoArgsConstructor;
-import nnarrays.NNArray;
-import nnarrays.NNMatrix;
-import nnarrays.NNTensor;
+import nnarrays.*;
 
 import java.util.Random;
 
-public interface Initializer {
-    void initialize(NNMatrix weight);
-//    void initialize(NNTensor weight);
+public abstract class Initializer {
+    protected float range;
+    private final Random random = new Random();
 
-    @NoArgsConstructor
-    class RandomNormal implements Initializer {
-        private final Random random = new Random();
-        private float range = 1;
+    public abstract void initialize(NNVector weight);
+
+    public abstract void initialize(NNMatrix weight);
+
+    public abstract void initialize(NNTensor weight);
+
+    public abstract void initialize(NNTensor4D weight);
+
+    protected void initializeNormal(NNArray weight) {
+        for (int i = 0; i < weight.size(); i++) {
+            weight.set(i, (float) (random.nextGaussian() * range));
+        }
+    }
+
+    protected void initializeNormalTensor4D(NNTensor4D weight) {
+        for (int i = 0; i < weight.depth(); i++) {
+            for (int j = 0; j < weight.data()[i].size(); j++) {
+                weight.data()[i].set(i, (float) (random.nextGaussian() * range));
+            }
+        }
+    }
+
+    protected void initializeUniform(NNArray weight) {
+        for (int i = 0; i < weight.size(); i++) {
+            weight.set(i, (float) ((Math.random() - 0.5) * range));
+        }
+    }
+
+    protected void initializeUniformTensor4D(NNTensor4D weight) {
+        for (int i = 0; i < weight.depth(); i++) {
+            for (int j = 0; j < weight.data()[i].size(); j++) {
+                weight.data()[i].set(i, (float) ((Math.random() - 0.5) * range));
+            }
+        }
+    }
+
+    public static class RandomNormal extends Initializer {
+        public RandomNormal() {
+            this(1f);
+        }
 
         public RandomNormal(double range) {
             this.range = (float) range;
         }
 
         @Override
+        public void initialize(NNVector weight) {
+            initializeNormal(weight);
+        }
+
+        @Override
         public void initialize(NNMatrix weight) {
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) (random.nextGaussian() * range));
-            }
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor weight) {
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            initializeNormalTensor4D(weight);
         }
     }
 
-    @NoArgsConstructor
-    class RandomUniform implements Initializer {
-        private float range = 1;
+    public static class RandomUniform extends Initializer {
+        public RandomUniform() {
+            this(1.0);
+        }
 
         public RandomUniform(double range) {
             this.range = (float) range;
         }
 
         @Override
-        public void initialize(NNMatrix weight) {
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) ((Math.random() - 0.5) * range));
-            }
+        public void initialize(NNVector weight) {
+            initializeUniform(weight);
         }
-    }
-
-    class XavierUniform implements Initializer {
-//        @Override
-//        public void initialize(NNArray weight) {
-//            if (weight instanceof NNMatrix) {
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (Math.sqrt(6.0 / (((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * (((NNTensor4D) weight).getDepth() + ((NNTensor4D) weight).getLength()))));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (Math.sqrt(6.0 / (((NNTensor) weight).getColumn()
-//                        * (((NNTensor) weight).getDepth() + ((NNTensor) weight).getRow()))));
-//            }
-//
-//        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (Math.sqrt(6.0 / (weight.getRow() + weight.getColumn())));
+            initializeUniform(weight);
+        }
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) ((Math.random() - 0.5) * value));
-            }
+        @Override
+        public void initialize(NNTensor weight) {
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            initializeUniformTensor4D(weight);
         }
     }
 
-    class XavierNormal implements Initializer {
-        private final Random random = new Random();
-//
-//        @Override
-//        public void initialize(NNArray weight) {
-//            float value = 1;
-//            if (weight instanceof NNMatrix) {
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (Math.sqrt(2.0 / (((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * (((NNTensor4D) weight).getDepth() + ((NNTensor4D) weight).getLength()))));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (Math.sqrt(2.0 / (((NNTensor) weight).getColumn()
-//                        * (((NNTensor) weight).getDepth() + ((NNTensor) weight).getRow()))));
-//            }
-//            for (int i = 0; i < weight.getSize(); i++) {
-//                weight.fill(i, (float) (random.nextGaussian() * value));
-//            }
-//        }
+    public static class XavierUniform extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (Math.sqrt(6.0 / (weight.size())));
+            initializeUniform(weight);
+        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (Math.sqrt(2.0 / (weight.getRow() + weight.getColumn())));
+            range = (float) (Math.sqrt(6.0 / (weight.getRow() + weight.getColumn())));
+            initializeUniform(weight);
+        }
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) (random.nextGaussian() * value));
-            }
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (Math.sqrt(6.0 / (weight.getDepth() + weight.getRow())));
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (Math.sqrt(6.0 / (weight.getDepth() + weight.getLength())));
+            initializeUniformTensor4D(weight);
         }
     }
 
-    class HeUniform implements Initializer {
-//        @Override
-//        public void initialize(NNArray weight) {
-//            float value = 1;
-//            if (weight instanceof NNMatrix) {
-//                value = (float) (Math.sqrt(6.0 / ((NNMatrix) weight).getRow()));
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (Math.sqrt(6.0 / (((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * ((NNTensor4D) weight).getDepth())));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (Math.sqrt(6.0 / ((NNTensor) weight).getColumn()
-//                        * ((NNTensor) weight).getRow()));
-//            }
-//            for (int i = 0; i < weight.getSize(); i++) {
-//                weight.fill(i, (float) ((Math.random() - 0.5) * value));
-//            }
-//        }
+    public static class XavierNormal extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (Math.sqrt(2.0 / (weight.size())));
+            initializeNormal(weight);
+        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (Math.sqrt(6.0 / weight.getColumn()));
+            range = (float) (Math.sqrt(2.0 / (weight.getRow() + weight.getColumn())));
+            initializeNormal(weight);
+        }
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) ((Math.random() - 0.5) * value));
-            }
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (Math.sqrt(2.0 / (weight.getDepth() + weight.getRow())));
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (Math.sqrt(2.0 / (weight.getDepth() + weight.getLength())));
+            initializeNormalTensor4D(weight);
         }
     }
 
-    class HeNormal implements Initializer {
-        private final Random random = new Random();
+    public static class HeUniform extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (Math.sqrt(6.0 / weight.size()));
 
-//        @Override
-//        public void initialize(NNArray weight) {
-//            float value = 1;
-//            if (weight instanceof NNMatrix) {
-//                value = (float) (Math.sqrt(2.0 / ((NNMatrix) weight).getRow()));
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (Math.sqrt(2.0 / (((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * ((NNTensor4D) weight).getDepth())));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (Math.sqrt(2.0 / ((NNTensor) weight).getColumn()
-//                        * ((NNTensor) weight).getRow()));
-//            }
-//            for (int i = 0; i < weight.getSize(); i++) {
-//                weight.fill(i, (float) (random.nextGaussian() * value));
-//            }
-//        }
+            initializeUniform(weight);
+        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (Math.sqrt(6.0 / weight.getColumn()));
+            range = (float) (Math.sqrt(6.0 / weight.getColumn()));
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) (random.nextGaussian() * value));
-            }
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (Math.sqrt(6.0 / weight.getRow()));
+
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (Math.sqrt(6.0 / weight.getLength()));
+
+            initializeUniformTensor4D(weight);
         }
     }
 
-    class LeCunUniform implements Initializer {
-//        @Override
-//        public void initialize(NNArray weight) {
-//            float value = 1;
-//            if (weight instanceof NNMatrix) {
-//                value = (float) (Math.sqrt(3.0 / ((NNMatrix) weight).getColumn()));
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (Math.sqrt(3.0 / (((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * ((NNTensor4D) weight).getLength())));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (Math.sqrt(3.0 / ((NNTensor) weight).getColumn()
-//                        * ((NNTensor) weight).getDepth()));
-//            }
-//            for (int i = 0; i < weight.getSize(); i++) {
-//                weight.fill(i, (float) ((Math.random() - 0.5) * value));
-//            }
-//        }
+    public static class HeNormal extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (Math.sqrt(2.0 / weight.size()));
+
+            initializeNormal(weight);
+        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (Math.sqrt(3.0 / weight.getRow()));
+            range = (float) (Math.sqrt(2.0 / weight.getColumn()));
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) ((Math.random() - 0.5) * value));
-            }
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (Math.sqrt(2.0 / weight.getRow()));
+
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (Math.sqrt(2.0 / weight.getLength()));
+
+            initializeNormalTensor4D(weight);
         }
     }
 
-    class LeCunNormal implements Initializer {
-        private final Random random = new Random();
-//
-//        @Override
-//        public void initialize(NNArray weight) {
-//            float value = 1;
-//            if (weight instanceof NNMatrix) {
-//                value = (float) (1.0 / Math.sqrt(((NNMatrix) weight).getColumn()));
-//            } else if (weight instanceof NNTensor4D) {
-//                value = (float) (1.0 / Math.sqrt((((NNTensor4D) weight).getRow() * ((NNTensor4D) weight).getColumn()
-//                        * ((NNTensor4D) weight).getDepth())));
-//            } else if (weight instanceof NNTensor) {
-//                value = (float) (1.0 / Math.sqrt(((NNTensor) weight).getColumn()
-//                        * ((NNTensor) weight).getDepth()));
-//            }
-//
-//            for (int i = 0; i < weight.getSize(); i++) {
-//                weight.fill(i, (float) (random.nextGaussian() * value));
-//            }
-//        }
+    public static class LeCunUniform extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (Math.sqrt(3.0 / weight.size()));
+
+            initializeUniform(weight);
+        }
 
         @Override
         public void initialize(NNMatrix weight) {
-            float value = (float) (1 / Math.sqrt(weight.getRow()));
+            range = (float) (Math.sqrt(3.0 / weight.getRow()));
 
-            for (int i = 0; i < weight.size(); i++) {
-                weight.set(i, (float) (random.nextGaussian() * value));
-            }
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (Math.sqrt(3.0 / weight.getDepth()));
+
+            initializeUniform(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (Math.sqrt(3.0 / weight.getDepth()));
+
+            initializeUniformTensor4D(weight);
+        }
+    }
+
+    public static class LeCunNormal extends Initializer {
+        @Override
+        public void initialize(NNVector weight) {
+            range = (float) (1 / Math.sqrt(weight.size()));
+
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNMatrix weight) {
+            range = (float) (1 / Math.sqrt(weight.getRow()));
+
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor weight) {
+            range = (float) (1 / Math.sqrt(weight.getDepth()));
+
+            initializeNormal(weight);
+        }
+
+        @Override
+        public void initialize(NNTensor4D weight) {
+            range = (float) (1 / Math.sqrt(weight.getDepth()));
+
+            initializeNormalTensor4D(weight);
         }
     }
 }

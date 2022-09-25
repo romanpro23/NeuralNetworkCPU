@@ -42,6 +42,11 @@ public abstract class DenseNeuralLayer extends NeuralLayer {
         //no have update element
     }
 
+    @Override
+    public void generateTrainOutput(NNArray[] input) {
+        generateOutput(input);
+    }
+
     public NNVector[] getErrorNextLayer(NNArray[] error){
         if(error != null){
             return NNArrays.isVector(error);

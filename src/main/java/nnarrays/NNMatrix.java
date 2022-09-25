@@ -25,10 +25,28 @@ public class NNMatrix extends NNArray{
         for (int i = 0; i < row; i++) {
             rowIndex[i] = i * column;
         }
+        countAxes = 2;
+    }
+
+    public NNMatrix(int row, int column, float[] data) {
+        super(data);
+        this.column = column;
+        this.row = row;
+
+        rowIndex = new int[row];
+        for (int i = 0; i < row; i++) {
+            rowIndex[i] = i * column;
+        }
+        countAxes = 2;
     }
 
     public NNMatrix(NNMatrix matrix) {
         this(matrix.row, matrix.column);
+    }
+
+    @Override
+    public int[] getSize(){
+        return new int[]{row, column};
     }
 
     public float get(int i, int j){

@@ -27,7 +27,7 @@ public abstract class NeuralLayer {
         while (!layer.equals("End")) {
             switch (layer) {
                 case "Dense layer" -> layers.add(DenseLayer.read(scanner));
-//                case "Variational layer" -> layers.add(VariationalLayer.read(scanner));
+                case "Variational layer" -> layers.add(VariationalLayer.read(scanner));
                 case "Dropout layer" -> layers.add(DropoutLayer.read(scanner));
                 case "Activation layer" -> layers.add(ActivationLayer.read(scanner));
                 case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));

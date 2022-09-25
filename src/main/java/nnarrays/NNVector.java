@@ -8,23 +8,27 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class NNVector extends NNArray {
-    public NNVector(int length){
+    public NNVector(int length) {
         super(length);
+        countAxes = 1;
     }
 
-    public NNVector(NNVector vector){
+    public NNVector(NNVector vector) {
         super(vector.size);
+        countAxes = 1;
     }
 
-    public NNVector(NNArray array){
+    public NNVector(NNArray array) {
         super(array.data);
+        countAxes = 1;
     }
 
-    public NNVector(float[] data){
+    public NNVector(float[] data) {
         super(data);
+        countAxes = 1;
     }
 
-    public NNVector mul(NNMatrix matrix){
+    public NNVector mul(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getRow());
 
         for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -42,7 +46,7 @@ public class NNVector extends NNArray {
         }
     }
 
-    public NNVector mulT(NNMatrix matrix){
+    public NNVector mulT(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getColumn());
 
         for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -54,7 +58,7 @@ public class NNVector extends NNArray {
         return result;
     }
 
-    public NNMatrix mulVector(NNVector vector){
+    public NNMatrix mulVector(NNVector vector) {
         NNMatrix result = new NNMatrix(vector.size, size);
 
         for (int i = 0, index = 0; i < result.getRow(); i++) {
@@ -67,12 +71,33 @@ public class NNVector extends NNArray {
     }
 
     @SneakyThrows
-    public void add(NNVector vector){
-        if(size != vector.size){
+    public void add(NNVector vector) {
+        if (size != vector.size) {
             throw new Exception("Vector has difference size");
         }
         for (int i = 0; i < size; i++) {
             data[i] += vector.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void addProduct(NNVector vector1, NNVector vector2) {
+        if (size != vector1.size || size != vector2.size) {
+            System.out.println(vector1.size + " " + vector2.size);
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] += vector1.data[i] * vector2.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void subOneDiv(NNVector vector) {
+        if (size != vector.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] -= 1.0 / (vector.data[i] + 0.00000001f);
         }
     }
 

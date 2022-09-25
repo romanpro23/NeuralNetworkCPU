@@ -150,9 +150,7 @@ public class NeuralNetwork {
 
     public void forwardBackpropagation(NNArray[] input, NNArray[] idealOutput) {
         query(input);
-        this.trainable = false;
         backpropagation(findDerivative(idealOutput));
-        this.trainable = true;
     }
 
     public void train(NNArray[] error) {
@@ -160,8 +158,16 @@ public class NeuralNetwork {
         update();
     }
 
+    public int[] getInputSize(){
+        return inputSize;
+    }
+
+    public int[] getOutputSize(){
+        return layers.get(layers.size() - 1).size();
+    }
+
     private NNArray[] findDerivative(NNArray[] idealOutput) {
-        if(layers.get(layers.size() - 1) instanceof DenseNeuralLayer){
+        if(layers.get(layers.size() - 1).size().length == 1){
             return NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));
         }
         return null;

@@ -20,16 +20,18 @@ import java.util.Scanner;
 
 public class TestMNIST {
     public static void main(String[] args) throws Exception {
+        BatchRenormalizationLayer brl1;
+        BatchRenormalizationLayer brl2;
         NeuralNetwork network = new NeuralNetwork()
                 .addInputLayer(784)
 //                .addLayer(new DenseLayer(1024))
 //                .addLayer(new BatchNormalizationLayer())
 //                .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(512))
-                .addLayer(new BatchRenormalizationLayer(0.99, 2, 3))
+                .addLayer(new DenseLayer(256))
+                .addLayer(brl1 = new BatchRenormalizationLayer(0.99))
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(128))
-                .addLayer(new BatchRenormalizationLayer(0.99, 2, 3))
+                .addLayer(brl2 = new BatchRenormalizationLayer(0.99))
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(10))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
@@ -52,6 +54,13 @@ public class TestMNIST {
 //            trainer.score(network, new DataMetric.Top1());
             trainer.train(network, 64, 1, new DataMetric.Top1());
             network.save(new FileWriter(new File("test.txt")));
+            if(i == 10){
+                brl1.setRMax(3);
+                brl1.setDMax(5);
+
+                brl2.setRMax(3);
+                brl2.setDMax(5);
+            }
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

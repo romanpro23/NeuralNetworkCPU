@@ -1,5 +1,6 @@
 package neural_network.layers.dense;
 
+import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
@@ -26,7 +27,7 @@ public class DenseLayer extends DenseNeuralLayer {
     private boolean loadWeight;
 
     //weight and threshold
-    @Setter
+    @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
     private NNMatrix[] optimizeWeight;
@@ -123,11 +124,12 @@ public class DenseLayer extends DenseNeuralLayer {
         if (size.length != 1) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
+        derThreshold = new NNVector(countNeuron);
+        derWeight = new NNMatrix(countNeuron, size[0]);
+
         if (!loadWeight) {
             threshold = new NNVector(countNeuron);
-            derThreshold = new NNVector(countNeuron);
             weight = new NNMatrix(countNeuron, size[0]);
-            derWeight = new NNMatrix(countNeuron, size[0]);
             initializer.initialize(weight);
         }
     }
@@ -155,11 +157,6 @@ public class DenseLayer extends DenseNeuralLayer {
         }
     }
 
-    @Override
-    public void generateTrainOutput(NNArray[] input) {
-        generateOutput(input);
-    }
-
     @SneakyThrows
     @Override
     public void generateError(NNArray[] errors) {
@@ -178,7 +175,8 @@ public class DenseLayer extends DenseNeuralLayer {
             });
         }
         executor.shutdown();
-        while (!executor.isTerminated()) {}
+        while (!executor.isTerminated()) {
+        }
 
         if (trainable) {
             derivativeWeight(errorNL);
