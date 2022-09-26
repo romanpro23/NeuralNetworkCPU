@@ -83,8 +83,8 @@ public class TestConditionalVAE {
                     }
                 }
 
-                encoder.save(new FileWriter(new File("D:/NetworkTest/CVAE/encoder_32h.txt")));
-                decoder.save(new FileWriter(new File("D:/NetworkTest/CVAE/decoder_32h.txt")));
+//                encoder.save(new FileWriter(new File("D:/NetworkTest/CVAE/encoder_32h.txt")));
+//                decoder.save(new FileWriter(new File("D:/NetworkTest/CVAE/decoder_32h.txt")));
             }
             NNData1D train = loader.getNextTrainData(64);
             System.out.println(i + " - " + autoencoder.train(train.getInput(), train.getOutput()));

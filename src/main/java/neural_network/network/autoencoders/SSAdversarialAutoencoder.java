@@ -4,27 +4,55 @@ import data.gan.GANGeneratorData;
 import data.network_train.NNData;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
+import neural_network.layers.LayersBlock;
+import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import nnarrays.NNArrays;
 import nnarrays.NNVector;
+
+import java.util.Arrays;
 
 public class SSAdversarialAutoencoder {
     private final NeuralNetwork decoder;
-    private final NeuralNetwork styleDiscriminator;
-    private final NeuralNetwork labelDiscriminator;
+    private NeuralNetwork styleDiscriminator;
+    private NeuralNetwork labelDiscriminator;
     private final NeuralNetwork encoder;
+
+    private final LayersBlock classificationBlock, styleBlock;
 
     private Optimizer optimizerDecode, optimizerDistribution, optimizerLabel;
 
-    public SSAdversarialAutoencoder(NeuralNetwork encoder, NeuralNetwork decoder, NeuralNetwork styleDiscriminator, NeuralNetwork labelDiscriminator) {
+    public SSAdversarialAutoencoder(NeuralNetwork encoder, NeuralNetwork decoder, LayersBlock classificationBlock, LayersBlock styleBlock) {
         this.decoder = decoder;
         this.encoder = encoder;
-        this.styleDiscriminator = styleDiscriminator;
-        this.labelDiscriminator = labelDiscriminator;
+        this.classificationBlock = classificationBlock;
+        this.styleBlock = styleBlock;
+
+        classificationBlock.initialize(encoder.getOutputSize());
+        classificationBlock.initialize(encoder.getOptimizer());
+        styleBlock.initialize(encoder.getOutputSize());
+        styleBlock.initialize(encoder.getOptimizer());
 
         optimizerDecode = null;
         optimizerDistribution = null;
+    }
+
+    public SSAdversarialAutoencoder setStyleDiscriminator(NeuralNetwork styleDiscriminator) {
+        this.styleDiscriminator = styleDiscriminator;
+        return this;
+    }
+
+    public SSAdversarialAutoencoder setLabelDiscriminator(NeuralNetwork labelDiscriminator) {
+        this.labelDiscriminator = labelDiscriminator;
+        return this;
+    }
+
+    public SSAdversarialAutoencoder setDiscriminators(NeuralNetwork labelDiscriminator, NeuralNetwork styleDiscriminator) {
+        this.styleDiscriminator = styleDiscriminator;
+        this.labelDiscriminator = labelDiscriminator;
+        return this;
     }
 
     public SSAdversarialAutoencoder setOptimizersEncoder(Optimizer optimizerDecode, Optimizer optimizerDistribution) {
@@ -44,15 +72,24 @@ public class SSAdversarialAutoencoder {
     }
 
     public NNArray[] query(NNArray[] input) {
-        return decoder.query(encoder.query(input));
+        encoder.query(input);
+        classificationBlock.generateOutput(encoder.getOutputs());
+        styleBlock.generateOutput(encoder.getOutputs());
+
+        NNArray[] inputDecoder = NNArrays.concat(classificationBlock.getOutput(), styleBlock.getOutput());
+        return decoder.query(inputDecoder);
     }
 
-    public NNArray[] queryDecoder(NNArray[] input) {
-        return decoder.query(input);
+    public NNArray[] queryDecoder(NNArray[] label, NNArray[] noise) {
+        return decoder.query(NNArrays.concat(label, noise));
     }
 
-    public float train(NNArray[] input, NNArray[] label, NNVector[] distribution) {
+    public float train(NNArray[] input, NNVector[] label, NNVector[] distribution) {
         return train(input, input, label, distribution);
+    }
+
+    public float train(NNArray[] input) {
+        return train(input, null);
     }
 
     @SneakyThrows
@@ -60,7 +97,7 @@ public class SSAdversarialAutoencoder {
         NNVector[] distribution = new NNVector[input.length];
         Initializer initializer = new Initializer.RandomNormal();
         for (int i = 0; i < distribution.length; i++) {
-            int[] size = encoder.getLayers().get(encoder.getLayers().size() - 1).size();
+            int[] size = styleBlock.size();
             if (size.length > 1) {
                 throw new Exception("Layer must be flat");
             }
@@ -68,33 +105,70 @@ public class SSAdversarialAutoencoder {
             initializer.initialize(distribution[i]);
         }
 
-        return train(input, label, distribution);
+        return train(input, input, label, distribution);
     }
 
-    public float train(NNArray[] input, NNArray[] output,  NNArray[] label, NNVector[] distribution) {
+    public float train(NNArray[] input, NNArray[] output, NNArray[] label, NNVector[] distribution) {
         float accuracy = 0;
+
         accuracy += trainDecoder(input, output);
+        accuracy += trainLabelDiscriminator(input, label);
         accuracy += trainStyleDiscriminator(input, distribution);
-        accuracy += trainLabelDiscriminator(input, distribution);
 
         return accuracy;
     }
 
-    public float trainDecoder(NNArray[] input, NNArray[] output) {
+    public float train(NNArray[] input, NNArray[] output, NNVector[] distribution) {
+        return train(input, output, null, distribution);
+    }
+
+    private float trainDecoder(NNArray[] input, NNArray[] output) {
+        //forward propagation
         encoder.queryTrain(input);
-        float accuracy = decoder.train(encoder.getOutputs(), output);
+        classificationBlock.generateTrainOutput(encoder.getOutputs());
+        styleBlock.generateTrainOutput(encoder.getOutputs());
+
+        NNArray[] inputDecoder = NNArrays.concat(classificationBlock.getOutput(), styleBlock.getOutput());
+
+        //train decoder
+        float accuracy = decoder.train(inputDecoder, output);
+
+        //find error for style and classification blocks
+        NNArray[] errorClassificationBlock = NNArrays.subArray(decoder.getError(), classificationBlock.getOutput());
+        NNArray[] errorStyleBlock = NNArrays.subArray(decoder.getError(), styleBlock.getOutput(), classificationBlock.getOutput()[0].size());
+
+        classificationBlock.generateError(errorClassificationBlock);
+        styleBlock.generateError(errorStyleBlock);
         if (optimizerDecode != null) {
             encoder.setOptimizer(optimizerDecode);
         }
-        encoder.train(decoder.getError());
+
+        //generate error for encoder
+        NNArray[] errorEncoder = new NNVector[input.length];
+        for (int i = 0; i < errorEncoder.length; i++) {
+            errorEncoder[i] = new NNVector(encoder.getOutputSize()[0]);
+            errorEncoder[i].add(classificationBlock.getError()[i]);
+            errorEncoder[i].add(styleBlock.getError()[i]);
+        }
+
+        //train encoder
+        encoder.train(errorEncoder);
+
+        if (optimizerDecode != null) {
+            classificationBlock.update(optimizerDecode);
+            styleBlock.update(optimizerDecode);
+        } else {
+            classificationBlock.update(encoder.getOptimizer());
+            styleBlock.update(encoder.getOptimizer());
+        }
         return accuracy;
     }
 
-    public float trainStyleDiscriminator(NNArray[] input, NNVector[] distribution) {
+    private float trainStyleDiscriminator(NNArray[] input, NNVector[] distribution) {
         //generate input data for styleDiscriminator
         encoder.queryTrain(input);
-        NNArray[] fake = encoder.getOutputs();
-        NNData data = GANGeneratorData.generateData(distribution, fake);
+        styleBlock.generateTrainOutput(encoder.getOutputs());
+        NNData data = GANGeneratorData.generateData(distribution, styleBlock.getOutput());
 
         //train styleDiscriminator
         float accuracy = styleDiscriminator.train(data.getInput(), data.getOutput());
@@ -107,19 +181,27 @@ public class SSAdversarialAutoencoder {
 
         //train generator
         styleDiscriminator.setTrainable(false);
-        styleDiscriminator.forwardBackpropagation(encoder.getOutputs(), label);
+        styleDiscriminator.forwardBackpropagation(styleBlock.getOutput(), label);
+
+        styleBlock.generateError(styleDiscriminator.getError());
         if (optimizerDistribution != null) {
             encoder.setOptimizer(optimizerDistribution);
         }
-        encoder.train(styleDiscriminator.getError());
+        encoder.train(styleBlock.getError());
+        if (optimizerDistribution != null) {
+            styleBlock.update(optimizerDistribution);
+        } else {
+            styleBlock.update(encoder.getOptimizer());
+        }
         styleDiscriminator.setTrainable(true);
-
         return accuracy;
     }
 
-    public float trainLabelDiscriminator(NNArray[] input, NNVector[] labels) {
+    private float trainLabelDiscriminator(NNArray[] input, NNArray[] labels) {
         //generate input data for labelDiscriminator
-        NNArray[] fake = encoder.getOutputs();
+        encoder.queryTrain(input);
+        classificationBlock.generateTrainOutput(encoder.getOutputs());
+        NNArray[] fake = classificationBlock.getOutput();
         NNData data = GANGeneratorData.generateData(labels, fake);
 
         //train labelDiscriminator
@@ -133,11 +215,20 @@ public class SSAdversarialAutoencoder {
 
         //train generator
         labelDiscriminator.setTrainable(false);
-        labelDiscriminator.forwardBackpropagation(encoder.getOutputs(), label);
+        labelDiscriminator.forwardBackpropagation(classificationBlock.getOutput(), label);
+
+        classificationBlock.generateError(labelDiscriminator.getError());
+
         if (optimizerLabel != null) {
             encoder.setOptimizer(optimizerLabel);
         }
-        encoder.train(labelDiscriminator.getError());
+
+        encoder.train(classificationBlock.getError());
+        if (optimizerLabel != null) {
+            classificationBlock.update(optimizerLabel);
+        } else {
+            classificationBlock.update(encoder.getOptimizer());
+        }
         labelDiscriminator.setTrainable(true);
 
         return accuracy;

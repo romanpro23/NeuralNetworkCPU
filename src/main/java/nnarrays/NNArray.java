@@ -113,6 +113,17 @@ public class NNArray {
         }
     }
 
+    @SneakyThrows
+    public void add(NNArray array) {
+        if (size != array.size) {
+            throw new Exception("Array has difference size");
+        }
+
+        for (int i = 0; i < size; i++) {
+            data[i] += array.data[i];
+        }
+    }
+
     public void add(float val) {
         for (int i = 0; i < size; i++) {
             data[i] += val;

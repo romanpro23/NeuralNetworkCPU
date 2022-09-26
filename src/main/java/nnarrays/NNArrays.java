@@ -28,12 +28,16 @@ public final class NNArrays {
     }
 
     public static NNArray[] subArray(NNArray[] first, NNArray[] second) {
+        return subArray(first, second,0 );
+    }
+
+    public static NNArray[] subArray(NNArray[] first, NNArray[] second, int startIndex) {
         if (first[0].countAxes == 1) {
-            return subVector(first, second);
+            return subVector(first, second, startIndex);
         } else if (first[0].countAxes == 2) {
-            return subMatrix(first, second);
+            return subMatrix(first, second, startIndex);
         } else if (first[0].countAxes == 3) {
-            return subTensor(first, second);
+            return subTensor(first, second, startIndex);
         }
         return null;
     }
@@ -55,24 +59,24 @@ public final class NNArrays {
     }
 
     @SneakyThrows
-    public static NNVector[] subVector(NNArray[] first, NNArray[] second) {
+    public static NNVector[] subVector(NNArray[] first, NNArray[] second, int startIndex) {
         NNVector[] result = new NNVector[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            System.arraycopy(first[i].data, 0, data, 0, second[i].size);
+            System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
             result[i] = new NNVector(data);
         }
         return result;
     }
 
     @SneakyThrows
-    public static NNMatrix[] subMatrix(NNArray[] first, NNArray[] second) {
+    public static NNMatrix[] subMatrix(NNArray[] first, NNArray[] second, int startIndex) {
         NNMatrix[] result = new NNMatrix[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            System.arraycopy(first[i].data, 0, data, 0, second[i].size);
+            System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
             int row = second[i].getSize()[0];
             int column = second[i].getSize()[1];
             result[i] = new NNMatrix(row, column, data);
@@ -99,12 +103,12 @@ public final class NNArrays {
     }
 
     @SneakyThrows
-    public static NNTensor[] subTensor(NNArray[] first, NNArray[] second) {
+    public static NNTensor[] subTensor(NNArray[] first, NNArray[] second, int startIndex) {
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            System.arraycopy(first[i].data, 0, data, 0, second[i].size);
+            System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
             int depth = second[i].getSize()[0];
             int row = second[i].getSize()[1];
             int column = second[i].getSize()[2];

@@ -3,9 +3,7 @@ package neural_network.network;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
-import neural_network.layers.dense.DenseNeuralLayer;
+import neural_network.layers.dense.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
@@ -26,11 +24,22 @@ public class NeuralNetwork {
     private boolean trainable;
 
     private FunctionLoss functionLoss;
+    @Getter
     private Optimizer optimizer;
 
     public NeuralNetwork() {
         layers = new ArrayList<>();
         trainable = true;
+    }
+
+    public NeuralNetwork copy(){
+        NeuralNetwork newNetwork = new NeuralNetwork()
+                .addInputLayer(inputSize);
+        newNetwork.layers.addAll(this.layers);
+        newNetwork.functionLoss = functionLoss;
+        newNetwork.optimizer = optimizer;
+
+        return newNetwork;
     }
 
     public NeuralNetwork addInputLayer(int... size) {
@@ -70,6 +79,12 @@ public class NeuralNetwork {
 
     public NeuralNetwork addLayer(NeuralLayer layer) {
         layers.add(layer);
+
+        return this;
+    }
+
+    public NeuralNetwork addLayers(ArrayList<NeuralLayer> layers) {
+        this.layers.addAll(layers);
 
         return this;
     }
@@ -206,15 +221,15 @@ public class NeuralNetwork {
         return addLayer(new ActivationLayer(functionActivation));
     }
 
-//    public NeuralNetwork addDropoutLayer(double dropout) {
-//        return addLayer(new DropoutLayer(dropout));
-//    }
+    public NeuralNetwork addDropoutLayer(double dropout) {
+        return addLayer(new DropoutLayer(dropout));
+    }
 
-//    public DeepNeuralNetwork addBatchNormalizationLayer(double momentum) {
-//        return addLayer(new BatchNormalizationLayer(momentum));
-//    }
-//
-//    public DeepNeuralNetwork addBatchNormalizationLayer() {
-//        return addLayer(new BatchNormalizationLayer());
-//    }
+    public NeuralNetwork addBatchNormalizationLayer(double momentum) {
+        return addLayer(new BatchNormalizationLayer(momentum));
+    }
+
+    public NeuralNetwork addBatchNormalizationLayer() {
+        return addLayer(new BatchNormalizationLayer());
+    }
 }
