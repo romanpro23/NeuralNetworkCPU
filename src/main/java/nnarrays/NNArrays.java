@@ -16,6 +16,15 @@ public final class NNArrays {
         return arr;
     }
 
+    public static NNTensor[] toTensor(NNArray[] batch, int depth, int height, int width) {
+        NNTensor[] arr = new NNTensor[batch.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = new NNTensor(depth, height, width, batch[i].data);
+        }
+
+        return arr;
+    }
+
     public static NNArray[] concat(NNArray[] first, NNArray[] second) {
         if (first[0].countAxes == 1) {
             return concatVector(first, second);
@@ -107,11 +116,21 @@ public final class NNArrays {
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
-
-            System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
+            int size = first[i].getSize()[0] * first[i].getSize()[1];
+            int startDepth = startIndex / size;
             int depth = second[i].getSize()[0];
             int row = second[i].getSize()[1];
             int column = second[i].getSize()[2];
+            int index = 0;
+            int indexF;
+
+            for (int j = 0; j < size; j++) {
+                indexF = size * first[i].getSize()[2] + startDepth;
+                for (int k = 0; k < column; k++, index++, indexF++) {
+                    data[index] = first[i].data[indexF];
+                }
+            }
+
             result[i] = new NNTensor(depth, row, column, data);
         }
         return result;
@@ -120,17 +139,30 @@ public final class NNArrays {
     @SneakyThrows
     public static NNTensor[] concatTensor(NNArray[] first, NNArray[] second) {
         if (first.length != second.length) {
-            throw new Exception("Vector has difference size");
+            throw new Exception("Tensor has difference size");
         }
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
 
-            System.arraycopy(first[i].data, 0, data, 0, first[i].size);
-            System.arraycopy(second[i].data, 0, data, first[i].size, second[i].size);
-            int depth = first[i].getSize()[0] + second[i].getSize()[0];
+            int size = first[i].getSize()[0] * first[i].getSize()[1];
+            int columnF = first[i].getSize()[2], columnS = second[i].getSize()[2];
+            int column = columnF + columnS;
+            int index = 0;
+            int indexF = 0;
+            int indexS = 0;
+
+            for (int j = 0; j < size; j++) {
+                for (int k = 0; k < columnF; k++, index++, indexF++) {
+                    data[index] = first[i].data[indexF];
+                }
+                for (int k = 0; k < columnS; k++, index++, indexS++) {
+                    data[index] = second[i].data[indexS];
+                }
+            }
+
+            int depth = first[i].getSize()[0];
             int row = first[i].getSize()[1];
-            int column = first[i].getSize()[2];
             result[i] = new NNTensor(depth, row, column, data);
         }
         return result;

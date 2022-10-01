@@ -25,6 +25,7 @@ public class AdamOptimizer extends Optimizer {
         t++;
         b1t = (float) (1.0f - Math.pow(beta1, t));
         b2t = (float) (1.0f - Math.pow(beta2, t));
+        super.update();
     }
 
     public AdamOptimizer() {

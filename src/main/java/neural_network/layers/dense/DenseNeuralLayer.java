@@ -38,34 +38,20 @@ public abstract class DenseNeuralLayer extends NeuralLayer {
     }
 
     @Override
-    public void update(Optimizer optimizer) {
-        //no have update element
-    }
-
-    @Override
     public void generateTrainOutput(NNArray[] input) {
         generateOutput(input);
     }
 
-    public NNVector[] getErrorNextLayer(NNArray[] error){
-        if(error != null){
-            return NNArrays.isVector(error);
-        }
-        if(nextLayers.size() > 1) {
-            NNVector[] errorNL = new NNVector[output.length];
+    public NNVector[] getErrorNextLayer(NNArray[] error) {
+        NNVector[] errorNL = NNArrays.isVector(error);
 
+        if (!nextLayers.isEmpty()) {
             for (int i = 0; i < errorNL.length; i++) {
-                errorNL[i] = new NNVector(countNeuron);
                 for (NeuralLayer nextLayer : nextLayers) {
-                    for (int k = 0; k < errorNL.length; k++) {
-                        errorNL[i].getData()[k] += nextLayer.getError()[i].getData()[k];
-                    }
+                    errorNL[i].add(nextLayer.getError()[i]);
                 }
             }
-
-            return errorNL;
-        } else {
-            return NNArrays.isVector(nextLayers.get(0).getError());
         }
+        return errorNL;
     }
 }

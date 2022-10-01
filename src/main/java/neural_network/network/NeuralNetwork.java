@@ -3,6 +3,9 @@ package neural_network.network;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
+import neural_network.layers.convolution_3d.ActivationLayer3D;
+import neural_network.layers.convolution_3d.BatchNormalizationLayer3D;
+import neural_network.layers.convolution_3d.DropoutLayer3D;
 import neural_network.layers.dense.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.Optimizer;
@@ -32,7 +35,7 @@ public class NeuralNetwork {
         trainable = true;
     }
 
-    public NeuralNetwork copy(){
+    public NeuralNetwork copy() {
         NeuralNetwork newNetwork = new NeuralNetwork()
                 .addInputLayer(inputSize);
         newNetwork.layers.addAll(this.layers);
@@ -54,10 +57,19 @@ public class NeuralNetwork {
             layers.get(i).initialize(layers.get(i - 1).size());
         }
 
+        if (optimizer != null) {
+            for (NeuralLayer layer : layers) {
+                layer.initialize(optimizer);
+            }
+        }
+
+        return this;
+    }
+
+    public NeuralNetwork initialize(Optimizer optimizer) {
         for (NeuralLayer layer : layers) {
             layer.initialize(optimizer);
         }
-
         return this;
     }
 
@@ -163,9 +175,11 @@ public class NeuralNetwork {
         return functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
-    public void forwardBackpropagation(NNArray[] input, NNArray[] idealOutput) {
+    public float forwardBackpropagation(NNArray[] input, NNArray[] idealOutput) {
         query(input);
         backpropagation(findDerivative(idealOutput));
+
+        return functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
     public void train(NNArray[] error) {
@@ -173,28 +187,27 @@ public class NeuralNetwork {
         update();
     }
 
-    public int[] getInputSize(){
+    public int[] getInputSize() {
         return inputSize;
     }
 
-    public int[] getOutputSize(){
+    public int[] getOutputSize() {
         return layers.get(layers.size() - 1).size();
     }
 
     private NNArray[] findDerivative(NNArray[] idealOutput) {
-        if(layers.get(layers.size() - 1).size().length == 1){
+        int[] size = layers.get(layers.size() - 1).size();
+        if (size.length == 1) {
             return NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));
+        } else if (size.length == 3) {
+            return NNArrays.toTensor(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
+                    size[0], size[1], size[2]);
         }
         return null;
     }
 
     private void update() {
         optimizer.update();
-        if (trainable) {
-            for (NeuralLayer layer : layers) {
-                layer.update(optimizer);
-            }
-        }
     }
 
     private void backpropagation(NNArray[] error) {
@@ -218,18 +231,27 @@ public class NeuralNetwork {
     }
 
     public NeuralNetwork addActivationLayer(FunctionActivation functionActivation) {
+        if (layers.get(layers.size() - 1).size().length == 3) {
+            return addLayer(new ActivationLayer3D(functionActivation));
+        }
         return addLayer(new ActivationLayer(functionActivation));
     }
 
     public NeuralNetwork addDropoutLayer(double dropout) {
+        if (layers.get(layers.size() - 1).size().length == 3) {
+            return addLayer(new DropoutLayer3D(dropout));
+        }
         return addLayer(new DropoutLayer(dropout));
     }
 
     public NeuralNetwork addBatchNormalizationLayer(double momentum) {
+        if (layers.get(layers.size() - 1).size().length == 3) {
+            return addLayer(new BatchNormalizationLayer3D(momentum));
+        }
         return addLayer(new BatchNormalizationLayer(momentum));
     }
 
     public NeuralNetwork addBatchNormalizationLayer() {
-        return addLayer(new BatchNormalizationLayer());
+        return addBatchNormalizationLayer(0.99);
     }
 }

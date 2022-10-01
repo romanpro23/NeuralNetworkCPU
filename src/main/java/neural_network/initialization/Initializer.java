@@ -22,25 +22,9 @@ public abstract class Initializer {
         }
     }
 
-    protected void initializeNormalTensor4D(NNTensor4D weight) {
-        for (int i = 0; i < weight.depth(); i++) {
-            for (int j = 0; j < weight.data()[i].size(); j++) {
-                weight.data()[i].set(i, (float) (random.nextGaussian() * range));
-            }
-        }
-    }
-
     protected void initializeUniform(NNArray weight) {
         for (int i = 0; i < weight.size(); i++) {
             weight.set(i, (float) ((Math.random() - 0.5) * range));
-        }
-    }
-
-    protected void initializeUniformTensor4D(NNTensor4D weight) {
-        for (int i = 0; i < weight.depth(); i++) {
-            for (int j = 0; j < weight.data()[i].size(); j++) {
-                weight.data()[i].set(i, (float) ((Math.random() - 0.5) * range));
-            }
         }
     }
 
@@ -70,7 +54,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor4D weight) {
-            initializeNormalTensor4D(weight);
+            initializeNormal(weight);
         }
     }
 
@@ -100,7 +84,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor4D weight) {
-            initializeUniformTensor4D(weight);
+            initializeUniform(weight);
         }
     }
 
@@ -119,14 +103,14 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(6.0 / (weight.getDepth() + weight.getRow())));
+            range = (float) (Math.sqrt(6.0 / ((weight.getDepth() + weight.getColumn()) * weight.getRow())));
             initializeUniform(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (Math.sqrt(6.0 / (weight.getDepth() + weight.getLength())));
-            initializeUniformTensor4D(weight);
+            range = (float) (Math.sqrt(6.0 / ((weight.getDepth() + weight.getColumn()) * weight.getLength() * weight.row())));
+            initializeUniform(weight);
         }
     }
 
@@ -145,14 +129,14 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(2.0 / (weight.getDepth() + weight.getRow())));
+            range = (float) (Math.sqrt(2.0 / ((weight.getDepth() + weight.getColumn()) * weight.getRow())));
             initializeNormal(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (Math.sqrt(2.0 / (weight.getDepth() + weight.getLength())));
-            initializeNormalTensor4D(weight);
+            range = (float) (Math.sqrt(2.0 / ((weight.getDepth() + weight.getColumn()) * weight.getLength() * weight.row())));
+            initializeNormal(weight);
         }
     }
 
@@ -173,16 +157,16 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(6.0 / weight.getRow()));
+            range = (float) (Math.sqrt(6.0 / (weight.getColumn() * weight.getRow())));
 
             initializeUniform(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (Math.sqrt(6.0 / weight.getLength()));
+            range = (float) (Math.sqrt(6.0 / (weight.getLength() * weight.column() * weight.row())));
 
-            initializeUniformTensor4D(weight);
+            initializeUniform(weight);
         }
     }
 
@@ -203,16 +187,16 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(2.0 / weight.getRow()));
+            range = (float) (Math.sqrt(2.0 / (weight.getRow() * weight.getColumn())));
 
             initializeNormal(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (Math.sqrt(2.0 / weight.getLength()));
+            range = (float) (Math.sqrt(2.0 / (weight.getLength() * weight.column() * weight.row())));
 
-            initializeNormalTensor4D(weight);
+            initializeNormal(weight);
         }
     }
 
@@ -233,16 +217,16 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(3.0 / weight.getDepth()));
+            range = (float) (Math.sqrt(3.0 / (weight.getDepth() * weight.getRow())));
 
             initializeUniform(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (Math.sqrt(3.0 / weight.getDepth()));
+            range = (float) (Math.sqrt(3.0 / (weight.getDepth() * weight.length() * weight.getRow())));
 
-            initializeUniformTensor4D(weight);
+            initializeUniform(weight);
         }
     }
 
@@ -263,16 +247,16 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (1 / Math.sqrt(weight.getDepth()));
+            range = (float) (1 / Math.sqrt(weight.getDepth() * weight.getRow()));
 
             initializeNormal(weight);
         }
 
         @Override
         public void initialize(NNTensor4D weight) {
-            range = (float) (1 / Math.sqrt(weight.getDepth()));
+            range = (float) (1 / Math.sqrt(weight.getDepth() * weight.row() * weight.length()));
 
-            initializeNormalTensor4D(weight);
+            initializeNormal(weight);
         }
     }
 }

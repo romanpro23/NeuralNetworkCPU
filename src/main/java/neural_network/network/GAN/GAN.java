@@ -63,26 +63,25 @@ public class GAN {
 
         //train discriminator
         accuracy += discriminator.train(data.getInput(), data.getOutput());
+        float acc = accuracy;
+        System.out.println("Discriminator acc " + accuracy);
 
         //generate data for generator
         random = randomDataGenerator(input.length);
-        NNVector realLabel = new NNVector(new float[]{1});
         NNVector[] realLabels = new NNVector[random.length];
         for (int i = 0; i < random.length; i++) {
-            realLabels[i] = realLabel;
+            realLabels[i] = new NNVector(new float[]{1});
         }
 
         //train generator
         generator.queryTrain(random);
         discriminator.setTrainable(false);
-        discriminator.forwardBackpropagation(generator.getOutputs(), realLabels);
+        //accuracy generator
+        accuracy += discriminator.forwardBackpropagation(generator.getOutputs(), realLabels);
+        System.out.println("Generator acc " + (accuracy - acc));
         generator.train(discriminator.getError());
         discriminator.setTrainable(true);
 
-        //accuracy generator
-        for (int i = 0; i < discriminator.getError().length; i++) {
-            accuracy += Math.abs(NNArrays.sum(discriminator.getError()[i]));
-        }
         return accuracy;
     }
 }

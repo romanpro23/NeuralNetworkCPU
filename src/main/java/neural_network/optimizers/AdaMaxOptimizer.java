@@ -19,6 +19,7 @@ public class AdaMaxOptimizer extends Optimizer {
     public void update() {
         t++;
         b1t = (float) (1 - Math.pow(beta1, t));
+        super.update();
     }
 
     public AdaMaxOptimizer() {

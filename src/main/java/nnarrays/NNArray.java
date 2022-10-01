@@ -28,6 +28,14 @@ public class NNArray {
         this.data = data;
     }
 
+    public NNArray(int[] data) {
+        this.size = data.length;
+        this.data = new float[size];
+        for (int i = 0; i < data.length; i++) {
+            this.data[i] = data[i];
+        }
+    }
+
     public int size() {
         return size;
     }

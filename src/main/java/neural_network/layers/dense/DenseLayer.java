@@ -30,11 +30,9 @@ public class DenseLayer extends DenseNeuralLayer {
     @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
-    private NNMatrix[] optimizeWeight;
     @Setter
     private NNVector threshold;
     private NNVector derThreshold;
-    private NNVector[] optimizeThreshold;
 
     public DenseLayer(int countNeuron) {
         super();
@@ -45,38 +43,8 @@ public class DenseLayer extends DenseNeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        if (optimizer.getCountParam() > 0) {
-            optimizeThreshold = new NNVector[optimizer.getCountParam()];
-            optimizeWeight = new NNMatrix[optimizer.getCountParam()];
-
-            for (int i = 0; i < optimizer.getCountParam(); i++) {
-                optimizeThreshold[i] = new NNVector(threshold);
-                optimizeWeight[i] = new NNMatrix(weight);
-            }
-        }
-    }
-
-    @Override
-    public void update(Optimizer optimizer) {
-        if (trainable) {
-            if (input.length != 1) {
-                derWeight.div(input.length);
-                derThreshold.div(input.length);
-            }
-
-            if (optimizer.getClipValue() != 0) {
-                derWeight.clip(optimizer.getClipValue());
-                derThreshold.clip(optimizer.getClipValue());
-            }
-
-            if (regularization != null) {
-                regularization.regularization(weight);
-                regularization.regularization(threshold);
-            }
-
-            optimizer.updateWeight(weight, derWeight, optimizeWeight);
-            optimizer.updateWeight(threshold, derThreshold, optimizeThreshold);
-        }
+        optimizer.addDataOptimize(weight, derWeight);
+        optimizer.addDataOptimize(threshold, derThreshold);
     }
 
     public DenseLayer setTrainable(boolean trainable) {
@@ -140,7 +108,7 @@ public class DenseLayer extends DenseNeuralLayer {
         this.input = NNArrays.isVector(inputs);
         this.output = new NNVector[input.length];
 
-        int countC = Runtime.getRuntime().availableProcessors() + 2;
+        int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
             final int firstIndex = t * input.length / countC;
@@ -163,7 +131,7 @@ public class DenseLayer extends DenseNeuralLayer {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNVector[errors.length];
 
-        int countC = Runtime.getRuntime().availableProcessors() + 2;
+        int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
             final int firstIndex = t * input.length / countC;
@@ -184,7 +152,7 @@ public class DenseLayer extends DenseNeuralLayer {
     }
 
     private void derivativeWeight(NNVector[] error) {
-        int countC = Runtime.getRuntime().availableProcessors() + 2;
+        int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
             final int firstIndex = t * input.length / countC;
@@ -202,6 +170,16 @@ public class DenseLayer extends DenseNeuralLayer {
         }
         executor.shutdown();
         while (!executor.isTerminated()) {
+        }
+
+        if (input.length != 1) {
+            derWeight.div(input.length);
+            derThreshold.div(input.length);
+        }
+
+        if (regularization != null) {
+            regularization.regularization(weight);
+            regularization.regularization(threshold);
         }
     }
 

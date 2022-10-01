@@ -8,10 +8,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Scanner;
 
 public class LayersBlock extends NeuralLayer{
     @Getter
     private ArrayList<NeuralLayer> layers;
+
+    private int[] inputSize;
 
     public LayersBlock() {
         layers = new ArrayList<>();
@@ -35,13 +38,6 @@ public class LayersBlock extends NeuralLayer{
     }
 
     @Override
-    public void update(Optimizer optimizer) {
-        for (NeuralLayer layer : layers) {
-            layer.update(optimizer);
-        }
-    }
-
-    @Override
     public int info() {
         int countParam = 0;
         System.out.println("            |           Layers block        |             ");
@@ -57,6 +53,12 @@ public class LayersBlock extends NeuralLayer{
     @Override
     public void write(FileWriter writer) throws IOException {
         writer.write("Layers block\n");
+        for (int j : inputSize) {
+            writer.write(j + " ");
+        }
+        writer.write("\n");
+        writer.flush();
+
         for (NeuralLayer layer : layers) {
             layer.write(writer);
         }
@@ -64,8 +66,20 @@ public class LayersBlock extends NeuralLayer{
         writer.flush();
     }
 
+    public static LayersBlock read(Scanner scanner) throws Exception {
+        if (scanner.nextLine().equals("Layers network")) {
+            LayersBlock block = new LayersBlock();
+            NeuralLayer.read(scanner, block.layers);
+            block.initialize(Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray());
+
+            return block;
+        }
+        throw new Exception("Network is not deep");
+    }
+
     @Override
     public void initialize(int[] size) {
+        this.inputSize = size;
         layers.get(0).initialize(size);
         for (int i = 1; i < layers.size(); i++) {
             layers.get(i).initialize(layers.get(i - 1).size());

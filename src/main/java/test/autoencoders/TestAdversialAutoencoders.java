@@ -28,7 +28,6 @@ public class TestAdversialAutoencoders {
                 .addDenseLayer(128)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(32))
-                .setOptimizer(new AdamOptimizer(0.0006))
                 .setFunctionLoss(new FunctionLoss.Quadratic())
                 .create();
 
@@ -67,7 +66,7 @@ public class TestAdversialAutoencoders {
         decoder.info();
         encoder.info();
         discriminator.info();
-        autoencoder.setOptimizersEncoder(new AdamOptimizer(0.0006), new AdamOptimizer(0.0008));
+        autoencoder.setOptimizersEncoder(new AdamOptimizer(0.001), new AdamOptimizer(0.0008));
 
         for (int i = 0; i < 100000; i++) {
             if (i % 50 == 0) {

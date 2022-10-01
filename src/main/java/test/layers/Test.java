@@ -1,7 +1,8 @@
-package test;
+package test.layers;
 
 import neural_network.layers.dense.DenseLayer;
 import neural_network.loss.FunctionLoss;
+import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.MomentumOptimizer;
 import neural_network.optimizers.Optimizer;
 import neural_network.optimizers.SGDOptimizer;
@@ -10,7 +11,7 @@ import nnarrays.NNVector;
 
 public class Test {
     public static void main(String[] args) {
-        NNVector[] input = new NNVector[64];
+        NNVector[] input = new NNVector[128];
         NNVector[] output = new NNVector[input.length];
 
         int inputSize = 256;
@@ -28,7 +29,7 @@ public class Test {
             }
         }
 
-        Optimizer optimizer = new SGDOptimizer(0.01);
+        Optimizer optimizer = new AdamOptimizer();
 
         DenseLayer layer = new DenseLayer(outputSize);
         layer.initialize(new int[]{inputSize});
@@ -39,9 +40,9 @@ public class Test {
         for (int i = 0; i < 128; i++) {
             long start = System.nanoTime();
             layer.generateOutput(input);
-//            System.out.println(loss.findAccuracy(layer.getOutput(), output));
+            System.out.println(loss.findAccuracy(layer.getOutput(), output));
             layer.generateError(NNArrays.toVector(loss.findDerivative(layer.getOutput(), output)));
-            layer.update(optimizer);
+            optimizer.update();
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

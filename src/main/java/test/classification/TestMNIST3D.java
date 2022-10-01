@@ -1,39 +1,36 @@
-package test;
+package test.classification;
 
 import data.mnist.MNISTLoader1D;
+import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
+import neural_network.layers.convolution_3d.*;
 import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.BatchNormalizationLayer;
-import neural_network.layers.dense.BatchRenormalizationLayer;
 import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
+import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
+import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
-import nnarrays.NNVector;
 import trainer.DataMetric;
 import trainer.DataTrainer;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Scanner;
 
-public class TestMNIST {
+public class TestMNIST3D {
     public static void main(String[] args) throws Exception {
-        BatchRenormalizationLayer brl1;
-        BatchRenormalizationLayer brl2;
         NeuralNetwork network = new NeuralNetwork()
-                .addInputLayer(784)
-//                .addLayer(new DenseLayer(1024))
-//                .addLayer(new BatchNormalizationLayer())
-//                .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(256))
-                .addLayer(brl1 = new BatchRenormalizationLayer(0.99))
-                .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(128))
-                .addLayer(brl2 = new BatchRenormalizationLayer(0.99))
-                .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(10))
+                .addInputLayer(28, 28, 1)
+                .addLayer(new ConvolutionLayer(16, 3, 2, 1))
+                .addLayer(new BatchNormalizationLayer3D(0.9).setTrainable(true))
+                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+                .addLayer(new ConvolutionLayer(32, 3, 2, 1))
+                .addLayer(new BatchNormalizationLayer3D(0.9).setTrainable(true))
+                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+                .addLayer(new GlobalAveragePooling3DLayer())
+                .addLayer(new DenseLayer(10).setTrainable(true))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
@@ -44,9 +41,9 @@ public class TestMNIST {
 //                .setFunctionLoss(new FunctionLoss.CrossEntropy())
 //                .create();
 
-        MNISTLoader1D loader = new MNISTLoader1D();
+        MNISTLoader3D loader = new MNISTLoader3D();
 
-        DataTrainer trainer = new DataTrainer(60000, 10000, loader);
+        DataTrainer trainer = new DataTrainer(1000, 1000, loader);
         network.info();
 
         for (int i = 0; i < 100; i++) {
@@ -54,13 +51,6 @@ public class TestMNIST {
 //            trainer.score(network, new DataMetric.Top1());
             trainer.train(network, 64, 1, new DataMetric.Top1());
             network.save(new FileWriter(new File("test.txt")));
-            if(i == 10){
-                brl1.setRMax(3);
-                brl1.setDMax(5);
-
-                brl2.setRMax(3);
-                brl2.setDMax(5);
-            }
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

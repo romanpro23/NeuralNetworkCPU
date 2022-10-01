@@ -1,16 +1,16 @@
 package trainer;
 
-import data.mnist.DataLoader1D;
-import data.network_train.NNData1D;
+import data.loaders.DataLoader;
+import data.network_train.NNData;
 import neural_network.network.NeuralNetwork;
 
 public class DataTrainer {
-    private DataLoader1D loader;
+    private DataLoader loader;
 
     private final int sizeTrainEpoch;
     private final int sizeTestEpoch;
 
-    public DataTrainer(int sizeTrainEpoch, int sizeTestEpoch, DataLoader1D loader) {
+    public DataTrainer(int sizeTrainEpoch, int sizeTestEpoch, DataLoader loader) {
         this.loader = loader;
         this.sizeTrainEpoch = sizeTrainEpoch;
         this.sizeTestEpoch = sizeTestEpoch;
@@ -22,7 +22,7 @@ public class DataTrainer {
             counter = 0;
             double accuracy = 0;
             for (int j = 0; j < (int) Math.ceil(sizeTrainEpoch * 1.0 / sizeBatch); j++) {
-                NNData1D data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
+                NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
                 accuracy += network.train(data.getInput(), data.getOutput());
                 counter += dataMetric.quality(data.getOutput(), network.getOutputs());
             }
@@ -31,17 +31,7 @@ public class DataTrainer {
             System.out.println("Відсоток правильних відповідей: " + String.format("%.2f", counter * 1.0 / sizeTrainEpoch * 100) + " %");
             System.out.println("Точність на навчальном датасеті: " + String.format("%.5f", accuracy / sizeTrainEpoch));
 
-            counter = 0;
-            accuracy = 0;
-            for (int j = 0; j < (int) Math.ceil(sizeTestEpoch * 1.0 / sizeBatch); j++) {
-                NNData1D data = loader.getNextTestData(Math.min(sizeBatch, sizeTestEpoch - j * sizeBatch));
-                counter += dataMetric.quality(data.getOutput(), network.query(data.getInput()));
-                accuracy += network.accuracy(data.getOutput());
-            }
-            System.out.println("Результат тренувального датасету: ");
-            System.out.println("Відсоток правильних відповідей: " + String.format("%.2f", counter * 1.0 / sizeTestEpoch * 100) + " %");
-            System.out.println("Точність на тренувальном датасеті: " + String.format("%.5f", accuracy / sizeTestEpoch));
-            System.out.println();
+            score(network, dataMetric);
         }
         return counter * 1.0f / sizeTestEpoch * 100;
     }
@@ -51,7 +41,7 @@ public class DataTrainer {
         int sizeBatch = sizeTestEpoch/100;
         double accuracy = 0;
         for (int j = 0; j < (int) Math.ceil(sizeTestEpoch * 1.0 / sizeBatch); j++) {
-            NNData1D data = loader.getNextTestData(Math.min(sizeBatch, sizeTestEpoch - j * sizeBatch));
+            NNData data = loader.getNextTestData(Math.min(sizeBatch, sizeTestEpoch - j * sizeBatch));
             counter += dataMetric.quality(data.getOutput(), network.query(data.getInput()));
             accuracy += network.accuracy(data.getOutput());
         }

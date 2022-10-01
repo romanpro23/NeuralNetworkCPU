@@ -2,6 +2,15 @@
 <project version="4">
   <component name="Encoding" defaultCharsetForPropertiesFiles="windows-1251">
     <file url="file://$PROJECT_DIR$/src/main/java/data/gan/GANGeneratorData.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/ActivationLayer3D.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/AveragePoolingLayer.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/BatchNormalizationLayer3D.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/BatchRenormalizationLayer3D.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/ConvolutionLayer.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/ConvolutionTransposeLayer.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/DropoutLayer3D.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/MaxPoolingLayer.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/convolution_3d/MinPoolingLayer.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/dense/BatchNormalizationLayer.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/dense/BatchRenormalizationLayer.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/dense/DropoutLayer.java" charset="UTF-8" />

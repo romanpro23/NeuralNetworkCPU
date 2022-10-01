@@ -1,4 +1,4 @@
-package test;
+package test.layers;
 
 import neural_network.layers.dense.BatchNormalizationLayer;
 import neural_network.layers.dense.DenseLayer;
@@ -43,7 +43,7 @@ public class TestBatchNorm {
                 System.out.println(Arrays.toString(layer.getOutput()[j].getData()));
             }
             layer.generateError(error);
-            layer.update(optimizer);
+            optimizer.update();
             System.out.println("Errors");
             for (int j = 0; j < layer.getOutput().length; j++) {
                 System.out.println(Arrays.toString(layer.getError()[j].getData()));

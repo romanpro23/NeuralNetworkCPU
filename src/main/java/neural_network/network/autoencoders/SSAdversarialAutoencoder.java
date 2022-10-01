@@ -5,14 +5,11 @@ import data.network_train.NNData;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
 import neural_network.layers.LayersBlock;
-import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-
-import java.util.Arrays;
 
 public class SSAdversarialAutoencoder {
     private final NeuralNetwork decoder;
@@ -31,9 +28,7 @@ public class SSAdversarialAutoencoder {
         this.styleBlock = styleBlock;
 
         classificationBlock.initialize(encoder.getOutputSize());
-        classificationBlock.initialize(encoder.getOptimizer());
         styleBlock.initialize(encoder.getOutputSize());
-        styleBlock.initialize(encoder.getOptimizer());
 
         optimizerDecode = null;
         optimizerDistribution = null;
@@ -55,18 +50,21 @@ public class SSAdversarialAutoencoder {
         return this;
     }
 
-    public SSAdversarialAutoencoder setOptimizersEncoder(Optimizer optimizerDecode, Optimizer optimizerDistribution) {
+    public SSAdversarialAutoencoder setOptimizersEncoder(Optimizer optimizerDecode,
+                                                         Optimizer optimizerDistribution,
+                                                         Optimizer optimizerLabel) {
         this.optimizerDistribution = optimizerDistribution;
-        this.optimizerDecode = optimizerDecode;
-        this.optimizerLabel = optimizerDistribution;
+        encoder.initialize(optimizerDistribution);
+        styleBlock.initialize(optimizerDistribution);
 
-        return this;
-    }
-
-    public SSAdversarialAutoencoder setOptimizersEncoder(Optimizer optimizerDecode, Optimizer optimizerDistribution, Optimizer optimizerLabel) {
-        this.optimizerDistribution = optimizerDistribution;
         this.optimizerDecode = optimizerDecode;
+        encoder.initialize(optimizerDecode);
+        classificationBlock.initialize(optimizerDecode);
+        styleBlock.initialize(optimizerDecode);
+
         this.optimizerLabel = optimizerLabel;
+        encoder.initialize(optimizerLabel);
+        classificationBlock.initialize(optimizerLabel);
 
         return this;
     }
@@ -152,15 +150,9 @@ public class SSAdversarialAutoencoder {
         }
 
         //train encoder
+        encoder.setOptimizer(optimizerDecode);
         encoder.train(errorEncoder);
 
-        if (optimizerDecode != null) {
-            classificationBlock.update(optimizerDecode);
-            styleBlock.update(optimizerDecode);
-        } else {
-            classificationBlock.update(encoder.getOptimizer());
-            styleBlock.update(encoder.getOptimizer());
-        }
         return accuracy;
     }
 
@@ -187,13 +179,11 @@ public class SSAdversarialAutoencoder {
         if (optimizerDistribution != null) {
             encoder.setOptimizer(optimizerDistribution);
         }
+
+        encoder.setOptimizer(optimizerDistribution);
         encoder.train(styleBlock.getError());
-        if (optimizerDistribution != null) {
-            styleBlock.update(optimizerDistribution);
-        } else {
-            styleBlock.update(encoder.getOptimizer());
-        }
         styleDiscriminator.setTrainable(true);
+
         return accuracy;
     }
 
@@ -223,12 +213,8 @@ public class SSAdversarialAutoencoder {
             encoder.setOptimizer(optimizerLabel);
         }
 
+        encoder.setOptimizer(optimizerLabel);
         encoder.train(classificationBlock.getError());
-        if (optimizerLabel != null) {
-            classificationBlock.update(optimizerLabel);
-        } else {
-            classificationBlock.update(encoder.getOptimizer());
-        }
         labelDiscriminator.setTrainable(true);
 
         return accuracy;

@@ -28,17 +28,18 @@ public class DropoutLayer extends DenseNeuralLayer {
     @Override
     public void generateOutput(NNArray[] input) {
         this.input = NNArrays.isVector(input);
+        this.output = this.input;
+    }
+
+    @Override
+    public void generateTrainOutput(NNArray[] input) {
+        this.input = NNArrays.isVector(input);
         this.output = new NNVector[input.length];
 
         for (int i = 0; i < output.length; i++) {
             this.output[i] = new NNVector(countNeuron);
             output[i].dropout(this.input[i], dropout);
         }
-    }
-
-    @Override
-    public void generateTrainOutput(NNArray[] input) {
-        generateOutput(input);
     }
 
     @Override

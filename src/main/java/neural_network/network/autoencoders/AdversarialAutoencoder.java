@@ -2,7 +2,6 @@ package neural_network.network.autoencoders;
 
 import data.gan.GANGeneratorData;
 import data.network_train.NNData;
-import data.network_train.NNData1D;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
 import neural_network.network.NeuralNetwork;
@@ -28,7 +27,9 @@ public class AdversarialAutoencoder {
 
     public AdversarialAutoencoder setOptimizersEncoder(Optimizer optimizerDecode, Optimizer optimizerDistribution) {
         this.optimizerDistribution = optimizerDistribution;
+        encoder.initialize(optimizerDistribution);
         this.optimizerDecode = optimizerDecode;
+        encoder.initialize(optimizerDecode);
 
         return this;
     }
@@ -72,9 +73,8 @@ public class AdversarialAutoencoder {
     public float trainDecoder(NNArray[] input, NNArray[] output) {
         encoder.queryTrain(input);
         float accuracy = decoder.train(encoder.getOutputs(), output);
-        if (optimizerDecode != null) {
-            encoder.setOptimizer(optimizerDecode);
-        }
+
+        encoder.setOptimizer(optimizerDecode);
         encoder.train(decoder.getError());
         return accuracy;
     }
@@ -97,9 +97,8 @@ public class AdversarialAutoencoder {
         //train generator
         discriminator.setTrainable(false);
         discriminator.forwardBackpropagation(encoder.getOutputs(), label);
-        if (optimizerDistribution != null) {
-            encoder.setOptimizer(optimizerDistribution);
-        }
+
+        encoder.setOptimizer(optimizerDistribution);
         encoder.train(discriminator.getError());
         discriminator.setTrainable(true);
 

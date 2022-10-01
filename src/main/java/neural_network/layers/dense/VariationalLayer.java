@@ -108,14 +108,6 @@ public class VariationalLayer extends DenseNeuralLayer {
         }
     }
 
-    @Override
-    public void update(Optimizer optimizer) {
-        if (trainable) {
-            mu.update(optimizer);
-            gamma.update(optimizer);
-        }
-    }
-
     private void generateErrorMu() {
         errorMu = new NNVector[errorNL.length];
         NNVector[] muOutput = NNArrays.isVector(mu.getOutput());

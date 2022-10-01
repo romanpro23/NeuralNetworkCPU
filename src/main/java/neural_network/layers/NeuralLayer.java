@@ -1,7 +1,12 @@
 package neural_network.layers;
 
 import lombok.Setter;
+import neural_network.layers.convolution_3d.*;
 import neural_network.layers.dense.*;
+import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
+import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
+import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
@@ -30,6 +35,19 @@ public abstract class NeuralLayer {
                 case "Variational layer" -> layers.add(VariationalLayer.read(scanner));
                 case "Dropout layer" -> layers.add(DropoutLayer.read(scanner));
                 case "Activation layer" -> layers.add(ActivationLayer.read(scanner));
+                case "Activation layer 3D" -> layers.add(ActivationLayer3D.read(scanner));
+                case "Average pooling layer 3D" -> layers.add(AveragePoolingLayer.read(scanner));
+                case "Batch normalization layer 3D" -> layers.add(BatchNormalizationLayer3D.read(scanner));
+                case "Batch renormalization layer 3D" -> layers.add(BatchRenormalizationLayer3D.read(scanner));
+                case "Convolution layer 3D" -> layers.add(ConvolutionLayer.read(scanner));
+                case "Convolution transpose layer 3D" -> layers.add(ConvolutionTransposeLayer.read(scanner));
+                case "Dropout layer 3D" -> layers.add(DropoutLayer3D.read(scanner));
+                case "Max pooling layer 3D" -> layers.add(MaxPoolingLayer.read(scanner));
+                case "Up sampling layer" -> layers.add(UpSamplingLayer.read(scanner));
+                case "Flatten layer 3D" -> layers.add(Flatten3DLayer.read(scanner));
+                case "Global max pooling 3D" -> layers.add(GlobalMaxPooling3DLayer.read(scanner));
+                case "Global average pooling 3D" -> layers.add(GlobalAveragePooling3DLayer.read(scanner));
+                case "Reshape layer 3D" -> layers.add(Reshape3DLayer.read(scanner));
                 case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));
                 case "Batch renormalization layer" -> layers.add(BatchRenormalizationLayer.read(scanner));
             }
@@ -41,8 +59,6 @@ public abstract class NeuralLayer {
     public abstract int[] size();
 
     public abstract void initialize(Optimizer optimizer);
-
-    public abstract void update(Optimizer optimizer);
 
     public abstract int info();
 
@@ -70,5 +86,9 @@ public abstract class NeuralLayer {
 
     public void trainable(boolean trainable){
         this.trainable = trainable;
+    }
+
+    protected int getCountCores(){
+        return Math.min(Runtime.getRuntime().availableProcessors() + 2, getOutput().length);
     }
 }

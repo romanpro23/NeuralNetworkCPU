@@ -19,19 +19,16 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
     private boolean loadWeight;
 
     private final float momentum;
-    private final float epsilon;
     private float rMax, dMax;
 
     //betta
     @Setter
     private NNVector betta;
     private NNVector derBetta;
-    private NNVector[] optimizeBetta;
     //gamma
     @Setter
     private NNVector gamma;
     private NNVector derGamma;
-    private NNVector[] optimizeGamma;
 
     private NNVector movingMean;
     private NNVector movingVar;
@@ -52,7 +49,6 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         this.rMax = (float) rMax;
         this.dMax = (float) dMax;
         this.trainable = true;
-        epsilon = 0.001f;
     }
 
     public BatchRenormalizationLayer setRMax(double rMax) {
@@ -101,38 +97,8 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        if (optimizer.getCountParam() > 0) {
-            optimizeGamma = new NNVector[optimizer.getCountParam()];
-            optimizeBetta = new NNVector[optimizer.getCountParam()];
-
-            for (int i = 0; i < optimizer.getCountParam(); i++) {
-                optimizeGamma[i] = new NNVector(gamma);
-                optimizeBetta[i] = new NNVector(betta);
-            }
-        }
-    }
-
-    @Override
-    public void update(Optimizer optimizer) {
-        if (trainable) {
-            if (input.length != 1) {
-                derBetta.div(input.length);
-                derGamma.div(input.length);
-            }
-
-            if (optimizer.getClipValue() != 0) {
-                derBetta.clip(optimizer.getClipValue());
-                derGamma.clip(optimizer.getClipValue());
-            }
-
-            if (regularization != null) {
-                regularization.regularization(betta);
-                regularization.regularization(gamma);
-            }
-
-            optimizer.updateWeight(betta, derBetta, optimizeBetta);
-            optimizer.updateWeight(gamma, derGamma, optimizeGamma);
-        }
+        optimizer.addDataOptimize(betta, derBetta);
+        optimizer.addDataOptimize(gamma, derGamma);
     }
 
     @Override
@@ -232,7 +198,7 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         }
 
         NNVector errorVariance = derVar(errorRenorm);
-        NNVector errorMean = derMean(errorRenorm, errorVariance);
+        NNVector errorMean = derMean(errorRenorm);
 
         derRenorm(errorRenorm, errorMean, errorVariance);
 
@@ -259,7 +225,7 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         return derVariance;
     }
 
-    private NNVector derMean(NNVector[] error, NNVector derVar) {
+    private NNVector derMean(NNVector[] error) {
         NNVector derMean = new NNVector(mean.size());
         float[] dMean = new float[mean.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -301,6 +267,16 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
                 derBetta.getData()[j] += error[i].getData()[j];
                 derGamma.getData()[j] += error[i].getData()[j] * renormOutput[i].getData()[j];
             }
+        }
+
+        if (input.length != 1) {
+            derBetta.div(input.length);
+            derGamma.div(input.length);
+        }
+
+        if (regularization != null) {
+            regularization.regularization(betta);
+            regularization.regularization(gamma);
         }
     }
 

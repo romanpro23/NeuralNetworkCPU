@@ -26,12 +26,10 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     @Setter
     private NNVector betta;
     private NNVector derBetta;
-    private NNVector[] optimizeBetta;
     //gamma
     @Setter
     private NNVector gamma;
     private NNVector derGamma;
-    private NNVector[] optimizeGamma;
 
     private NNVector movingMean;
     private NNVector movingVar;
@@ -75,38 +73,8 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        if (optimizer.getCountParam() > 0) {
-            optimizeGamma = new NNVector[optimizer.getCountParam()];
-            optimizeBetta = new NNVector[optimizer.getCountParam()];
-
-            for (int i = 0; i < optimizer.getCountParam(); i++) {
-                optimizeGamma[i] = new NNVector(gamma);
-                optimizeBetta[i] = new NNVector(betta);
-            }
-        }
-    }
-
-    @Override
-    public void update(Optimizer optimizer) {
-        if (trainable) {
-            if (input.length != 1) {
-                derBetta.div(input.length);
-                derGamma.div(input.length);
-            }
-
-            if (optimizer.getClipValue() != 0) {
-                derBetta.clip(optimizer.getClipValue());
-                derGamma.clip(optimizer.getClipValue());
-            }
-
-            if (regularization != null) {
-                regularization.regularization(betta);
-                regularization.regularization(gamma);
-            }
-
-            optimizer.updateWeight(betta, derBetta, optimizeBetta);
-            optimizer.updateWeight(gamma, derGamma, optimizeGamma);
-        }
+        optimizer.addDataOptimize(betta, derBetta);
+        optimizer.addDataOptimize(gamma, derGamma);
     }
 
     @Override
@@ -256,6 +224,16 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
                 derBetta.getData()[j] += error[i].getData()[j];
                 derGamma.getData()[j] += error[i].getData()[j] * normOutput[i].getData()[j];
             }
+        }
+
+        if (input.length != 1) {
+            derBetta.div(input.length);
+            derGamma.div(input.length);
+        }
+
+        if (regularization != null) {
+            regularization.regularization(betta);
+            regularization.regularization(gamma);
         }
     }
 

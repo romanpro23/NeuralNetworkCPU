@@ -13,6 +13,7 @@ import neural_network.network.NeuralNetwork;
 import neural_network.network.autoencoders.AdversarialAutoencoder;
 import neural_network.network.autoencoders.SSAdversarialAutoencoder;
 import neural_network.optimizers.AdamOptimizer;
+import neural_network.optimizers.Optimizer;
 import neural_network.optimizers.SGDOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
@@ -26,11 +27,10 @@ public class TestSSAdversialAutoencoders {
     public static void main(String[] args) throws Exception {
         NeuralNetwork encoder = new NeuralNetwork()
                 .addInputLayer(784)
+                .addDenseLayer(1024)
+                .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(512)
                 .addActivationLayer(new FunctionActivation.ReLU())
-                .addDenseLayer(256)
-                .addActivationLayer(new FunctionActivation.ReLU())
-                .setOptimizer(new SGDOptimizer(0.01))
                 .setFunctionLoss(new FunctionLoss.Quadratic())
                 .create();
 
@@ -43,42 +43,43 @@ public class TestSSAdversialAutoencoders {
 
         NeuralNetwork decoder = new NeuralNetwork()
                 .addInputLayer(42)
-                .addDenseLayer(256)
-                .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(512)
+                .addActivationLayer(new FunctionActivation.ReLU())
+                .addDenseLayer(1024)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
-                .setOptimizer(new SGDOptimizer(0.01))
+                .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.Quadratic())
                 .create();
 
         NeuralNetwork discriminatorStyle = new NeuralNetwork()
                 .addInputLayer(32)
-                .addDenseLayer(512)
+                .addDenseLayer(1024)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(256)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(1)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
-                .setOptimizer(new SGDOptimizer(0.01))
+                .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.BinaryCrossEntropy())
                 .create();
 
         NeuralNetwork discriminatorLabel = new NeuralNetwork()
                 .addInputLayer(10)
-                .addDenseLayer(512)
+                .addDenseLayer(1024)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(256)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(1)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
-                .setOptimizer(new SGDOptimizer(0.01))
+                .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.BinaryCrossEntropy())
                 .create();
 
         SSAdversarialAutoencoder autoencoder = new SSAdversarialAutoencoder(encoder, decoder, classificationBlock, styleBlock)
-                .setDiscriminators(discriminatorLabel, discriminatorStyle);
+                .setDiscriminators(discriminatorLabel, discriminatorStyle)
+                .setOptimizersEncoder(new AdamOptimizer(), new AdamOptimizer(), new AdamOptimizer());
         MNISTLoader1D loader = new MNISTLoader1D();
         Initializer initializer = new Initializer.RandomNormal();
 
@@ -90,12 +91,19 @@ public class TestSSAdversialAutoencoders {
         System.out.println();
         discriminatorLabel.info();
 
+        Optimizer optimizerClassification = new AdamOptimizer();
         NeuralNetwork classificator = encoder.copy()
                 .addLayers(classificationBlock.getLayers())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
-                .setOptimizer(new SGDOptimizer(0.01));
+                .setOptimizer(optimizerClassification)
+                .initialize(optimizerClassification);
 
         DataTrainer trainer = new DataTrainer(60000, 10000, loader);
+
+        NNData1D trainClassification[] = new NNData1D[10];
+        for (int i = 0; i < 10; i++) {
+            trainClassification[i] = loader.getNextTrainData(64);
+        }
 
         for (int i = 0; i < 100000; i++) {
             if (i % 50 == 0) {
@@ -130,7 +138,7 @@ public class TestSSAdversialAutoencoders {
             }
             NNData1D train = loader.getNextTrainData(64);
             System.out.println(i + " - " + autoencoder.train(train.getInput(), train.getOutput()));
-//            classificator.train(train.getInput(), train.getOutput());
+            classificator.train(trainClassification[i%10].getInput(), trainClassification[i%10].getOutput());
             if(i % 200 == 0) {
                 trainer.score(classificator, new DataMetric.Top1());
             }

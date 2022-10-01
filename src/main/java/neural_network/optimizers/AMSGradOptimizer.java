@@ -23,6 +23,7 @@ public class AMSGradOptimizer extends Optimizer {
         t++;
         b1t = (float) (1 - Math.pow(beta1, t));
         b2t = (float) (1 - Math.pow(beta2, t));
+        super.update();
     }
 
     public AMSGradOptimizer() {

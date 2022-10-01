@@ -1,5 +1,8 @@
 package data.mnist;
 
+import data.loaders.DataLoader1D;
+import data.loaders.ImageData1D;
+import data.loaders.TransformData;
 import data.network_train.NNData1D;
 import nnarrays.NNVector;
 
@@ -16,12 +19,6 @@ public class MNISTLoader1D extends DataLoader1D {
     private int trueNumb = -1;
     private final byte[] bytes = new byte[784];
     private final byte[] byteNumb = new byte[1];
-
-    private final ArrayList<ImageData1D> train;
-    private final ArrayList<ImageData1D> test;
-
-    private int curTrain = 0;
-    private int curTest = 0;
 
     private static FileInputStream scanner;
     private static FileInputStream scannerNumb;
@@ -108,54 +105,6 @@ public class MNISTLoader1D extends DataLoader1D {
             }
         }
         Collections.shuffle(test);
-    }
-
-    public NNData1D getNextTrainData(int sizeBatch) {
-        int size = sizeBatch;
-        if (curTrain + sizeBatch >= batchMNIST.getSizeTrain()) {
-            size = batchMNIST.getSizeTrain() - curTrain;
-        }
-
-        NNVector[] input = new NNVector[size];
-        NNVector[] output = new NNVector[size];
-
-        for (int i = 0; i < size; i++) {
-            input[i] = train.get(curTrain).getInputs();
-            output[i] = train.get(curTrain).getOutputs();
-
-            curTrain++;
-        }
-
-        if(size != sizeBatch || curTrain == batchMNIST.getSizeTrain()){
-            curTrain = 0;
-            Collections.shuffle(train);
-        }
-
-        return new NNData1D(input, output);
-    }
-
-    public NNData1D getNextTestData(int sizeBatch) {
-        int size = sizeBatch;
-        if (curTest + sizeBatch >= batchMNIST.getSizeTest()) {
-            size = batchMNIST.getSizeTest() - curTest;
-        }
-
-        NNVector[] input = new NNVector[size];
-        NNVector[] output = new NNVector[size];
-
-        for (int i = 0; i < size; i++) {
-            input[i] = test.get(curTest).getInputs();
-            output[i] = test.get(curTest).getOutputs();
-
-            curTest++;
-        }
-
-        if(size != sizeBatch || curTest == batchMNIST.getSizeTest()){
-            curTest = 0;
-            Collections.shuffle(test);
-        }
-
-        return new NNData1D(input, output);
     }
 
     private void generateInput() {

@@ -1,15 +1,16 @@
-package data.mnist;
+package data.loaders;
 
 import lombok.Getter;
+import nnarrays.NNTensor;
 import nnarrays.NNVector;
 
-public class ImageData1D {
+public class ImageData3D {
     @Getter
-    private NNVector inputs;
+    private NNTensor inputs;
     @Getter
     private NNVector outputs;
 
-    public ImageData1D(NNVector inputs, NNVector outputs) {
+    public ImageData3D(NNTensor inputs, NNVector outputs) {
         this.inputs = inputs;
         this.outputs = outputs;
     }

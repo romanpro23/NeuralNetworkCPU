@@ -1,4 +1,4 @@
-package data.mnist;
+package data.loaders;
 
 public interface TransformData {
     float transform(int input);
