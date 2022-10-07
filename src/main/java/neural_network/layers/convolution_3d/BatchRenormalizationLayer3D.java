@@ -283,7 +283,6 @@ public class BatchRenormalizationLayer3D extends ConvolutionNeuralLayer {
         }
 
         for (int i = 0; i < error.length; i++) {
-            int size = error[i].getRow() * error[i].getDepth();
             int index = 0;
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -296,7 +295,6 @@ public class BatchRenormalizationLayer3D extends ConvolutionNeuralLayer {
 
     private void derivativeWeight(NNTensor[] error) {
         for (int i = 0; i < error.length; i++) {
-            int size = error[i].getRow() * error[i].getDepth();
             int index = 0;
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -307,8 +305,8 @@ public class BatchRenormalizationLayer3D extends ConvolutionNeuralLayer {
         }
 
         if (input.length != 1) {
-            derBetta.div(input.length * size);
-            derGamma.div(input.length * size);
+            derBetta.div(input.length);
+            derGamma.div(input.length);
         }
 
         if (regularization != null) {

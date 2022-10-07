@@ -1,7 +1,6 @@
 package neural_network.layers.convolution_3d;
 
 import lombok.Setter;
-import neural_network.layers.dense.DenseNeuralLayer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
@@ -186,7 +185,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
     }
 
     private NNVector derVar(NNTensor[] error) {
-        NNVector derVariance = new NNVector(var);
+        NNVector derVariance = new NNVector(var.size());
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
             dVar[i] = (float) (-0.5 * Math.pow(var.get(i) + epsilon, -1.5));
@@ -211,11 +210,10 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         float[] dMean = new float[mean.size()];
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
-            dMean[i] = (float) (-1.0f / Math.sqrt(var.getData()[i] + epsilon));
+            dMean[i] = (float) (-1.0f / Math.sqrt(var.get(i) + epsilon));
         }
 
         for (int i = 0; i < error.length; i++) {
-            int size = error[i].getRow() * error[i].getDepth();
             int index = 0;
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -241,7 +239,6 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         }
 
         for (int i = 0; i < error.length; i++) {
-            int size = error[i].getRow() * error[i].getDepth();
             int index = 0;
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -254,7 +251,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
 
     private void derivativeWeight(NNTensor[] error) {
         for (int i = 0; i < error.length; i++) {
-            int size = error[i].getRow() * error[i].getDepth();
+            int size = error[i].getColumns() * error[i].getRows();
             int index = 0;
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -265,8 +262,8 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         }
 
         if (input.length != 1) {
-            derBetta.div(input.length * size);
-            derGamma.div(input.length * size);
+            derBetta.div(input.length);
+            derGamma.div(input.length);
         }
 
         if (regularization != null) {

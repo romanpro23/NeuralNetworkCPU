@@ -103,7 +103,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(6.0 / ((weight.getDepth() + weight.getColumn()) * weight.getRow())));
+            range = (float) (Math.sqrt(6.0 / ((weight.getRows() + weight.getDepth()) * weight.getColumns())));
             initializeUniform(weight);
         }
 
@@ -129,7 +129,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(2.0 / ((weight.getDepth() + weight.getColumn()) * weight.getRow())));
+            range = (float) (Math.sqrt(2.0 / ((weight.getRows() + weight.getDepth()) * weight.getColumns())));
             initializeNormal(weight);
         }
 
@@ -157,7 +157,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(6.0 / (weight.getColumn() * weight.getRow())));
+            range = (float) (Math.sqrt(6.0 / (weight.getDepth() * weight.getColumns())));
 
             initializeUniform(weight);
         }
@@ -187,7 +187,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(2.0 / (weight.getRow() * weight.getColumn())));
+            range = (float) (Math.sqrt(2.0 / (weight.getColumns() * weight.getDepth())));
 
             initializeNormal(weight);
         }
@@ -217,7 +217,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (Math.sqrt(3.0 / (weight.getDepth() * weight.getRow())));
+            range = (float) (Math.sqrt(3.0 / (weight.getRows() * weight.getColumns())));
 
             initializeUniform(weight);
         }
@@ -247,7 +247,7 @@ public abstract class Initializer {
 
         @Override
         public void initialize(NNTensor weight) {
-            range = (float) (1 / Math.sqrt(weight.getDepth() * weight.getRow()));
+            range = (float) (1 / Math.sqrt(weight.getRows() * weight.getColumns()));
 
             initializeNormal(weight);
         }

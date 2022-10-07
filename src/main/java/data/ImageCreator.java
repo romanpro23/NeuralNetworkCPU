@@ -42,6 +42,9 @@ public class ImageCreator {
     }
 
     public static void drawColorImage(NNTensor tensor, int h, int w, String nameImg, String path) {
+        drawColorImage(tensor, h, w, nameImg, path, false);
+    }
+    public static void drawColorImage(NNTensor tensor, int h, int w, String nameImg, String path, boolean tanh) {
         Color color;
         BufferedImage result = new BufferedImage(h, w, BufferedImage.TYPE_INT_RGB);
         for (int i = 0; i < h; i++) {
@@ -50,8 +53,16 @@ public class ImageCreator {
                     float red = tensor.get(i, j, 0);
                     float green = tensor.get(i, j, 1);
                     float blue = tensor.get(i, j, 2);
+                    if(tanh){
+                        red *= 0.5f;
+                        red += 0.5f;
+                        green *= 0.5f;
+                        green += 0.5f;
+                        blue *= 0.5f;
+                        blue += 0.5f;
+                    }
                     color = new Color(red, green, blue);
-                    result.setRGB(j, i, color.getRGB());
+                    result.setRGB(i, j, color.getRGB());
                 } catch (Exception e) {
 
                 }

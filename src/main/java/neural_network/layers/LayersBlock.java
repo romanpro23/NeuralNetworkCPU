@@ -1,6 +1,7 @@
 package neural_network.layers;
 
 import lombok.Getter;
+import lombok.SneakyThrows;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 
@@ -10,17 +11,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class LayersBlock extends NeuralLayer{
+public class LayersBlock extends NeuralLayer {
     @Getter
-    private ArrayList<NeuralLayer> layers;
+    protected ArrayList<NeuralLayer> layers;
 
-    private int[] inputSize;
+    protected int[] inputSize;
 
     public LayersBlock() {
         layers = new ArrayList<>();
+        trainable = true;
     }
 
-    public LayersBlock addLayer(NeuralLayer layer){
+    public LayersBlock addLayer(NeuralLayer layer) {
         layers.add(layer);
         return this;
     }
@@ -35,6 +37,13 @@ public class LayersBlock extends NeuralLayer{
         for (NeuralLayer layer : layers) {
             layer.initialize(optimizer);
         }
+    }
+
+    public LayersBlock setTrainable(boolean trainable) {
+        for (NeuralLayer layer : layers) {
+            layer.trainable(trainable);
+        }
+        return this;
     }
 
     @Override
@@ -67,14 +76,21 @@ public class LayersBlock extends NeuralLayer{
     }
 
     public static LayersBlock read(Scanner scanner) throws Exception {
-        if (scanner.nextLine().equals("Layers network")) {
+        if (scanner.nextLine().equals("Layers block")) {
             LayersBlock block = new LayersBlock();
             NeuralLayer.read(scanner, block.layers);
             block.initialize(Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray());
 
             return block;
         }
-        throw new Exception("Network is not deep");
+        throw new Exception("It is not layers block");
+    }
+
+    public static LayersBlock readBlock(Scanner scanner){
+        LayersBlock block = new LayersBlock();
+        NeuralLayer.read(scanner, block.layers);
+
+        return block;
     }
 
     @Override

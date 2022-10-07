@@ -83,7 +83,7 @@ public class Flatten3DLayer extends NeuralLayer {
         if (!nextLayers.isEmpty()) {
             for (int i = 0; i < errorNL.length; i++) {
                 for (NeuralLayer nextLayer : nextLayers) {
-                    errorNL[i].add(nextLayer.getError()[i]);
+                    errorNL[i].add(nextLayer.getErrorNL()[i]);
                 }
             }
         }

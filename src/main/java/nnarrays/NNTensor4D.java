@@ -92,22 +92,22 @@ public class NNTensor4D extends NNArray {
     public void convolution(NNTensor input, NNTensor error, int step, int padY, int padX) {
         int x0, y0, inputIndex, weightIndex, w0, outputIndex;
 
-        for (int y = -padY, h = 0; h < error.getDepth(); y += step, h++) {
-            for (int x = -padX, w = 0; w < error.getRow(); x += step, w++) {
-                outputIndex = error.getDepthIndex()[h] + error.getRowIndex()[w];
+        for (int y = -padY, h = 0; h < error.getRows(); y += step, h++) {
+            for (int x = -padX, w = 0; w < error.getColumns(); x += step, w++) {
+                outputIndex = error.getRowsIndex()[h] + error.getColumnsIndex()[w];
                 for (int d = 0; d < depth; d++, outputIndex++) {
                     for (int j = 0; j < length; j++) {
                         y0 = y + j;
-                        if (y0 < 0 || y0 >= input.getDepth()) {
+                        if (y0 < 0 || y0 >= input.getRows()) {
                             continue;
                         }
                         w0 = depthIndex[d] + lengthIndex[j];
                         for (int k = 0; k < row; k++) {
                             x0 = x + k;
-                            if (x0 < 0 || x0 >= input.getRow()) {
+                            if (x0 < 0 || x0 >= input.getColumns()) {
                                 continue;
                             }
-                            inputIndex = input.getDepthIndex()[y0] + input.getRowIndex()[x0];
+                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0];
                             weightIndex = w0 + rowIndex[k];
                             for (int c = 0; c < column; c++, inputIndex++, weightIndex++) {
                                 data[weightIndex] += input.data[inputIndex] * error.data[outputIndex];
@@ -127,23 +127,23 @@ public class NNTensor4D extends NNArray {
         int hCore = length - 1;
         int hC, wC;
 
-        for (int y = -padY, h = 0; h < error.getDepth(); y++, h++) {
-            for (int x = -padX, w = 0; w < error.getRow(); x++, w++) {
-                outputIndex = error.getDepthIndex()[h] + error.getRowIndex()[w];
+        for (int y = -padY, h = 0; h < error.getRows(); y++, h++) {
+            for (int x = -padX, w = 0; w < error.getColumns(); x++, w++) {
+                outputIndex = error.getRowsIndex()[h] + error.getColumnsIndex()[w];
                 for (int d = 0; d < column; d++, outputIndex++) {
                     for (int j = 0; j < length; j++) {
                         y0 = y + j;
-                        if (y0 < 0 || y0 >= input.getDepth()) {
+                        if (y0 < 0 || y0 >= input.getRows()) {
                             continue;
                         }
                         hC = hCore - j;
                         w0 = d + lengthIndex[hC];
                         for (int k = 0; k < row; k++) {
                             x0 = x + k;
-                            if (x0 < 0 || x0 >= input.getRow()) {
+                            if (x0 < 0 || x0 >= input.getColumns()) {
                                 continue;
                             }
-                            inputIndex = input.getDepthIndex()[y0] + input.getRowIndex()[x0];
+                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0];
                             wC = wCore - k;
                             weightIndex = w0 + rowIndex[wC];
 

@@ -16,11 +16,15 @@ public class IMDBLoader1D extends DataLoader1D {
     private NNVector trueAns = new NNVector(new float[]{1});
     private NNVector falseAns = new NNVector(new float[]{0});
 
-    public IMDBLoader1D() throws FileNotFoundException {
+    public IMDBLoader1D() {
         test = new ArrayList<>(25000);
         train = new ArrayList<>(25000);
 
-        loadData();
+        try {
+            loadData();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private void loadData() throws FileNotFoundException {

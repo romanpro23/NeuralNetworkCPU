@@ -1,6 +1,5 @@
-package neural_network.layers.convolution_3d;
+package neural_network.layers.convolution_2d;
 
-import lombok.Getter;
 import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
@@ -14,7 +13,7 @@ import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
+public class ConvolutionLayer extends ConvolutionNeuralLayer {
     //trainable parts
     private Regularization regularization;
     private Initializer initializer;
@@ -23,39 +22,30 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
 
     //weight
     @Setter
-    private NNTensor4D weight;
-    @Getter
-    private NNTensor4D derWeight;
+    private NNTensor weight;
+    private NNTensor derWeight;
     @Setter
     private NNVector threshold;
     private NNVector derThreshold;
 
-    private final int paddingY;
-    private final int paddingX;
-    private final int stride;
-    private final int heightKernel;
-    private final int widthKernel;
+    private final int padding;
+    private final int step;
+    private final int sizeKernel;
     private final int countKernel;
 
-    public ConvolutionTransposeLayer(int countKernel, int sizeKernel) {
-        this(countKernel, sizeKernel, sizeKernel, 1, 0, 0);
+    public ConvolutionLayer(int countKernel, int sizeKernel) {
+        this(countKernel, sizeKernel, 1, 0);
     }
 
-    public ConvolutionTransposeLayer(int countKernel, int sizeKernel, int stride) {
-        this(countKernel, sizeKernel, sizeKernel, stride, 0, 0);
+    public ConvolutionLayer(int countKernel, int sizeKernel, int step) {
+        this(countKernel, sizeKernel, step, 0);
     }
 
-    public ConvolutionTransposeLayer(int countKernel, int sizeKernel, int stride, int padding) {
-        this(countKernel, sizeKernel, sizeKernel, stride, padding, padding);
-    }
-
-    public ConvolutionTransposeLayer(int countKernel, int heightKernel, int widthKernel, int stride, int paddingY, int paddingX) {
+    public ConvolutionLayer(int countKernel, int sizeKernel, int step, int padding) {
         this.countKernel = countKernel;
-        this.paddingX = paddingX;
-        this.paddingY = paddingY;
-        this.stride = stride;
-        this.heightKernel = heightKernel;
-        this.widthKernel = widthKernel;
+        this.padding = padding;
+        this.step = step;
+        this.sizeKernel = sizeKernel;
         trainable = true;
 
         initializer = new Initializer.XavierUniform();
@@ -63,27 +53,19 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
 
     @Override
     public void initialize(int[] size) {
-        if (size.length != 3) {
+        if (size.length != 2) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-        this.depth = size[2];
-        this.height = size[0];
-        this.width = size[1];
+        this.depth = size[1];
+        this.width = size[0];
 
-        int h = height, w = width;
-        if (stride > 1) {
-            h = (height - 1) * stride + heightKernel % stride;
-            w = (width - 1) * stride + widthKernel % stride;
-        }
-
-        outWidth = widthKernel - 2 - 2 * paddingX + w + stride;
-        outHeight = heightKernel - 2 - 2 * paddingY + h + stride;
+        outWidth = (width - sizeKernel + 2 * padding) / step + 1;
         outDepth = countKernel;
 
         derThreshold = new NNVector(countKernel);
-        derWeight = new NNTensor4D(depth, heightKernel, widthKernel, countKernel);
+        derWeight = new NNTensor(countKernel, sizeKernel, depth);
         if (!loadWeight) {
-            weight = new NNTensor4D(depth, heightKernel, widthKernel, countKernel);
+            weight = new NNTensor(countKernel, sizeKernel, depth);
             threshold = new NNVector(countKernel);
             initializer.initialize(weight);
         }
@@ -97,20 +79,18 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
 
     @Override
     public void generateOutput(NNArray[] inputs) {
-        NNTensor[] inputD = NNArrays.isTensor(inputs);
-        input = new NNTensor[inputs.length];
-        output = new NNTensor[inputs.length];
+        this.input = NNArrays.isMatrix(inputs);
+        output = new NNMatrix[inputs.length];
 
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * inputD.length / countC;
-            final int lastIndex = Math.min(inputD.length, (t + 1) * inputD.length / countC);
+            final int firstIndex = t * input.length / countC;
+            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    input[i] = inputD[i].stride(stride);
-                    output[i] = new NNTensor(outHeight, outWidth, outDepth);
-                    output[i].transposeConvolution(input[i], weight, paddingY, paddingX);
+                    output[i] = new NNMatrix( outWidth, outDepth);
+                    output[i].convolution(input[i], weight, step, padding);
                     output[i].add(threshold);
                 }
             });
@@ -123,7 +103,7 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
     @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
-        error = new NNTensor[errors.length];
+        error = new NNMatrix[errors.length];
 
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
@@ -132,8 +112,8 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
             final int lastIndex = Math.min(errors.length, (t + 1) * errors.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    error[i] = new NNTensor(height, width, depth);
-                    error[i].convolution(errorNL[i], weight, stride, paddingY, paddingX);
+                    error[i] = new NNMatrix(width, depth);
+                    error[i].transposeConvolution(errorNL[i].stride(step), weight, padding);
                 }
             });
         }
@@ -146,7 +126,7 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
         }
     }
 
-    private void derivativeWeight(NNTensor[] errors) {
+    private void derivativeWeight(NNMatrix[] errors) {
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
@@ -154,7 +134,7 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    derWeight.convolutionTranspose(input[i], errors[i], paddingY, paddingX);
+                    derWeight.convolution(input[i], errors[i], step, padding);
                     derThreshold.add(errors[i]);
                 }
             });
@@ -162,7 +142,7 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
-        
+
         if (input.length != 1) {
             derWeight.div(input.length);
             derThreshold.div(input.length);
@@ -177,15 +157,14 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         int countParam = weight.size() + threshold.size();
-        System.out.println("Transp conv | " + height + ",\t" + width + ",\t" + depth + "\t|  "
-                + outHeight + ",\t" + outWidth + ",\t" + outDepth + "\t|\t" + countParam);
+        System.out.println("Convolution\t| "  + width + ",\t" + depth + "\t\t|  " + outWidth + ",\t" + outDepth + "\t\t|\t" + countParam);
         return countParam;
     }
 
     @Override
     public void write(FileWriter writer) throws IOException {
-        writer.write("Convolution transpose layer 3D\n");
-        writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + stride + " " + paddingY + " " + paddingX + "\n");
+        writer.write("Convolution layer 2D\n");
+        writer.write(countKernel + " " + sizeKernel + " " + step + " " + padding + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -197,30 +176,30 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
         writer.flush();
     }
 
-    public static ConvolutionTransposeLayer read(Scanner scanner) {
+    public static ConvolutionLayer read(Scanner scanner) {
         int[] param = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
 
-        ConvolutionTransposeLayer layer = new ConvolutionTransposeLayer(param[0], param[1], param[2], param[3], param[4], param[5]);
+        ConvolutionLayer layer = new ConvolutionLayer(param[0], param[1], param[2], param[3]);
         layer.loadWeight = false;
         layer.threshold = NNVector.read(scanner);
-        layer.weight = NNTensor4D.read(scanner);
+        layer.weight = NNTensor.read(scanner);
         layer.setRegularization(Regularization.read(scanner));
         layer.setTrainable(Boolean.parseBoolean(scanner.nextLine()));
         layer.loadWeight = true;
         return layer;
     }
 
-    public ConvolutionTransposeLayer setRegularization(Regularization regularization) {
+    public ConvolutionLayer setRegularization(Regularization regularization) {
         this.regularization = regularization;
         return this;
     }
 
-    public ConvolutionTransposeLayer setTrainable(boolean trainable) {
+    public ConvolutionLayer setTrainable(boolean trainable) {
         this.trainable = trainable;
         return this;
     }
 
-    public ConvolutionTransposeLayer setInitializer(Initializer initializer) {
+    public ConvolutionLayer setInitializer(Initializer initializer) {
         this.initializer = initializer;
         return this;
     }

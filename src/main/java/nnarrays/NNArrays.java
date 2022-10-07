@@ -2,6 +2,8 @@ package nnarrays;
 
 import lombok.SneakyThrows;
 
+import java.util.Arrays;
+
 public final class NNArrays {
     public static NNVector[] isVector(NNArray[] batch) {
         return (NNVector[]) batch;
@@ -20,6 +22,15 @@ public final class NNArrays {
         NNTensor[] arr = new NNTensor[batch.length];
         for (int i = 0; i < arr.length; i++) {
             arr[i] = new NNTensor(depth, height, width, batch[i].data);
+        }
+
+        return arr;
+    }
+
+    public static NNMatrix[] toMatrix(NNArray[] batch, int height, int width) {
+        NNMatrix[] arr = new NNMatrix[batch.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = new NNMatrix(height, width, batch[i].data);
         }
 
         return arr;
@@ -116,16 +127,17 @@ public final class NNArrays {
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
-            int size = first[i].getSize()[0] * first[i].getSize()[1];
+
+            int size = second[i].getSize()[0] * second[i].getSize()[1];
             int startDepth = startIndex / size;
             int depth = second[i].getSize()[0];
             int row = second[i].getSize()[1];
             int column = second[i].getSize()[2];
-            int index = 0;
-            int indexF;
+
+            int index = 0, indexF;
 
             for (int j = 0; j < size; j++) {
-                indexF = size * first[i].getSize()[2] + startDepth;
+                indexF = j * first[i].getSize()[2] + startDepth;
                 for (int k = 0; k < column; k++, index++, indexF++) {
                     data[index] = first[i].data[indexF];
                 }

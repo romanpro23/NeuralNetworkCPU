@@ -24,7 +24,6 @@ public class NeuralNetwork {
     private ArrayList<NeuralLayer> layers;
 
     private int[] inputSize;
-    private boolean trainable;
 
     private FunctionLoss functionLoss;
     @Getter
@@ -32,7 +31,6 @@ public class NeuralNetwork {
 
     public NeuralNetwork() {
         layers = new ArrayList<>();
-        trainable = true;
     }
 
     public NeuralNetwork copy() {
@@ -195,7 +193,7 @@ public class NeuralNetwork {
         return layers.get(layers.size() - 1).size();
     }
 
-    private NNArray[] findDerivative(NNArray[] idealOutput) {
+    public NNArray[] findDerivative(NNArray[] idealOutput) {
         int[] size = layers.get(layers.size() - 1).size();
         if (size.length == 1) {
             return NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));

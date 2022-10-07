@@ -45,6 +45,92 @@ public class NNVector extends NNArray {
         return result;
     }
 
+    public void addMulRowToMatrix(NNMatrix input, int n_row, NNMatrix matrix) {
+        for (int i = 0, indexMatrix = 0; i < size; i++) {
+            for (int j = 0, indexInput = input.getRowIndex()[n_row]; j < matrix.getColumn(); j++, indexInput++, indexMatrix++) {
+                data[i] += input.data[indexInput] * matrix.data[indexMatrix];
+            }
+        }
+    }
+
+    @SneakyThrows
+    public void addRowFromMatrix(NNMatrix input, int n_row) {
+        if (size != input.getColumn()) {
+            throw new Exception("Vector and Matrix has difference size");
+        }
+        for (int j = 0, indexInput = input.getRowIndex()[n_row]; j < size; j++, indexInput++) {
+            data[j] += input.data[indexInput];
+        }
+    }
+
+    @SneakyThrows
+    public void setRowFromMatrix(NNMatrix input, int n_row) {
+        if (size != input.getColumn()) {
+            throw new Exception("Vector and Matrix has difference size");
+        }
+        for (int j = 0, indexInput = input.getRowIndex()[n_row]; j < size; j++, indexInput++) {
+            data[j] = input.data[indexInput];
+        }
+    }
+
+    public void addMulVectorToMatrix(NNVector input, NNMatrix matrix) {
+        for (int i = 0, indexMatrix = 0; i < size; i++) {
+            for (int j = 0; j < matrix.getColumn(); j++, indexMatrix++) {
+                data[i] += input.data[j] * matrix.data[indexMatrix];
+            }
+        }
+    }
+
+    @SneakyThrows
+    public void mulVectors(NNVector first, NNVector second) {
+        if (size != first.size || size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] = first.data[i] * second.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void mulNegativeVectors(NNVector first, NNVector second) {
+        if (size != first.size || size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] = -first.data[i] * second.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void addMulUpdateVectors(NNVector updateVector, NNVector second) {
+        if (size != updateVector.size || size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] += (1 - updateVector.data[i]) * second.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void setMulUpdateVectors(NNVector updateVector, NNVector second) {
+        if (size != updateVector.size || size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] = (1 - updateVector.data[i]) * second.data[i];
+        }
+    }
+
+    @SneakyThrows
+    public void mulUpdateVector(NNVector updateVector) {
+        if (size != updateVector.size) {
+            throw new Exception("Vector has difference size");
+        }
+        for (int i = 0; i < size; i++) {
+            data[i] *= (1 - updateVector.data[i]);
+        }
+    }
+
     public void momentumAverage(NNArray array, final float decay) {
         for (int i = 0; i < size; i++) {
             data[i] += (array.data[i] - data[i]) * decay;
@@ -63,11 +149,19 @@ public class NNVector extends NNArray {
         return result;
     }
 
+    public void addMulT(NNVector vector, NNMatrix matrix) {
+        for (int i = 0, index = 0; i < matrix.getRow(); i++) {
+            for (int j = 0; j < matrix.getColumn(); j++, index++) {
+                data[j] += vector.data[i] * matrix.data[index];
+            }
+        }
+    }
+
     public void globalMaxPool(NNTensor input) {
         int index = 0;
         fill(-1000);
-        for (int i = 0; i < input.getDepth(); i++) {
-            for (int j = 0; j < input.getRow(); j++) {
+        for (int i = 0; i < input.getRows(); i++) {
+            for (int j = 0; j < input.getColumns(); j++) {
                 for (int k = 0; k < size; k++, index++) {
                     if (data[k] < input.data[index]) {
                         data[k] = input.data[index];
@@ -79,14 +173,14 @@ public class NNVector extends NNArray {
 
     public void globalAveragePool(NNTensor input) {
         int index = 0;
-        for (int i = 0; i < input.getDepth(); i++) {
-            for (int j = 0; j < input.getRow(); j++) {
+        for (int i = 0; i < input.getRows(); i++) {
+            for (int j = 0; j < input.getColumns(); j++) {
                 for (int k = 0; k < size; k++, index++) {
                     data[k] += input.data[index];
                 }
             }
         }
-        div(input.getDepth() * input.getRow());
+        div(input.getRows() * input.getColumns());
     }
 
     public NNMatrix mulVector(NNVector vector) {
@@ -112,9 +206,16 @@ public class NNVector extends NNArray {
     }
 
     @SneakyThrows
+    public void set(NNVector vector) {
+        if (size != vector.size) {
+            throw new Exception("Vector has difference size");
+        }
+        System.arraycopy(vector.data, 0, data, 0, size);
+    }
+
+    @SneakyThrows
     public void addProduct(NNVector vector1, NNVector vector2) {
         if (size != vector1.size || size != vector2.size) {
-            System.out.println(vector1.size + " " + vector2.size);
             throw new Exception("Vector has difference size");
         }
         for (int i = 0; i < size; i++) {
@@ -124,15 +225,28 @@ public class NNVector extends NNArray {
 
     @SneakyThrows
     public void add(NNTensor tensor) {
-        if (size != tensor.getColumn()) {
+        if (size != tensor.getDepth()) {
             throw new Exception("Vector has difference size");
         }
         int index = 0;
-        for (int i = 0; i < tensor.getDepth(); i++) {
-            for (int j = 0; j < tensor.getRow(); j++) {
-                for (int k = 0; k < tensor.getColumn(); k++, index++) {
+        for (int i = 0; i < tensor.getRows(); i++) {
+            for (int j = 0; j < tensor.getColumns(); j++) {
+                for (int k = 0; k < tensor.getDepth(); k++, index++) {
                     data[k] += tensor.data[index];
                 }
+            }
+        }
+    }
+
+    @SneakyThrows
+    public void add(NNMatrix matrix) {
+        if (size != matrix.getColumn()) {
+            throw new Exception("Vector has difference size");
+        }
+        int index = 0;
+        for (int i = 0; i < matrix.getRow(); i++) {
+            for (int k = 0; k < matrix.getColumn(); k++, index++) {
+                data[k] += matrix.data[index];
             }
         }
     }

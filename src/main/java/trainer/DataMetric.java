@@ -3,6 +3,8 @@ package trainer;
 import nnarrays.NNArray;
 import nnarrays.NNVector;
 
+import java.util.Arrays;
+
 public interface DataMetric {
     int quality(NNArray[] ideal, NNArray[] output);
 
@@ -34,8 +36,9 @@ public interface DataMetric {
         public int quality(NNArray[] ideal, NNArray[] output) {
             int counter = 0;
             for (int i = 0; i < ideal.length; i++) {
-                if (ideal[i].get(0) == 1 && output[i].get(0) >= threshold) {
+                if (ideal[i].get(0) == 1.0f && output[i].get(0) >= threshold) {
                     counter++;
+                    continue;
                 }
                 if (ideal[i].get(0) == 0 && output[i].get(0) < threshold) {
                     counter++;

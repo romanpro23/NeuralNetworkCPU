@@ -23,14 +23,13 @@ public class DenseLayer extends DenseNeuralLayer {
     //trainable parts
     private Regularization regularization;
     private Initializer initializer;
-    @Setter
     private boolean loadWeight;
 
     //weight and threshold
     @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
-    @Setter
+
     private NNVector threshold;
     private NNVector derThreshold;
 

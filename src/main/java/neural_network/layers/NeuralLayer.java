@@ -1,7 +1,9 @@
 package neural_network.layers;
 
-import lombok.Setter;
 import neural_network.layers.convolution_3d.*;
+import neural_network.layers.convolution_3d.inception.InceptionModule;
+import neural_network.layers.convolution_3d.squeeze_and_excitation.SEBlock;
+import neural_network.layers.convolution_3d.u_net.UConcatenateLayer;
 import neural_network.layers.dense.*;
 import neural_network.layers.reshape.Flatten3DLayer;
 import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
@@ -9,8 +11,6 @@ import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
 import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
-import nnarrays.NNArrays;
-import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -19,11 +19,9 @@ import java.util.Scanner;
 
 public abstract class NeuralLayer {
     protected boolean trainable;
-    protected ArrayList<NeuralLayer> preLayers;
     protected ArrayList<NeuralLayer> nextLayers;
 
     public NeuralLayer(){
-        preLayers = new ArrayList<>();
         nextLayers = new ArrayList<>();
     }
 
@@ -48,10 +46,13 @@ public abstract class NeuralLayer {
                 case "Global max pooling 3D" -> layers.add(GlobalMaxPooling3DLayer.read(scanner));
                 case "Global average pooling 3D" -> layers.add(GlobalAveragePooling3DLayer.read(scanner));
                 case "Reshape layer 3D" -> layers.add(Reshape3DLayer.read(scanner));
+                case "Inception module" -> layers.add(InceptionModule.read(scanner));
+                case "SE block" -> layers.add(SEBlock.read(scanner));
+                case "Layers block" -> layers.add(LayersBlock.readBlock(scanner));
+                case "U concatenate layer" -> layers.add(UConcatenateLayer.read(layers, scanner));
                 case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));
                 case "Batch renormalization layer" -> layers.add(BatchRenormalizationLayer.read(scanner));
             }
-
             layer = scanner.nextLine();
         }
     }
@@ -76,9 +77,9 @@ public abstract class NeuralLayer {
 
     public abstract NNArray[] getError();
 
-    public void addPreLayer(NeuralLayer neuralLayer){
-        preLayers.add(neuralLayer);
-    }
+    public NNArray[] getErrorNL(){
+        return getError();
+    };
 
     public void addNextLayer(NeuralLayer neuralLayer){
         nextLayers.add(neuralLayer);

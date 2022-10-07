@@ -63,8 +63,6 @@ public class GAN {
 
         //train discriminator
         accuracy += discriminator.train(data.getInput(), data.getOutput());
-        float acc = accuracy;
-        System.out.println("Discriminator acc " + accuracy);
 
         //generate data for generator
         random = randomDataGenerator(input.length);
@@ -78,10 +76,15 @@ public class GAN {
         discriminator.setTrainable(false);
         //accuracy generator
         accuracy += discriminator.forwardBackpropagation(generator.getOutputs(), realLabels);
-        System.out.println("Generator acc " + (accuracy - acc));
         generator.train(discriminator.getError());
         discriminator.setTrainable(true);
 
         return accuracy;
+    }
+
+    public GAN setInitializer(Initializer initializer){
+        this.initializer = initializer;
+
+        return this;
     }
 }
