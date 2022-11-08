@@ -4,6 +4,8 @@ import lombok.SneakyThrows;
 
 import java.util.Arrays;
 
+import static java.lang.Math.log;
+
 public final class NNArrays {
     public static NNVector[] isVector(NNArray[] batch) {
         return (NNVector[]) batch;
@@ -48,7 +50,7 @@ public final class NNArrays {
     }
 
     public static NNArray[] subArray(NNArray[] first, NNArray[] second) {
-        return subArray(first, second,0 );
+        return subArray(first, second, 0);
     }
 
     public static NNArray[] subArray(NNArray[] first, NNArray[] second, int startIndex) {
@@ -96,10 +98,21 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
-            int row = second[i].getSize()[0];
+            int size = second[i].getSize()[0];
+            int startDepth = startIndex / size;
+            int depth = second[i].getSize()[0];
             int column = second[i].getSize()[1];
-            result[i] = new NNMatrix(row, column, data);
+
+            int index = 0, indexF;
+
+            for (int j = 0; j < size; j++) {
+                indexF = j * first[i].getSize()[1] + startDepth;
+                for (int k = 0; k < column; k++, index++, indexF++) {
+                    data[index] = first[i].data[indexF];
+                }
+            }
+
+            result[i] = new NNMatrix(depth, column, data);
         }
         return result;
     }
@@ -113,11 +126,24 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
 
-            System.arraycopy(first[i].data, 0, data, 0, first[i].size);
-            System.arraycopy(second[i].data, 0, data, first[i].size, second[i].size);
-            int row = first[i].getSize()[0] + second[i].getSize()[0];
-            int column = first[i].getSize()[1];
-            result[i] = new NNMatrix(row, column, data);
+            int size = first[i].getSize()[0];
+            int columnF = first[i].getSize()[1], columnS = second[i].getSize()[1];
+            int column = columnF + columnS;
+            int index = 0;
+            int indexF = 0;
+            int indexS = 0;
+
+            for (int j = 0; j < size; j++) {
+                for (int k = 0; k < columnF; k++, index++, indexF++) {
+                    data[index] = first[i].data[indexF];
+                }
+                for (int k = 0; k < columnS; k++, index++, indexS++) {
+                    data[index] = second[i].data[indexS];
+                }
+            }
+
+            int depth = first[i].getSize()[0];
+            result[i] = new NNMatrix(depth, column, data);
         }
         return result;
     }
@@ -146,6 +172,51 @@ public final class NNArrays {
             result[i] = new NNTensor(depth, row, column, data);
         }
         return result;
+    }
+
+    @SneakyThrows
+    public static void subTensor(NNArray[] tensor, NNArray[] subTensor, int x0, int y0) {
+        NNTensor[] tensors = NNArrays.isTensor(tensor);
+        NNTensor[] subTensors = NNArrays.isTensor(subTensor);
+        for (int i = 0; i < tensors.length; i++) {
+            for (int x = x0, h = 0; x < subTensors[i].getRows() + x0; x++, h++) {
+                for (int y = y0, w = 0; y < subTensors[i].getColumns() + y0; y++, w++) {
+                    int indexT = tensors[i].getRowsIndex()[x] + tensors[i].getColumnsIndex()[y];
+                    int indexST = subTensors[i].getRowsIndex()[h] + subTensors[i].getColumnsIndex()[w];
+                    System.arraycopy(tensors[i].getData(), indexT, subTensors[i].getData(), indexST, subTensors[i].getDepth());
+                }
+            }
+        }
+    }
+
+    public static NNMatrix[] reverse(NNMatrix[] input) {
+        NNMatrix[] result = new NNMatrix[input.length];
+
+        for (int i = 0; i < input.length; i++) {
+            result[i] = new NNMatrix(input[i]);
+            for (int j = 0; j < input[i].getRow(); j++) {
+                for (int k = 0, l = input[i].getColumn() - 1; k < input[i].getColumn(); k++, l--) {
+                    result[i].set(j, l, input[i].get(j, k));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static void addSubTensor(NNArray[] tensor, NNArray[] subTensor, int x0, int y0) {
+        NNTensor[] tensors = NNArrays.isTensor(tensor);
+        NNTensor[] subTensors = NNArrays.isTensor(subTensor);
+        for (int i = 0; i < tensors.length; i++) {
+            for (int x = x0, h = 0; x < subTensors[i].getRows() + x0; x++, h++) {
+                for (int y = y0, w = 0; y < subTensors[i].getColumns() + y0; y++, w++) {
+                    int indexT = tensors[i].getRowsIndex()[x] + tensors[i].getColumnsIndex()[y];
+                    int indexST = subTensors[i].getRowsIndex()[h] + subTensors[i].getColumnsIndex()[w];
+                    System.arraycopy(subTensors[i].getData(), indexST, tensors[i].getData(), indexT, subTensors[i].getDepth());
+                }
+            }
+        }
     }
 
     @SneakyThrows
@@ -225,6 +296,139 @@ public final class NNArrays {
     }
 
     @SneakyThrows
+    public static NNArray crossEntropy(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (first.data[i] * log(second.data[i] + 0.00000001f));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray poisson(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (second.data[i] - first.data[i] * log(second.data[i] + 0.00000001f));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray klDivergence(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (first.data[i] * log(first.data[i] / (second.data[i] + 0.00000001f) + 0.00000001f));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray hinge(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = Math.max(1.0f - first.data[i] * second.data[i], 0);
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray logCosh(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) log(Math.cosh(second.data[i] - first.data[i]));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray derLogCosh(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (Math.tanh(second.data[i] - first.data[i]));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray derHinge(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            if (1.0f - first.data[i] * second.data[i] > 0) {
+                result.data[i] = -first.data[i];
+            }
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray subAbs(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = Math.abs(first.data[i] - second.data[i]);
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray binaryCrossEntropy(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (first.data[i] * log(second.data[i] + 0.00000001f) + (1 - first.data[i]) * log(1.0000001f - second.data[i]));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray derAbs(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            float diff = first.data[i] - second.data[i];
+            result.data[i] = diff / (Math.abs(diff) + 0.00000001f);
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
     public static NNVector div(NNVector first, NNVector second) {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
@@ -261,6 +465,45 @@ public final class NNArrays {
         }
 
         return result;
+    }
+
+    @SneakyThrows
+    public static NNArray derPoisson(NNArray outputs, NNArray idealOutputs) {
+        if (outputs.size != idealOutputs.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(outputs.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = 1 - idealOutputs.data[i] / (outputs.data[i] + 0.00000001f);
+        }
+
+        return result;
+    }
+
+    public static NNMatrix[] create(NNMatrix[] input) {
+        NNMatrix[] result = new NNMatrix[input.length];
+
+        for (int i = 0; i < input.length; i++) {
+            result[i] = new NNMatrix(input[i]);
+        }
+
+        return result;
+    }
+
+    public static NNVector[] create(NNVector[] input) {
+        NNVector[] result = new NNVector[input.length];
+
+        for (int i = 0; i < input.length; i++) {
+            result[i] = new NNVector(input[i]);
+        }
+
+        return result;
+    }
+
+    public static void add(NNArray[] first, NNArray[] second) {
+        for (int i = 0; i < second.length; i++) {
+            first[i].add(second[i]);
+        }
     }
 }
 

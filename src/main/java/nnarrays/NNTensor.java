@@ -30,6 +30,10 @@ public class NNTensor extends NNArray {
         initialize();
     }
 
+    public NNTensor(int[] size) {
+        this(size[0], size[1], size[2]);
+    }
+
     private void initialize() {
         rowsIndex = new int[rows];
         columnsIndex = new int[columns];
@@ -63,6 +67,51 @@ public class NNTensor extends NNArray {
 
     public void set(int i, int j, int k, float value) {
         data[rowsIndex[i] + columnsIndex[j] + k] = value;
+    }
+
+    public void shuffle(NNTensor input, int countGroup){
+        int sizeGroup = input.depth / countGroup;
+        int outIndex, inIndex;
+
+        int[] index = new int[countGroup];
+        for (int i = 0; i < countGroup; i++) {
+            index[i] = i * sizeGroup;
+        }
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                outIndex = rowsIndex[i] + columnsIndex[j];
+                inIndex = input.rowsIndex[i] + input.columnsIndex[j];
+                for (int k = 0, d = 0; k < sizeGroup; k++, inIndex++) {
+                    for (int l = 0; l < countGroup; l++, d++, outIndex++) {
+                        data[outIndex] = input.data[inIndex + index[l]];
+                    }
+                }
+            }
+        }
+    }
+
+    public void backShuffle(NNTensor input, int countGroup){
+        int sizeGroup = input.depth / countGroup;
+
+        int outIndex, inIndex;
+
+        int[] index = new int[countGroup];
+        for (int i = 0; i < countGroup; i++) {
+            index[i] = i * sizeGroup;
+        }
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                outIndex = rowsIndex[i] + columnsIndex[j];
+                inIndex = input.rowsIndex[i] + input.columnsIndex[j];
+                for (int k = 0, d = 0; k < sizeGroup; k++, outIndex++) {
+                    for (int l = 0; l < countGroup; l++, d++, inIndex++) {
+                        data[outIndex + index[l]] = input.data[inIndex];
+                    }
+                }
+            }
+        }
     }
 
     public void maxPool(NNTensor input, int heightKernel, int widthKernel, int step, int paddingY, int paddingX) {
@@ -285,6 +334,80 @@ public class NNTensor extends NNArray {
         }
     }
 
+    public void dilatedConvolution(NNTensor input, NNTensor4D weight, int step, int padY, int padX, int dilatationY, int dilatationX) {
+        int x0, y0, inputIndex, weightIndex, w0, outputIndex;
+        float val;
+
+        int dilY = (((weight.length() - 1) * dilatationY + 1) - weight.length()) / 2;
+        int dilX = (((weight.row() - 1) * dilatationX + 1) - weight.row()) / 2;
+
+        for (int y = -padY - dilY, h = 0; h < rows; y += step, h++) {
+            for (int x = -padX - dilX, w = 0; w < columns; x += step, w++) {
+                outputIndex = rowsIndex[h] + columnsIndex[w];
+                for (int d = 0; d < weight.depth(); d++, outputIndex++) {
+                    val = 0;
+                    for (int j = 0; j < weight.length(); j++) {
+                        y0 = y + j * dilatationY;
+                        if (y0 < 0 || y0 >= input.rows) {
+                            continue;
+                        }
+                        w0 = weight.depthIndex()[d] + weight.lengthIndex()[j];
+                        for (int k = 0; k < weight.row(); k++) {
+                            x0 = x + k * dilatationX;
+                            if (x0 < 0 || x0 >= input.columns) {
+                                continue;
+                            }
+                            inputIndex = input.rowsIndex[y0] + input.columnsIndex[x0];
+                            weightIndex = w0 + weight.rowIndex()[k];
+                            for (int c = 0; c < weight.column(); c++, inputIndex++, weightIndex++) {
+                                val += input.data[inputIndex] * weight.data[weightIndex];
+                            }
+                        }
+                    }
+                    data[outputIndex] = val;
+                }
+            }
+        }
+    }
+
+    public void groupConvolution(NNTensor input, NNTensor4D weight, int step, int padY, int padX, int countGroup) {
+        int x0, y0, inputIndex, weightIndex, w0, outputIndex;
+        float val;
+        int sizeGroupKernel = weight.depth() / countGroup;
+
+        for (int g = 0, gI, gO; g < countGroup; g++) {
+            gI = g * weight.column();
+            gO = g * sizeGroupKernel;
+            for (int y = -padY, h = 0; h < rows; y += step, h++) {
+                for (int x = -padX, w = 0; w < columns; x += step, w++) {
+                    outputIndex = rowsIndex[h] + columnsIndex[w] + gO;
+                    for (int d = 0; d < sizeGroupKernel; d++, outputIndex++) {
+                        val = 0;
+                        for (int j = 0; j < weight.length(); j++) {
+                            y0 = y + j;
+                            if (y0 < 0 || y0 >= input.rows) {
+                                continue;
+                            }
+                            w0 = weight.depthIndex()[gO + d] + weight.lengthIndex()[j];
+                            for (int k = 0; k < weight.row(); k++) {
+                                x0 = x + k;
+                                if (x0 < 0 || x0 >= input.columns) {
+                                    continue;
+                                }
+                                inputIndex = input.rowsIndex[y0] + input.columnsIndex[x0] + gI;
+                                weightIndex = w0 + weight.rowIndex()[k];
+                                for (int c = 0; c < weight.column(); c++, weightIndex++, inputIndex++) {
+                                    val += input.data[inputIndex] * weight.data[weightIndex];
+                                }
+                            }
+                        }
+                        data[outputIndex] = val;
+                    }
+                }
+            }
+        }
+    }
+
     public void transposeConvolution(NNTensor input, NNTensor4D weight, int paddingY, int paddingX) {
         int x0, y0, inputIndex, weightIndex, w0, outputIndex;
         int padY = weight.length() - 1 - paddingY;
@@ -322,6 +445,99 @@ public class NNTensor extends NNArray {
                         }
                     }
                     data[outputIndex] = val;
+                }
+            }
+        }
+    }
+
+    public void transposeDilatedConvolution(NNTensor input, NNTensor4D weight, int paddingY, int paddingX, int dilatationY, int dilatationX) {
+        int x0, y0, inputIndex, weightIndex, w0, outputIndex;
+        int padY = weight.length() - 1 - paddingY;
+        int padX = weight.row() - 1 - paddingX;
+        int wCore = weight.row() - 1;
+        int hCore = weight.length() - 1;
+        int hC, wC;
+
+        int dilY = (((weight.length() - 1) * dilatationY + 1) - weight.length()) / 2;
+        int dilX = (((weight.row() - 1) * dilatationX + 1) - weight.row()) / 2;
+
+        float val;
+
+        for (int y = -padY - dilY, h = 0; h < rows; y++, h++) {
+            for (int x = -padX - dilX, w = 0; w < columns; x++, w++) {
+                outputIndex = rowsIndex[h] + columnsIndex[w];
+                for (int d = 0; d < weight.column(); d++, outputIndex++) {
+                    val = 0;
+                    for (int j = 0; j < weight.length(); j++) {
+                        y0 = y + j * dilatationY;
+                        if (y0 < 0 || y0 >= input.rows) {
+                            continue;
+                        }
+                        hC = hCore - j;
+                        w0 = weight.lengthIndex()[hC] + d;
+                        for (int k = 0; k < weight.row(); k++) {
+                            x0 = x + k * dilatationX;
+                            if (x0 < 0 || x0 >= input.columns) {
+                                continue;
+                            }
+                            inputIndex = input.rowsIndex[y0] + input.columnsIndex[x0];
+                            wC = wCore - k;
+                            weightIndex = w0 + weight.rowIndex()[wC];
+
+                            for (int c = 0; c < weight.depth(); c++, inputIndex++) {
+                                val += input.data[inputIndex] * weight.data[weight.depthIndex()[c] + weightIndex];
+                            }
+                        }
+                    }
+                    data[outputIndex] = val;
+                }
+            }
+        }
+    }
+
+    public void transposeGroupConvolution(NNTensor input, NNTensor4D weight, int paddingY, int paddingX, int countGroup) {
+        int x0, y0, inputIndex, weightIndex, w0, outputIndex;
+        int padY = weight.length() - 1 - paddingY;
+        int padX = weight.row() - 1 - paddingX;
+        int wCore = weight.row() - 1;
+        int hCore = weight.length() - 1;
+        int hC, wC;
+
+        float val;
+
+        int sizeGroupKernel = weight.depth() / countGroup;
+
+        for (int g = 0, gI, gO; g < countGroup; g++) {
+            gI = g * weight.column();
+            gO = g * sizeGroupKernel;
+            for (int y = -padY, h = 0; h < rows; y++, h++) {
+                for (int x = -padX, w = 0; w < columns; x++, w++) {
+                    outputIndex = rowsIndex[h] + columnsIndex[w] + gI;
+                    for (int d = 0; d < weight.column(); d++, outputIndex++) {
+                        val = 0;
+                        for (int j = 0; j < weight.length(); j++) {
+                            y0 = y + j;
+                            if (y0 < 0 || y0 >= input.rows) {
+                                continue;
+                            }
+                            hC = hCore - j;
+                            w0 = weight.lengthIndex()[hC] + d;
+                            for (int k = 0; k < weight.row(); k++) {
+                                x0 = x + k;
+                                if (x0 < 0 || x0 >= input.columns) {
+                                    continue;
+                                }
+                                inputIndex = input.rowsIndex[y0] + input.columnsIndex[x0] + gO;
+                                wC = wCore - k;
+                                weightIndex = w0 + weight.rowIndex()[wC];
+
+                                for (int c = 0, wg = gO; c < sizeGroupKernel; wg++, c++, inputIndex++) {
+                                    val += input.data[inputIndex] * weight.data[weightIndex + weight.getDepthIndex()[wg]];
+                                }
+                            }
+                        }
+                        data[outputIndex] = val;
+                    }
                 }
             }
         }
@@ -409,7 +625,6 @@ public class NNTensor extends NNArray {
                 tensor.data[index] = (float) v;
                 index++;
             }
-            scanner.nextLine();
         }
 
         return tensor;

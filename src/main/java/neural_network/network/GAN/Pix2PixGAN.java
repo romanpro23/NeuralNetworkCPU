@@ -1,5 +1,6 @@
 package neural_network.network.GAN;
 
+import data.ImageCreator;
 import data.gan.GANGeneratorData;
 import data.network_train.NNData;
 import lombok.SneakyThrows;
@@ -7,17 +8,10 @@ import neural_network.initialization.Initializer;
 import neural_network.network.NeuralNetwork;
 import nnarrays.*;
 
-public class Pix2PixGAN {
-    private NeuralNetwork generator;
-    private NeuralNetwork discriminator;
+public class Pix2PixGAN extends GAN {
 
     public Pix2PixGAN(NeuralNetwork generator, NeuralNetwork discriminator) {
-        this.generator = generator;
-        this.discriminator = discriminator;
-    }
-
-    public NNArray[] query(NNArray[] input) {
-        return generator.query(input);
+        super(generator, discriminator);
     }
 
     public float train(NNArray[] input, NNArray[] output) {
@@ -25,39 +19,40 @@ public class Pix2PixGAN {
     }
 
     public float train(NNArray[] input, NNArray[] output, float lambda) {
-        float accuracy = 0;
         //generate input data for discriminator
-        NNArray[] fake = generator.query(input);
+        NNArray[] fake = generator.queryTrain(input);
 
-        NNArray[] realInput = NNArrays.concat(input, output);
-        NNArray[] fakeInput = NNArrays.concat(input, fake);
+        NNArray[] realInput = NNArrays.concat(output, input);
+        NNArray[] fakeInput = NNArrays.concat(fake, input);
 
-        NNData data = GANGeneratorData.generateData(realInput, fakeInput);
+        //trainA discriminator
+        float accuracyD = 0;
+        accuracyD += discriminator.train(realInput, getRealLabel(input.length), false);
+        accuracyD += discriminator.train(fakeInput, getFakeLabel(input.length), false);
 
-        //train discriminator
-        accuracy += discriminator.train(data.getInput(), data.getOutput());
-
-        //generate data for generator
-        NNVector[] realLabels = new NNVector[input.length];
-        for (int i = 0; i < input.length; i++) {
-            realLabels[i] = new NNVector(new float[]{1});
-        }
-
-        //train generator
-        generator.queryTrain(input);
-        fakeInput = NNArrays.concat(generator.getOutputs(), input);
+        //trainA generator
         discriminator.setTrainable(false);
         //accuracy generator
-        accuracy += discriminator.forwardBackpropagation(fakeInput, realLabels);
+        float accuracyG = discriminator.train(fakeInput, getRealLabel(input.length), false);
         NNArray[] errorGenerator = NNArrays.subArray(discriminator.getError(), generator.getOutputs());
         NNArray[] errorRecognition = generator.findDerivative(output);
+        accuracyG += generator.accuracy(output);
         for (int i = 0; i < errorRecognition.length; i++) {
-            errorRecognition[i].mul(lambda);
+            if(lambda != 1) {
+                errorRecognition[i].mul(lambda);
+            }
             errorGenerator[i].add(errorRecognition[i]);
         }
         generator.train(errorGenerator);
-        discriminator.setTrainable(true);
+        errorGenerator[0].clip(-1, 1);
+        ImageCreator.drawColorImage((NNTensor) errorGenerator[0], 64, 64, "_error", "D:/NetworkTest/Decolorize/Pix2Pix", true);
+        ImageCreator.drawColorImage((NNTensor) output[0], 64, 64, "_output", "D:/NetworkTest/Decolorize/Pix2Pix", true);
+        ImageCreator.drawColorImage((NNTensor) fake[0], 64, 64, "_test", "D:/NetworkTest/Decolorize/Pix2Pix", true);
+        ImageCreator.drawColorImage((NNTensor) input[0], 64, 64, "_input", "D:/NetworkTest/Decolorize/Pix2Pix", true);
 
-        return accuracy;
+        discriminator.setTrainable(true);
+        discriminator.update();
+
+        return accuracyD + accuracyG;
     }
 }

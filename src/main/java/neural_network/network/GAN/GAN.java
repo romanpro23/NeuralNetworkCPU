@@ -8,10 +8,12 @@ import neural_network.initialization.Initializer;
 import neural_network.network.NeuralNetwork;
 import nnarrays.*;
 
+import java.util.Arrays;
+
 public class GAN {
     @Getter
-    private NeuralNetwork generator;
-    private NeuralNetwork discriminator;
+    protected final NeuralNetwork generator;
+    protected final NeuralNetwork discriminator;
 
     private Initializer initializer;
 
@@ -27,7 +29,7 @@ public class GAN {
     }
 
     @SneakyThrows
-    private NNArray[] randomDataGenerator(int sizeBatch) {
+    protected NNArray[] randomDataGenerator(int sizeBatch) {
         int[] size = generator.getInputSize();
         if (size.length == 1) {
             NNVector[] random = new NNVector[sizeBatch];
@@ -54,35 +56,65 @@ public class GAN {
         throw new Exception("Error dimension generator!");
     }
 
-    public float train(NNArray[] input) {
-        float accuracy = 0;
+    protected NNArray[] getRealLabel(int size) {
+        NNArray[] result = getFakeLabel(size);
+        for (int i = 0; i < size; i++) {
+            result[i].fill(1);
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    protected NNArray[] getFakeLabel(int size) {
+        int[] sizeD = discriminator.getOutputSize();
+        if (sizeD.length == 1) {
+            NNVector[] result = new NNVector[size];
+            for (int i = 0; i < size; i++) {
+                result[i] = new NNVector(sizeD[0]);
+            }
+
+            return result;
+        } else if (sizeD.length == 2) {
+            NNMatrix[] result = new NNMatrix[size];
+            for (int i = 0; i < size; i++) {
+                result[i] = new NNMatrix(sizeD[0], sizeD[1]);
+            }
+            return result;
+        } else if (sizeD.length == 3) {
+            NNTensor[] result = new NNTensor[size];
+            for (int i = 0; i < size; i++) {
+                result[i] = new NNTensor(sizeD[0], sizeD[1], sizeD[2]);
+            }
+            return result;
+        }
+        throw new Exception("Error dimension generator!");
+    }
+
+    public final float train(NNArray[] input) {
         //generate input data for discriminator
         NNArray[] random = randomDataGenerator(input.length);
-        NNArray[] fake = generator.query(random);
-        NNData data = GANGeneratorData.generateData(input, fake);
 
-        //train discriminator
-        accuracy += discriminator.train(data.getInput(), data.getOutput());
+        //trainA discriminator
+        float accuracyD = discriminator.train(generator.queryTrain(random), getFakeLabel(input.length), false);
+        accuracyD += discriminator.train(input, getRealLabel(input.length), false);
+        discriminator.update();
 
         //generate data for generator
         random = randomDataGenerator(input.length);
-        NNVector[] realLabels = new NNVector[random.length];
-        for (int i = 0; i < random.length; i++) {
-            realLabels[i] = new NNVector(new float[]{1});
-        }
 
-        //train generator
-        generator.queryTrain(random);
+        //trainA generator
         discriminator.setTrainable(false);
+        generator.queryTrain(random);
         //accuracy generator
-        accuracy += discriminator.forwardBackpropagation(generator.getOutputs(), realLabels);
+        float accuracyG = discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
         generator.train(discriminator.getError());
         discriminator.setTrainable(true);
 
-        return accuracy;
+        return accuracyD + accuracyG;
     }
 
-    public GAN setInitializer(Initializer initializer){
+    public GAN setInitializer(Initializer initializer) {
         this.initializer = initializer;
 
         return this;

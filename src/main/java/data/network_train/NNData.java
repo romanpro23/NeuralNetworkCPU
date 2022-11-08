@@ -3,15 +3,8 @@ package data.network_train;
 import nnarrays.NNArray;
 import nnarrays.NNVector;
 
-public class NNData {
-    NNArray[] input;
-    NNArray[] output;
+public abstract class NNData {
+    public abstract NNArray[] getInput();
 
-    public NNArray[] getInput() {
-        return input;
-    }
-
-    public NNArray[] getOutput() {
-        return output;
-    }
+    public abstract NNArray[] getOutput();
 }

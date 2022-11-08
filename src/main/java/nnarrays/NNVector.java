@@ -68,12 +68,10 @@ public class NNVector extends NNArray {
         if (size != input.getColumn()) {
             throw new Exception("Vector and Matrix has difference size");
         }
-        for (int j = 0, indexInput = input.getRowIndex()[n_row]; j < size; j++, indexInput++) {
-            data[j] = input.data[indexInput];
-        }
+        System.arraycopy(input.data, input.getRowIndex()[n_row], data, 0, size);
     }
 
-    public void addMulVectorToMatrix(NNVector input, NNMatrix matrix) {
+    public void addMul(NNVector input, NNMatrix matrix) {
         for (int i = 0, indexMatrix = 0; i < size; i++) {
             for (int j = 0; j < matrix.getColumn(); j++, indexMatrix++) {
                 data[i] += input.data[j] * matrix.data[indexMatrix];
@@ -171,6 +169,18 @@ public class NNVector extends NNArray {
         }
     }
 
+    public void globalMaxPool(NNMatrix input) {
+        int index = 0;
+        fill(-1000);
+        for (int i = 0; i < input.getRow(); i++) {
+            for (int k = 0; k < size; k++, index++) {
+                if (data[k] < input.data[index]) {
+                    data[k] = input.data[index];
+                }
+            }
+        }
+    }
+
     public void globalAveragePool(NNTensor input) {
         int index = 0;
         for (int i = 0; i < input.getRows(); i++) {
@@ -181,6 +191,16 @@ public class NNVector extends NNArray {
             }
         }
         div(input.getRows() * input.getColumns());
+    }
+
+    public void globalAveragePool(NNMatrix input) {
+        int index = 0;
+        for (int i = 0; i < input.getRow(); i++) {
+            for (int k = 0; k < size; k++, index++) {
+                data[k] += input.data[index];
+            }
+        }
+        div(input.getRow());
     }
 
     public NNMatrix mulVector(NNVector vector) {

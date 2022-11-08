@@ -105,7 +105,7 @@ public class DenseModule extends ConvolutionNeuralLayer {
 
     @Override
     public void write(FileWriter writer) throws IOException {
-        writer.write("Inception module\n");
+        writer.write("Dense module\n");
         for (DenseBlock layer : module) {
             layer.write(writer);
         }

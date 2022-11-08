@@ -103,14 +103,22 @@ public class ImageCreator {
     }
 
     public static void drawImage(NNTensor tensor, int h, int w, String nameImg, String path) {
+        drawImage(tensor, h, w, nameImg, path, false);
+    }
+
+    public static void drawImage(NNTensor tensor, int h, int w, String nameImg, String path, boolean tanh) {
         Color color;
         BufferedImage result = new BufferedImage(h, w, BufferedImage.TYPE_INT_RGB);
         for (int i = 0; i < h; i++) {
             for (int j = 0; j < w; j++) {
                 try {
                     float data = tensor.get(i, j, 0);
+                    if(tanh) {
+                        data *= 0.5f;
+                        data += 0.5f;
+                    }
                     color = new Color(data, data, data);
-                    result.setRGB(j, i, color.getRGB());
+                    result.setRGB(i, j, color.getRGB());
                 } catch (Exception e) {
 
                 }
@@ -123,5 +131,22 @@ public class ImageCreator {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static NNTensor[] decolorize(NNTensor[] input){
+        NNTensor[] result = new NNTensor[input.length];
+
+        for (int i = 0; i < result.length; i++) {
+            result[i] = new NNTensor(input[i].getRows(), input[i].getColumns(), 1);
+
+            for (int j = 0; j < input[i].getRows(); j++) {
+                for (int k = 0; k < input[i].getColumns(); k++) {
+                    float data = input[i].get(j, k, 0) * 0.299f + input[i].get(j, k, 1) * 0.587f + input[i].get(j, k, 2) * 0.114f;
+                    result[i].set(j, k, 0, data);
+                }
+            }
+        }
+
+        return result;
     }
 }

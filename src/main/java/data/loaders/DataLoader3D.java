@@ -13,6 +13,9 @@ public abstract class DataLoader3D extends DataLoader {
 
     private int curTrain = 0, curTest = 0;
 
+    protected void reloadTrainData(){};
+    protected void reloadTestData(){};
+
     @Override
     public NNData3D getNextTrainData(int sizeBatch) {
         int size = sizeBatch;
@@ -32,6 +35,8 @@ public abstract class DataLoader3D extends DataLoader {
 
         if(size != sizeBatch || curTrain == train.size()){
             curTrain = 0;
+            reloadTrainData();
+            Collections.shuffle(train);
         }
 
         return new NNData3D(input, output);
@@ -56,6 +61,7 @@ public abstract class DataLoader3D extends DataLoader {
 
         if(size != sizeBatch || curTest == test.size()){
             curTest = 0;
+            reloadTestData();
             Collections.shuffle(test);
         }
 

@@ -9,8 +9,6 @@ import nnarrays.NNTensor;
 import nnarrays.NNVector;
 
 @AllArgsConstructor
-@Getter
-@Setter
 public class NNData3D extends NNData {
     NNTensor[] inputT;
     NNVector[] outputV;

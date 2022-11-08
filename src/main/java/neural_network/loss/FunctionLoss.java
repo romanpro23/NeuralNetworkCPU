@@ -11,14 +11,15 @@ public interface FunctionLoss {
 
     NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs);
 
-    @NoArgsConstructor
-    class Quadratic implements FunctionLoss {
-        private float n = 2.0f;
-        private float nDiv = 1;
+    class MSE implements FunctionLoss {
+        private final float n;
 
-        public Quadratic(double n) {
-            this.n = (float) n;
-            nDiv = (float) (2.0 / n);
+        public MSE() {
+            this(2);
+        }
+
+        public MSE(double n) {
+            this.n = (float) (2.0 / n);
         }
 
         @Override
@@ -26,7 +27,7 @@ public interface FunctionLoss {
             float accuracy = 0;
 
             for (int i = 0; i < outputs.length; i++) {
-                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2());
+                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / outputs[i].size();
             }
 
             return accuracy;
@@ -38,9 +39,33 @@ public interface FunctionLoss {
 
             for (int i = 0; i < error.length; i++) {
                 error[i] = NNArrays.sub(outputs[i], idealOutputs[i]);
-                if (nDiv != 1) {
-                    error[i].mul(nDiv);
-                }
+                error[i].mul(n / error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class MAE implements FunctionLoss {
+
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.subAbs(idealOutputs[i], outputs[i])) / outputs[i].size();
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derAbs(idealOutputs[i], outputs[i]);
+                error[i].mul(-1.0f / error[i].size());
             }
 
             return error;
@@ -52,10 +77,7 @@ public interface FunctionLoss {
         public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
             float accuracy = 0;
             for (int i = 0; i < outputs.length; i++) {
-                for (int j = 0; j < outputs[i].size(); j++) {
-                    accuracy -= idealOutputs[i].get(j) * log(outputs[i].get(j) + 0.00000001f) +
-                            (1 - idealOutputs[i].get(j)) * log(1.0000001f - outputs[i].get(j));
-                }
+                accuracy -= NNArrays.sum(NNArrays.binaryCrossEntropy(idealOutputs[i], outputs[i])) / outputs[i].size();
             }
 
             return accuracy;
@@ -67,6 +89,7 @@ public interface FunctionLoss {
 
             for (int i = 0; i < error.length; i++) {
                 error[i] = NNArrays.derBinaryCrossEntropy(outputs[i], idealOutputs[i]);
+                error[i].div(error[i].size());
             }
 
             return error;
@@ -78,9 +101,7 @@ public interface FunctionLoss {
         public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
             float accuracy = 0;
             for (int i = 0; i < outputs.length; i++) {
-                for (int j = 0; j < outputs[i].size(); j++) {
-                    accuracy -= idealOutputs[i].get(j) * log(outputs[i].get(j) + 0.00000001f);
-                }
+                accuracy -= NNArrays.sum(NNArrays.crossEntropy(idealOutputs[i], outputs[i])) / outputs[i].size();
             }
 
             return accuracy;
@@ -92,6 +113,103 @@ public interface FunctionLoss {
 
             for (int i = 0; i < error.length; i++) {
                 error[i] = NNArrays.derCrossEntropy(outputs[i], idealOutputs[i]);
+                error[i].div(error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class Poisson implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.poisson(idealOutputs[i], outputs[i])) / outputs[i].size();
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derPoisson(outputs[i], idealOutputs[i]);
+                error[i].div(error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class KLDivergence implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.klDivergence(idealOutputs[i], outputs[i])) / outputs[i].size();
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derCrossEntropy(outputs[i], idealOutputs[i]);
+                error[i].div(error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class Hinge implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.hinge(idealOutputs[i], outputs[i])) / outputs[i].size();
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derHinge(idealOutputs[i], outputs[i]);
+                error[i].div(error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class LogCosh implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.logCosh(idealOutputs[i], outputs[i])) / outputs[i].size();
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derLogCosh(idealOutputs[i], outputs[i]);
+                error[i].div(error[i].size());
             }
 
             return error;

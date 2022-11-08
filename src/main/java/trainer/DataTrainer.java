@@ -21,19 +21,25 @@ public class DataTrainer {
         for (int i = 0; i < countEpoch; i++) {
             counter = 0;
             double accuracy = 0;
-            for (int j = 0; j < (int) Math.ceil(sizeTrainEpoch * 1.0 / sizeBatch); j++) {
+            int max = (int) Math.ceil(sizeTrainEpoch * 1.0 / sizeBatch);
+            System.out.print("  [");
+            for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
                 accuracy += network.train(data.getInput(), data.getOutput());
                 counter += dataMetric.quality(data.getOutput(), network.getOutputs());
+                if(j % Math.max(1, (max / 25)) == 0) {
+                    System.out.print("=");
+                }
             }
+            System.out.println("]");
             System.out.println("\t\t\t" + (i + 1) + " ЕПОХА ");
             System.out.println("Результат навчального датасету: ");
             System.out.println("Відсоток правильних відповідей: " + String.format("%.2f", counter * 1.0 / sizeTrainEpoch * 100) + " %");
             System.out.println("Точність на навчальном датасеті: " + String.format("%.5f", accuracy / sizeTrainEpoch));
 
-            score(network, dataMetric);
+            //score(network, dataMetric);
         }
-        return counter * 1.0f / sizeTestEpoch * 100;
+        return counter * 1.0f / sizeTrainEpoch * 100;
     }
 
     public float score(NeuralNetwork network, DataMetric dataMetric) {

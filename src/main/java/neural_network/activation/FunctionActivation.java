@@ -22,6 +22,7 @@ public interface FunctionActivation {
             case "Linear" -> new Linear();
             case "SiLU" -> new SiLU();
             case "LeakyReLU" -> new LeakyReLU(Double.parseDouble(scanner.nextLine()));
+            case "SineReLU" -> new LeakyReLU(Double.parseDouble(scanner.nextLine()));
             case "ELU" -> new ELU(Double.parseDouble(scanner.nextLine()));
             case "Sigmoid" -> new Sigmoid();
             case "Gaussian" -> new Gaussian();
@@ -49,6 +50,51 @@ public interface FunctionActivation {
         @Override
         public void save(FileWriter writer) throws IOException {
             writer.write("ReLU\n");
+        }
+    }
+
+    class AReLU implements FunctionActivation {
+        @Override
+        public void activation(NNArray input, NNArray output) {
+            output.arelu(input);
+        }
+
+        @Override
+        public void derivativeActivation(NNArray input, NNArray output, NNArray error, NNArray delta) {
+            delta.derRelu(input, error);
+        }
+
+        @Override
+        public void save(FileWriter writer) throws IOException {
+            writer.write("ReLU\n");
+        }
+    }
+
+    class SineReLU implements FunctionActivation {
+        private final float epsilon;
+
+        public SineReLU(double epsilon) {
+            this.epsilon = (float) epsilon;
+        }
+
+        public SineReLU() {
+            this.epsilon = 0.025f;
+        }
+
+        @Override
+        public void activation(NNArray input, NNArray output) {
+            output.sineRelu(input, epsilon);
+        }
+
+        @Override
+        public void derivativeActivation(NNArray input, NNArray output, NNArray error, NNArray delta) {
+            delta.derSineRelu(input, error, epsilon);
+        }
+
+        @Override
+        public void save(FileWriter writer) throws IOException {
+            writer.write("SineReLU\n");
+            writer.write(epsilon + "\n");
         }
     }
 

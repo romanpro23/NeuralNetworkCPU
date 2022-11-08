@@ -24,17 +24,17 @@ public class TestGANApple {
 //        NeuralNetwork discriminator = new NeuralNetwork()
 //                .addInputLayer(28, 28, 1)
 //                .addLayer(new ConvolutionLayer(16, 5, 2, 2))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-//                .addLayer(new DropoutLayer2D(0.4))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+//                .addLayer(new DropoutLayer3D(0.4))
 //                .addLayer(new ConvolutionLayer(32, 5, 2, 2))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-//                .addLayer(new DropoutLayer2D(0.4))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+//                .addLayer(new DropoutLayer3D(0.4))
 //                .addLayer(new ConvolutionLayer(64, 5, 1, 2))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-//                .addLayer(new DropoutLayer2D(0.4))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+//                .addLayer(new DropoutLayer3D(0.4))
 //                .addLayer(new ConvolutionLayer(128, 5, 1, 2))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-//                .addLayer(new DropoutLayer2D(0.4))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+//                .addLayer(new DropoutLayer3D(0.4))
 //                .addLayer(new Flatten3DLayer())
 //                .addDenseLayer(1, new FunctionActivation.Sigmoid())
 //                .setOptimizer(new AdaDeltaOptimizer(0.0008, 0.00000006))
@@ -52,18 +52,18 @@ public class TestGANApple {
 //                .addLayer(new ConvolutionTransposeLayer(32, 5, 1, 2)
 //                        .setInitializer(new Initializer.RandomNormal()))
 //                .addLayer(new BatchNormalizationLayer3D(0.9))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
 //                .addLayer(new UpSamplingLayer(2))
 //                .addLayer(new ConvolutionTransposeLayer(16, 5, 1, 2)
 //                        .setInitializer(new Initializer.RandomNormal()))
 //                .addLayer(new BatchNormalizationLayer3D(0.9))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
 //                .addLayer(new ConvolutionTransposeLayer(8, 5, 1, 2)
 //                        .setInitializer(new Initializer.RandomNormal()))
 //                .addLayer(new BatchNormalizationLayer3D(0.9))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
 //                .addLayer(new ConvolutionLayer(1, 5, 1, 2))
-//                .addLayer(new ActivationLayer2D(new FunctionActivation.Sigmoid()))
+//                .addLayer(new ActivationLayer3D(new FunctionActivation.Sigmoid()))
 //                .setOptimizer(new AdaDeltaOptimizer(0.0004, 0.00000003))
 //                .create();
 
@@ -90,7 +90,7 @@ public class TestGANApple {
             long start = System.nanoTime();
             if (i % 10 == 0) {
                 NNTensor[] data = NNArrays.isTensor(loader.getNextTestData(1).getInput());
-                ImageCreator.drawImage(data[0], 28, 28, i / 10 + "_input", "D:/NetworkTest/GAN");
+                ImageCreator.drawImage(data[0], 28, 28, i / 10 + "_input", "D:/NetworkTest/CGAN");
                 generator.save(new FileWriter("D:/NetworkTest/CGAN/generator_apples.txt"));
                 discriminator.save(new FileWriter("D:/NetworkTest/CGAN/discriminator_apples.txt"));
 
@@ -101,7 +101,7 @@ public class TestGANApple {
                 ImageCreator.drawImage(resultRandom, 28, 28, i / 10 + "_test", "D:/NetworkTest/CGAN");
             }
             if (i % 100 == 0) {
-                for (int j = 0; j < 250; j++) {
+                for (int j = 0; j < 8; j++) {
                     NNVector[] random = new NNVector[1];
                     random[0] = new NNVector(32);
                     init.initialize(random[0]);
@@ -109,7 +109,7 @@ public class TestGANApple {
                     ImageCreator.drawImage(resultRandom, 28, 28, i / 100 + "_random_" + j, "D:/NetworkTest/CGAN");
                 }
             }
-//            System.out.println(i + " - " + gan.train(loader.getNextTrainData(64).getInput()));
+            System.out.println(i + " - " + gan.train(loader.getNextTrainData(128).getInput()));
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

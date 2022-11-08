@@ -1,5 +1,6 @@
 package neural_network.layers.convolution_3d;
 
+import lombok.Getter;
 import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
@@ -21,10 +22,10 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
     private boolean loadWeight;
 
     //weight
-    @Setter
+    @Getter
     private NNTensor4D weight;
     private NNTensor4D derWeight;
-    @Setter
+
     private NNVector threshold;
     private NNVector derThreshold;
 
@@ -124,6 +125,11 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
                 for (int i = firstIndex; i < lastIndex; i++) {
                     error[i] = new NNTensor(height, width, depth);
                     error[i].transposeConvolution(errorNL[i].stride(step), weight, paddingY, paddingX);
+
+                    if(trainable){
+                        derWeight.convolution(input[i], errorNL[i], step, paddingY, paddingX);
+                        derThreshold.add(errorNL[i]);
+                    }
                 }
             });
         }
@@ -131,34 +137,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        if (trainable) {
-            derivativeWeight(errorNL);
-        }
-    }
-
-    private void derivativeWeight(NNTensor[] errors) {
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * input.length / countC;
-            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
-            executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    derWeight.convolution(input[i], errors[i], step, paddingY, paddingX);
-                    derThreshold.add(errors[i]);
-                }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-        
-        if (input.length != 1) {
-            derWeight.div(input.length);
-            derThreshold.div(input.length);
-        }
-
-        if (regularization != null) {
+        if (regularization != null && trainable) {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }

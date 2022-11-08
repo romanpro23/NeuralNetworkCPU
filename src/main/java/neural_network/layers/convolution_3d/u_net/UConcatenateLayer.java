@@ -39,7 +39,6 @@ public class UConcatenateLayer extends ConvolutionNeuralLayer {
         return this;
     }
 
-
     @Override
     public void generateOutput(NNArray[] input) {
         this.input = NNArrays.isTensor(input);
@@ -56,7 +55,7 @@ public class UConcatenateLayer extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         System.out.println("U-Net layer\t|  " + height + ",\t" + width + ",\t" + depth + "\t| "
-                + height + ",\t" + width + ",\t" + depth + "\t|");
+                + height + ",\t" + width + ",\t" + outDepth + "\t|");
         return 0;
     }
 

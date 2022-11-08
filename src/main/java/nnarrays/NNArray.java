@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 
 import static java.lang.Math.pow;
+import static java.lang.Math.signum;
 
 @NoArgsConstructor
 public class NNArray {
@@ -19,7 +20,7 @@ public class NNArray {
         this.data = new float[size];
     }
 
-    public int[] getSize(){
+    public int[] getSize() {
         return new int[]{size};
     }
 
@@ -138,6 +139,12 @@ public class NNArray {
         }
     }
 
+    public void oneSub() {
+        for (int i = 0; i < size; i++) {
+            data[i] = 1 - data[i];
+        }
+    }
+
     public void subSign(float val) {
         float a;
         for (int i = 0; i < size; i++) {
@@ -162,6 +169,32 @@ public class NNArray {
         }
     }
 
+    public void arelu(NNArray input) {
+        for (int i = 0; i < size; i++) {
+            data[i] = Math.abs(input.data[i]);
+        }
+    }
+
+    public void sineRelu(NNArray input, float epsilon) {
+        for (int i = 0; i < size; i++) {
+            if (input.data[i] > 0) {
+                data[i] = input.data[i];
+            } else {
+                data[i] = (float) (epsilon * (Math.sin(input.data[i]) - Math.cos(input.data[i])));
+            }
+        }
+    }
+
+    public void derSineRelu(NNArray input, NNArray error, float param) {
+        for (int i = 0; i < size; i++) {
+            if (input.data[i] > 0) {
+                data[i] = error.data[i];
+            } else {
+                data[i] = (float) (param * (Math.cos(input.data[i]) + Math.sin(input.data[i])));
+            }
+        }
+    }
+
     public void silu(NNArray input) {
         for (int i = 0; i < size; i++) {
             data[i] = (float) (data[i] / (1 + pow(Math.E, -data[i])));
@@ -172,6 +205,16 @@ public class NNArray {
         for (int i = 0; i < size; i++) {
             if (input.data[i] > 0) {
                 data[i] = error.data[i];
+            }
+        }
+    }
+
+    public void derARelu(NNArray input, NNArray error) {
+        for (int i = 0; i < size; i++) {
+            if (input.data[i] > 0) {
+                data[i] = error.data[i];
+            } else {
+                data[i] = -error.data[i];
             }
         }
     }
@@ -271,6 +314,14 @@ public class NNArray {
         }
     }
 
+    public void l2norm() {
+        float norm = 0;
+        for (int i = 0; i < size; i++) {
+            norm += data[i] * data[i];
+        }
+        div((float) Math.sqrt(norm) + 0.0000001f);
+    }
+
     public void gaussian(NNArray input) {
         for (int i = 0; i < size; i++) {
             data[i] = (float) (Math.pow(Math.E, -input.data[i] * input.data[i]));
@@ -293,11 +344,11 @@ public class NNArray {
         return max;
     }
 
-    public int indexMaxElement(){
+    public int indexMaxElement() {
         float max = data[0];
         int index = 0;
         for (int i = 1; i < size; i++) {
-            if(max < data[i]){
+            if (max < data[i]) {
                 index = i;
                 max = data[i];
             }
@@ -343,9 +394,23 @@ public class NNArray {
         }
     }
 
+    public void momentumInject(NNArray array, NNArray deltaWeight, final float decay, float k) {
+        final float rt = (1.0f - decay) / k;
+        for (int i = 0; i < size; i++) {
+            data[i] = decay * data[i] + (array.data[i] + deltaWeight.data[i] * array.data[i] * array.data[i]) * rt;
+        }
+    }
+
     public void subAndMul(NNArray vector, float val) {
         for (int i = 0; i < size; i++) {
             data[i] -= val * vector.data[i];
+        }
+    }
+
+    public void subAndMulQH(NNArray vector, NNArray delta, float val, float v) {
+        float v_ = 1f - v;
+        for (int i = 0; i < size; i++) {
+            data[i] -= val * (v * vector.data[i] + v_ * delta.data[i]);
         }
     }
 
@@ -353,6 +418,15 @@ public class NNArray {
         final float dr = 1 - decay;
         for (int i = 0; i < size; i++) {
             data[i] = decay * data[i] + dr * vector.data[i] * vector.data[i];
+        }
+    }
+
+    public void momentumPow2Sign(NNArray vector, final float decay) {
+        final float dr = 1 - decay;
+        float val;
+        for (int i = 0; i < size; i++) {
+            val = vector.data[i] * vector.data[i];
+            data[i] -= dr * signum(data[i] - val) * val;
         }
     }
 
@@ -365,7 +439,59 @@ public class NNArray {
     public void subDivSqrtNorm(NNArray nominator, NNArray denominator, float lr, float normN, float normD) {
         float cur_lr = lr / (normN + 0.0000001f);
         for (int i = 0; i < size; i++) {
-            data[i] -= cur_lr * (nominator.data[i] ) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+            data[i] -= cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    public void subDivPowNorm(NNArray nominator, NNArray denominator, float lr, float normN, float normD, float p) {
+        float cur_lr = lr / (normN + 0.0000001f);
+        for (int i = 0; i < size; i++) {
+            data[i] -= cur_lr * (nominator.data[i]) / (Math.pow(denominator.data[i] / normD, p) + 0.0000001f);
+        }
+    }
+
+    public void subDivSqrtNormClip(NNArray nominator, NNArray denominator, float lr, float normN, float normD, float min, float max) {
+        float cur_lr = 1 / (normN + 0.0000001f);
+        for (int i = 0; i < size; i++) {
+            data[i] -= clip((float) (lr / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f)), min, max) * cur_lr * (nominator.data[i]);
+        }
+    }
+
+    public float clip(float val, float min, float max) {
+        if (val < min) {
+            return min;
+        }
+        return Math.min(val, max);
+    }
+
+    public void deltaSubDivSqrtNorm(NNArray nominator, NNArray denominator, float lr, float normN, float normD) {
+        float cur_lr = lr / (normN + 0.0000001f);
+        for (int i = 0; i < size; i++) {
+            data[i] += cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    public void subDivSqrtNormQH(NNArray gradient, NNArray nominator, NNArray denominator, float lr, float normN, float normD, float v1, float v2) {
+        float cur_lr = lr / (normN + 0.0000001f);
+        float v_1 = 1f - v1;
+        float v_2 = 1f - v2;
+        for (int i = 0; i < size; i++) {
+            data[i] -= cur_lr * (v_1 * gradient.data[i] + v1 * nominator.data[i])
+                    / (Math.sqrt(v_2 * gradient.data[i] * gradient.data[i] + v2 * denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    public void subDivSqrtNormNesterov(NNArray nominator, NNArray denominator, NNArray grad, float lr, float beta1, float normN, float normD) {
+        float bt = (1.0f - beta1) / (normN);
+        for (int i = 0; i < size; i++) {
+            data[i] -= lr * (beta1 * nominator.data[i] + bt * grad.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    public void subDivNormNesterov(NNArray nominator, NNArray denominator, NNArray grad, float lr, float beta1, float normN) {
+        float bt = (1.0f - beta1) / (normN);
+        for (int i = 0; i < size; i++) {
+            data[i] -= lr * (beta1 * nominator.data[i] + bt * grad.data[i]) / (denominator.data[i] + 0.0000001f);
         }
     }
 
@@ -405,7 +531,7 @@ public class NNArray {
         }
     }
 
-    public void dropoutBack(NNArray output, NNArray error,  double chanceDrop) {
+    public void dropoutBack(NNArray output, NNArray error, double chanceDrop) {
         float drop = (float) (1.0f / (1.0f - chanceDrop));
         for (int i = 0; i < size; i++) {
             if (output.data[i] != 0) {

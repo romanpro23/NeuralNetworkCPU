@@ -29,7 +29,6 @@ public class GRULayer extends RecurrentNeuralLayer {
     private NNVector[] hiddenHError;
     private NNVector[] updateDelta;
     private NNVector[] updateError;
-    private NNVector[] hiddenTError;
     private NNVector[] resetHiddenError;
 
     private NNMatrix[] weightInput;
@@ -46,6 +45,11 @@ public class GRULayer extends RecurrentNeuralLayer {
 
     public GRULayer(int countNeuron) {
         this(countNeuron, 0);
+    }
+
+    public GRULayer(GRULayer layer) {
+        this(layer.countNeuron, layer.recurrentDropout, layer.returnSequences);
+        this.copy(layer);
     }
 
     public GRULayer(int countNeuron, double recurrentDropout) {
@@ -67,27 +71,14 @@ public class GRULayer extends RecurrentNeuralLayer {
     }
 
     public GRULayer setPreLayer(RecurrentNeuralLayer layer) {
-        this.preLayer = layer;
-        layer.returnState = true;
-        layer.nextLayer = this;
+        super.setPreLayer(layer);
 
         return this;
     }
 
     @Override
     public void initialize(int[] size) {
-        if (size.length != 2) {
-            throw new ExceptionInInitializerError("Error size pre layer!");
-        }
-
-        width = size[0];
-        depth = size[1];
-        if (returnSequences) {
-            outWidth = width;
-        } else {
-            outWidth = 1;
-        }
-        outDepth = countNeuron;
+        super.initialize(size);
 
         derThreshold = new NNVector[3];
         derWeightInput = new NNMatrix[3];
@@ -109,8 +100,8 @@ public class GRULayer extends RecurrentNeuralLayer {
                 weightInput[i] = new NNMatrix(countNeuron, depth);
                 weightHidden[i] = new NNMatrix(countNeuron, countNeuron);
 
-                initializer.initialize(weightInput[i]);
-                initializer.initialize(weightHidden[i]);
+                initializerInput.initialize(weightInput[i]);
+                initializerHidden.initialize(weightHidden[i]);
             }
         }
     }
@@ -168,7 +159,7 @@ public class GRULayer extends RecurrentNeuralLayer {
         this.updateGateInput = new NNVector[inputs.length][];
         this.updateGateOutput = new NNVector[inputs.length][];
         if (returnState) {
-            this.state = new NNVector[input.length][1];
+            this.state = new NNVector[inputs.length][1];
         }
 
         int countC = getCountCores();
@@ -227,8 +218,8 @@ public class GRULayer extends RecurrentNeuralLayer {
             updateGateInput[i][t].addMulRowToMatrix(input[i], t, weightInput[0]);
             resetGateInput[i][t].addMulRowToMatrix(input[i], t, weightInput[1]);
             if (hidden_t != null) {
-                updateGateInput[i][t].addMulVectorToMatrix(hidden_t, weightHidden[0]);
-                resetGateInput[i][t].addMulVectorToMatrix(hidden_t, weightHidden[1]);
+                updateGateInput[i][t].addMul(hidden_t, weightHidden[0]);
+                resetGateInput[i][t].addMul(hidden_t, weightHidden[1]);
             }
 
             //activation update and reset gate
@@ -239,7 +230,7 @@ public class GRULayer extends RecurrentNeuralLayer {
             inputHidden[i][t].addMulRowToMatrix(input[i], t, weightInput[2]);
             if (hidden_t != null) {
                 resetHidden[i][t].mulVectors(hidden_t, resetGateOutput[i][t]);
-                inputHidden[i][t].addMulVectorToMatrix(resetHidden[i][t], weightHidden[2]);
+                inputHidden[i][t].addMul(resetHidden[i][t], weightHidden[2]);
             }
 
             //find output memory content
@@ -248,7 +239,7 @@ public class GRULayer extends RecurrentNeuralLayer {
             //find current hidden state
             hidden[i][t].setMulUpdateVectors(updateGateOutput[i][t], outputHidden[i][t]);
             if (hidden_t != null) {
-                hidden[i][t].mulVectors(updateGateOutput[i][t], hidden_t);
+                hidden[i][t].addProduct(updateGateOutput[i][t], hidden_t);
             }
 
             //dropout hidden state
@@ -282,7 +273,6 @@ public class GRULayer extends RecurrentNeuralLayer {
         hiddenHError = new NNVector[errors.length];
         updateDelta = new NNVector[errors.length];
         updateError = new NNVector[errors.length];
-        hiddenTError = new NNVector[errors.length];
         resetHiddenError = new NNVector[errors.length];
 
         int countC = getCountCores();
@@ -300,15 +290,7 @@ public class GRULayer extends RecurrentNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        //average and regularization derivative weight
-        if (input.length != 1) {
-            for (int i = 0; i < 3; i++) {
-                derWeightInput[i].div(input.length);
-                derWeightHidden[i].div(input.length);
-                derThreshold[i].div(input.length);
-            }
-        }
-
+        //regularization derivative weight
         if (regularization != null) {
             for (int i = 0; i < 3; i++) {
                 regularization.regularization(weightInput[i]);
@@ -327,7 +309,6 @@ public class GRULayer extends RecurrentNeuralLayer {
         hiddenHError[i] = new NNVector(countNeuron);
         updateDelta[i] = new NNVector(countNeuron);
         updateError[i] = new NNVector(countNeuron);
-        hiddenTError[i] = new NNVector(countNeuron);
         resetHiddenError[i] = new NNVector(countNeuron);
 
         //copy error from next layer
@@ -347,7 +328,6 @@ public class GRULayer extends RecurrentNeuralLayer {
             }
             //dropout back for error
             hiddenError[i].dropoutBack(hidden[i][t], hiddenError[i], recurrentDropout);
-            hiddenTError[i].set(hiddenError[i]);
             //find error for update and reset gate
             updateError[i].mulNegativeVectors(hiddenError[i], outputHidden[i][t]);
             if (hidden_t != null) {
@@ -426,7 +406,20 @@ public class GRULayer extends RecurrentNeuralLayer {
     }
 
     public GRULayer setInitializer(Initializer initializer) {
-        this.initializer = initializer;
+        this.initializerInput = initializer;
+        this.initializerHidden = initializer;
+
+        return this;
+    }
+
+    public GRULayer setInitializerInput(Initializer initializer) {
+        this.initializerInput = initializer;
+
+        return this;
+    }
+
+    public GRULayer setInitializerHidden(Initializer initializer) {
+        this.initializerHidden = initializer;
 
         return this;
     }
@@ -444,9 +437,15 @@ public class GRULayer extends RecurrentNeuralLayer {
 
         recurrentLayer.returnState = Boolean.parseBoolean(scanner.nextLine());
 
-//        recurrentLayer.threshold = NNVector.read(scanner);
-//        recurrentLayer.weightInput = NNMatrix.read(scanner);
-//        recurrentLayer.weightHidden = NNMatrix.read(scanner);
+        recurrentLayer.threshold = new NNVector[3];
+        recurrentLayer.weightInput = new NNMatrix[3];
+        recurrentLayer.weightHidden = new NNMatrix[3];
+
+        for (int i = 0; i < 3; i++) {
+            recurrentLayer.threshold[i] = NNVector.read(scanner);
+            recurrentLayer.weightInput[i] = NNMatrix.read(scanner);
+            recurrentLayer.weightHidden[i] = NNMatrix.read(scanner);
+        }
 
         recurrentLayer.setRegularization(Regularization.read(scanner));
         recurrentLayer.setTrainable(Boolean.parseBoolean(scanner.nextLine()));

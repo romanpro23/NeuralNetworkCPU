@@ -22,7 +22,7 @@ public class Ciraf100Loader1D extends DataLoader1D {
 
     private void loadTrainFilesWithNumber() {
         try {
-            scanner = new FileInputStream("D:/datasets/ciraf/train.bin");
+            scanner = new FileInputStream("D:/datasets/ciraf/trainA.bin");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -30,7 +30,7 @@ public class Ciraf100Loader1D extends DataLoader1D {
 
     private void loadTestFilesWithNumber() {
         try {
-            scannerTest = new FileInputStream("D:/datasets/ciraf/test.bin");
+            scannerTest = new FileInputStream("D:/datasets/ciraf/testA.bin");
         } catch (IOException e) {
             e.printStackTrace();
         }

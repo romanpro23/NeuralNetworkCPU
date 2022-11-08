@@ -11,8 +11,6 @@ public class GANGeneratorData {
     @SneakyThrows
     public static NNData generateData(NNArray[] real, NNArray[] fake) {
         NNVector[] output = new NNVector[real.length + fake.length];
-        NNVector realLabel = new NNVector(new float[]{1});
-        NNVector fakeLabel = new NNVector(new float[]{0});
 
         if (real[0].getCountAxes() == 1) {
             NNVector[] input = new NNVector[output.length];
@@ -20,9 +18,9 @@ public class GANGeneratorData {
             NNVector[] fakeV = NNArrays.isVector(fake);
             for (int i = 0; i < real.length; i++) {
                 input[i * 2] = realV[i];
-                output[i * 2] = realLabel;
+                output[i * 2] = new NNVector(new float[]{1});
                 input[i * 2 + 1] = fakeV[i];
-                output[i * 2 + 1] = fakeLabel;
+                output[i * 2 + 1] = new NNVector(new float[]{0});
             }
 
             return new NNData1D(input, output);
@@ -32,9 +30,9 @@ public class GANGeneratorData {
             NNMatrix[] fakeV = NNArrays.isMatrix(fake);
             for (int i = 0; i < real.length; i++) {
                 input[i * 2] = realV[i];
-                output[i * 2] = realLabel;
+                output[i * 2] = new NNVector(new float[]{1});
                 input[i * 2 + 1] = fakeV[i];
-                output[i * 2 + 1] = fakeLabel;
+                output[i * 2 + 1] = new NNVector(new float[]{0});
             }
 
             return new NNData2D(input, output);
@@ -44,9 +42,9 @@ public class GANGeneratorData {
             NNTensor[] fakeV = NNArrays.isTensor(fake);
             for (int i = 0; i < real.length; i++) {
                 input[i * 2] = realV[i];
-                output[i * 2] = realLabel;
+                output[i * 2] = new NNVector(new float[]{1});
                 input[i * 2 + 1] = fakeV[i];
-                output[i * 2 + 1] = fakeLabel;
+                output[i * 2 + 1] = new NNVector(new float[]{0});
             }
 
             return new NNData3D(input, output);

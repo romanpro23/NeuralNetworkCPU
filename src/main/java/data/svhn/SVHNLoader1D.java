@@ -38,7 +38,7 @@ public class SVHNLoader1D extends DataLoader1D {
     }
 
     private void loadTrainData() throws IOException {
-        scanner = new FileInputStream("D:/datasets/svhn/train.bin");
+        scanner = new FileInputStream("D:/datasets/svhn/trainA.bin");
         for (int i = 0; i < 73257; i++) {
             if (scanner.available() >= 3072) {
                 scanner.read(bytes);
@@ -55,7 +55,7 @@ public class SVHNLoader1D extends DataLoader1D {
     }
 
     private void loadTestData() throws IOException {
-        scanner = new FileInputStream("D:/datasets/svhn/test.bin");
+        scanner = new FileInputStream("D:/datasets/svhn/testA.bin");
 
         for (int i = 0; i < 26032; i++) {
             if (scanner.available() >= 3072) {

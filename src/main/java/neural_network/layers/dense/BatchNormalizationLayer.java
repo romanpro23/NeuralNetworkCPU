@@ -15,7 +15,6 @@ import java.util.Scanner;
 public class BatchNormalizationLayer extends DenseNeuralLayer {
     //trainable parts
     private Regularization regularization;
-    private boolean trainable;
     @Setter
     private boolean loadWeight;
 
@@ -110,9 +109,6 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         findMean();
         findVariance();
 
-        movingMean.momentum(mean, momentum);
-        movingVar.momentum(var, momentum);
-
         normalization(mean, var);
     }
 
@@ -152,17 +148,20 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
             }
         }
 
-        NNVector errorVariance = derVar(errorNorm);
-        NNVector errorMean = derMean(errorNorm, errorVariance);
 
-        derNorm(errorNorm, errorMean, errorVariance);
+        NNVector errorVariance = derVar(errorNorm, mean, var);
+        NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
+
+        derNorm(errorNorm, errorMean, errorVariance, mean, var);
 
         if (trainable) {
+            movingMean.momentum(mean, momentum);
+            movingVar.momentum(var, momentum);
             derivativeWeight(errorNL);
         }
     }
 
-    private NNVector derVar(NNVector[] error) {
+    private NNVector derVar(NNVector[] error, NNVector mean, NNVector var) {
         NNVector derVariance = new NNVector(var);
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -180,7 +179,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         return derVariance;
     }
 
-    private NNVector derMean(NNVector[] error, NNVector derVar) {
+    private NNVector derMean(NNVector[] error, NNVector derVar, NNVector mean, NNVector var) {
         NNVector derMean = new NNVector(mean.size());
         float[] dMean = new float[mean.size()];
         float[] dVar = new float[var.size()];
@@ -201,7 +200,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         return derMean;
     }
 
-    private void derNorm(NNVector[] errors, NNVector errorMean, NNVector errorVar) {
+    private void derNorm(NNVector[] errors, NNVector errorMean, NNVector errorVar, NNVector mean, NNVector var) {
         errorMean.div(errors.length);
         errorVar.mul(2.0f / errors.length);
 
@@ -224,11 +223,6 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
                 derBetta.getData()[j] += error[i].getData()[j];
                 derGamma.getData()[j] += error[i].getData()[j] * normOutput[i].getData()[j];
             }
-        }
-
-        if (input.length != 1) {
-            derBetta.div(input.length);
-            derGamma.div(input.length);
         }
 
         if (regularization != null) {

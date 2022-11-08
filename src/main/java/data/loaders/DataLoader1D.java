@@ -32,6 +32,7 @@ public abstract class DataLoader1D extends DataLoader {
 
         if(size != sizeBatch || curTrain == train.size()){
             curTrain = 0;
+            //Collections.shuffle(train);
         }
 
         return new NNData1D(input, output);
@@ -56,7 +57,7 @@ public abstract class DataLoader1D extends DataLoader {
 
         if(size != sizeBatch || curTest == test.size()){
             curTest = 0;
-            Collections.shuffle(test);
+            //Collections.shuffle(test);
         }
 
         return new NNData1D(input, output);

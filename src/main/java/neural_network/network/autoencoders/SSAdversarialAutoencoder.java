@@ -128,7 +128,7 @@ public class SSAdversarialAutoencoder {
 
         NNArray[] inputDecoder = NNArrays.concat(classificationBlock.getOutput(), styleBlock.getOutput());
 
-        //train decoder
+        //trainA decoder
         float accuracy = decoder.train(inputDecoder, output);
 
         //find error for style and classification blocks
@@ -149,7 +149,7 @@ public class SSAdversarialAutoencoder {
             errorEncoder[i].add(styleBlock.getError()[i]);
         }
 
-        //train encoder
+        //trainA encoder
         encoder.setOptimizer(optimizerDecode);
         encoder.train(errorEncoder);
 
@@ -162,7 +162,7 @@ public class SSAdversarialAutoencoder {
         styleBlock.generateTrainOutput(encoder.getOutputs());
         NNData data = GANGeneratorData.generateData(distribution, styleBlock.getOutput());
 
-        //train styleDiscriminator
+        //trainA styleDiscriminator
         float accuracy = styleDiscriminator.train(data.getInput(), data.getOutput());
 
         //generate data for generator
@@ -171,7 +171,7 @@ public class SSAdversarialAutoencoder {
             label[i] = new NNVector(new float[]{1});
         }
 
-        //train generator
+        //trainA generator
         styleDiscriminator.setTrainable(false);
         styleDiscriminator.forwardBackpropagation(styleBlock.getOutput(), label);
 
@@ -194,7 +194,7 @@ public class SSAdversarialAutoencoder {
         NNArray[] fake = classificationBlock.getOutput();
         NNData data = GANGeneratorData.generateData(labels, fake);
 
-        //train labelDiscriminator
+        //trainA labelDiscriminator
         float accuracy = labelDiscriminator.train(data.getInput(), data.getOutput());
 
         //generate data for generator
@@ -203,7 +203,7 @@ public class SSAdversarialAutoencoder {
             label[i] = new NNVector(new float[]{1});
         }
 
-        //train generator
+        //trainA generator
         labelDiscriminator.setTrainable(false);
         labelDiscriminator.forwardBackpropagation(classificationBlock.getOutput(), label);
 

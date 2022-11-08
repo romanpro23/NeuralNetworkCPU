@@ -10,12 +10,12 @@ import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
     //trainable parts
     private Regularization regularization;
-    private boolean trainable;
     @Setter
     private boolean loadWeight;
 
@@ -123,9 +123,6 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         findMean();
         findVariance();
 
-        movingMean.momentum(mean, momentum);
-        movingVar.momentum(var, momentum);
-
         normalization(mean, var);
     }
 
@@ -174,17 +171,19 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
             }
         }
 
-        NNVector errorVariance = derVar(errorNorm);
-        NNVector errorMean = derMean(errorNorm, errorVariance);
+        NNVector errorVariance = derVar(errorNorm, mean, var);
+        NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
 
-        derNorm(errorNorm, errorMean, errorVariance);
+        derNorm(errorNorm, errorMean, errorVariance, mean, var);
 
         if (trainable) {
+            movingMean.momentum(mean, momentum);
+            movingVar.momentum(var, momentum);
             derivativeWeight(errorNL);
         }
     }
 
-    private NNVector derVar(NNTensor[] error) {
+    private NNVector derVar(NNTensor[] error, NNVector mean, NNVector var) {
         NNVector derVariance = new NNVector(var.size());
         float[] dVar = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -205,7 +204,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         return derVariance;
     }
 
-    private NNVector derMean(NNTensor[] error, NNVector derVar) {
+    private NNVector derMean(NNTensor[] error, NNVector derVar, NNVector mean, NNVector var) {
         NNVector derMean = new NNVector(mean.size());
         float[] dMean = new float[mean.size()];
         float[] dVar = new float[var.size()];
@@ -229,7 +228,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         return derMean;
     }
 
-    private void derNorm(NNTensor[] errors, NNVector errorMean, NNVector errorVar) {
+    private void derNorm(NNTensor[] errors, NNVector errorMean, NNVector errorVar, NNVector mean, NNVector var) {
         errorMean.div(errors.length * size);
         errorVar.mul(2.0f / (errors.length * size));
 
@@ -259,11 +258,6 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
                     derGamma.getData()[k] += error[i].getData()[index] * normOutput[i].getData()[index];
                 }
             }
-        }
-
-        if (input.length != 1) {
-            derBetta.div(input.length);
-            derGamma.div(input.length);
         }
 
         if (regularization != null) {

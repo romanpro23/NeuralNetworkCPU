@@ -1,18 +1,12 @@
 package test.layers;
 
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
-import neural_network.layers.recurrent.GRULayer;
-import neural_network.layers.recurrent.RecurrentLayer;
+import neural_network.layers.recurrent.PeepholeLSTMLayer;
 import neural_network.loss.FunctionLoss;
-import neural_network.optimizers.AdaBeliefOptimizer;
 import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import nnarrays.NNTensor;
-
-import java.util.Arrays;
 
 public class TestRecurrent {
     public static void main(String[] args) {
@@ -29,12 +23,12 @@ public class TestRecurrent {
             initializer.initialize(output[i]);
         }
 
-        GRULayer layer = new GRULayer(64, 0.1, true);
+        PeepholeLSTMLayer layer = new PeepholeLSTMLayer(64, 0.1, true).setHiddenPeephole(true);
         layer.initialize(new int[]{64, 64});
         Optimizer optimizer = new AdamOptimizer();
         layer.initialize(optimizer);
 
-        FunctionLoss loss = new FunctionLoss.Quadratic();
+        FunctionLoss loss = new FunctionLoss.MSE();
 //
         for (int i = 0; i < 128; i++) {
             long start = System.nanoTime();

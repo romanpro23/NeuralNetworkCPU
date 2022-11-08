@@ -7,8 +7,6 @@ import nnarrays.NNArray;
 import nnarrays.NNVector;
 
 @AllArgsConstructor
-@Getter
-@Setter
 public class NNData1D extends NNData {
     NNVector[] inputV;
     NNVector[] outputV;

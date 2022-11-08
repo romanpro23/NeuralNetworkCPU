@@ -98,9 +98,6 @@ public class EmbeddingLayer extends NeuralLayer {
                 }
             }
 
-            if (input.length != 1) {
-                derWeight.div(input.length);
-            }
             if (regularization != null) {
                 regularization.regularization(weight);
             }

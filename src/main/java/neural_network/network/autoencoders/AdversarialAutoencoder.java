@@ -85,7 +85,7 @@ public class AdversarialAutoencoder {
         NNArray[] fake = encoder.getOutputs();
         NNData data = GANGeneratorData.generateData(distribution, fake);
 
-        //train discriminator
+        //trainA discriminator
         float accuracy = discriminator.train(data.getInput(), data.getOutput());
 
         //generate data for generator
@@ -94,7 +94,7 @@ public class AdversarialAutoencoder {
             label[i] = new NNVector(new float[]{1});
         }
 
-        //train generator
+        //trainA generator
         discriminator.setTrainable(false);
         discriminator.forwardBackpropagation(encoder.getOutputs(), label);
 

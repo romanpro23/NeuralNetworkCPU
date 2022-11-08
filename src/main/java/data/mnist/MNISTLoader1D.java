@@ -89,7 +89,7 @@ public class MNISTLoader1D extends DataLoader1D {
                 train.add(new ImageData1D(new NNVector(inputsData), output));
             }
         }
-        Collections.shuffle(train);
+//        Collections.shuffle(train);
     }
 
     private void loadTestData() throws IOException {
@@ -104,7 +104,7 @@ public class MNISTLoader1D extends DataLoader1D {
                 test.add(new ImageData1D(new NNVector(inputsData), output));
             }
         }
-        Collections.shuffle(test);
+//        Collections.shuffle(test);
     }
 
     private void generateInput() {

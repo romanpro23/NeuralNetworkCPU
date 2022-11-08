@@ -47,6 +47,13 @@ public class LayersBlock extends NeuralLayer {
     }
 
     @Override
+    public void trainable(boolean trainable) {
+        for (NeuralLayer layer : layers) {
+            layer.trainable(trainable);
+        }
+    }
+
+    @Override
     public int info() {
         int countParam = 0;
         System.out.println("            |           Layers block        |             ");

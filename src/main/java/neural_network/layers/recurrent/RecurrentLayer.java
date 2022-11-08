@@ -11,7 +11,6 @@ import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,6 +33,11 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
         this(countNeuron, 0);
     }
 
+    public RecurrentLayer(RecurrentLayer layer) {
+        this(layer.countNeuron, layer.recurrentDropout, layer.returnSequences);
+        this.copy(layer);
+    }
+
     public RecurrentLayer(int countNeuron, double recurrentDropout) {
         super(countNeuron, recurrentDropout);
 
@@ -52,9 +56,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     }
 
     public RecurrentLayer setPreLayer(RecurrentNeuralLayer layer) {
-        this.preLayer = layer;
-        layer.returnState = true;
-        layer.nextLayer = this;
+        super.setPreLayer(layer);
 
         return this;
     }
@@ -67,18 +69,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
 
     @Override
     public void initialize(int[] size) {
-        if (size.length != 2) {
-            throw new ExceptionInInitializerError("Error size pre layer!");
-        }
-
-        width = size[0];
-        depth = size[1];
-        if (returnSequences) {
-            outWidth = width;
-        } else {
-            outWidth = 1;
-        }
-        outDepth = countNeuron;
+        super.initialize(size);
 
         derThreshold = new NNVector(countNeuron);
         derWeightInput = new NNMatrix(countNeuron, depth);
@@ -89,8 +80,8 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
             weightInput = new NNMatrix(countNeuron, depth);
             weightHidden = new NNMatrix(countNeuron, countNeuron);
 
-            initializer.initialize(weightInput);
-            initializer.initialize(weightHidden);
+            initializerInput.initialize(weightInput);
+            initializerHidden.initialize(weightHidden);
         }
     }
 
@@ -179,7 +170,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
             inputHidden[i][t].set(threshold);
             inputHidden[i][t].addMulRowToMatrix(input[i], t, weightInput);
             if (hidden_t != null) {
-                inputHidden[i][t].addMulVectorToMatrix(hidden_t, weightHidden);
+                inputHidden[i][t].addMul(hidden_t, weightHidden);
             }
             //activation hidden state
             functionActivation.activation(inputHidden[i][t], outputHidden[i][t]);
@@ -224,13 +215,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        //average and regularization derivative weight
-        if (input.length != 1) {
-            derWeightInput.div(input.length);
-            derWeightHidden.div(input.length);
-            derThreshold.div(input.length);
-        }
-
+        //regularization derivative weight
         if (regularization != null) {
             regularization.regularization(weightInput);
             regularization.regularization(weightHidden);
@@ -300,7 +285,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
                 }
             }
             //find derivative for input's weight
-            for (int m = 0; m < width; m++, indexIWeight++, indexInput++) {
+            for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
                 derWeightInput.getData()[indexIWeight] += hiddenDelta[i].get(k) * input[i].getData()[indexInput];
             }
         }
@@ -313,7 +298,20 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     }
 
     public RecurrentLayer setInitializer(Initializer initializer) {
-        this.initializer = initializer;
+        this.initializerInput = initializer;
+        this.initializerHidden = initializer;
+
+        return this;
+    }
+
+    public RecurrentLayer setInitializerHidden(Initializer initializer) {
+        this.initializerHidden = initializer;
+
+        return this;
+    }
+
+    public RecurrentLayer setInitializerInput(Initializer initializer) {
+        this.initializerInput = initializer;
 
         return this;
     }

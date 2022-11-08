@@ -97,18 +97,18 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
 
     @Override
     public void generateOutput(NNArray[] inputs) {
-        NNTensor[] inputD = NNArrays.isTensor(inputs);
+        NNTensor[] inputData = NNArrays.isTensor(inputs);
         input = new NNTensor[inputs.length];
         output = new NNTensor[inputs.length];
 
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
         for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * inputD.length / countC;
-            final int lastIndex = Math.min(inputD.length, (t + 1) * inputD.length / countC);
+            final int firstIndex = t * inputData.length / countC;
+            final int lastIndex = Math.min(inputData.length, (t + 1) * inputData.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    input[i] = inputD[i].stride(stride);
+                    input[i] = inputData[i].stride(stride);
                     output[i] = new NNTensor(outHeight, outWidth, outDepth);
                     output[i].transposeConvolution(input[i], weight, paddingY, paddingX);
                     output[i].add(threshold);
@@ -134,6 +134,11 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
                 for (int i = firstIndex; i < lastIndex; i++) {
                     error[i] = new NNTensor(height, width, depth);
                     error[i].convolution(errorNL[i], weight, stride, paddingY, paddingX);
+
+                    if (trainable) {
+                        derWeight.convolutionTranspose(input[i], errorNL[i], paddingY, paddingX);
+                        derThreshold.add(errorNL[i]);
+                    }
                 }
             });
         }
@@ -141,34 +146,7 @@ public class ConvolutionTransposeLayer extends ConvolutionNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        if (trainable) {
-            derivativeWeight(errorNL);
-        }
-    }
-
-    private void derivativeWeight(NNTensor[] errors) {
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * input.length / countC;
-            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
-            executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    derWeight.convolutionTranspose(input[i], errors[i], paddingY, paddingX);
-                    derThreshold.add(errors[i]);
-                }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-        
-        if (input.length != 1) {
-            derWeight.div(input.length);
-            derThreshold.div(input.length);
-        }
-
-        if (regularization != null) {
+        if (trainable && regularization != null) {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }

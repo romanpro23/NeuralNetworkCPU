@@ -8,8 +8,6 @@ import nnarrays.NNMatrix;
 import nnarrays.NNVector;
 
 @AllArgsConstructor
-@Getter
-@Setter
 public class NNData2D extends NNData {
     NNMatrix[] inputM;
     NNVector[] outputV;

@@ -9,13 +9,10 @@ import neural_network.layers.dense.VariationalLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.autoencoders.ConditionalVAE;
-import neural_network.network.autoencoders.VariationalAutoencoder;
 import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 
 public class TestConditionalVAE {
@@ -30,7 +27,7 @@ public class TestConditionalVAE {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new VariationalLayer(32))
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
@@ -44,7 +41,7 @@ public class TestConditionalVAE {
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         ConditionalVAE autoencoder = new ConditionalVAE(encoder, decoder);

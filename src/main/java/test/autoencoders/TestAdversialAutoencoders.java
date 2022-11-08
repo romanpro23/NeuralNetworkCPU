@@ -8,14 +8,12 @@ import neural_network.layers.dense.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.autoencoders.AdversarialAutoencoder;
-import neural_network.network.autoencoders.VariationalAutoencoder;
 import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Scanner;
 
 public class TestAdversialAutoencoders {
     public static void main(String[] args) throws Exception {
@@ -28,7 +26,7 @@ public class TestAdversialAutoencoders {
                 .addDenseLayer(128)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(32))
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
@@ -42,7 +40,7 @@ public class TestAdversialAutoencoders {
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer(0.0006))
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork discriminator = new NeuralNetwork()

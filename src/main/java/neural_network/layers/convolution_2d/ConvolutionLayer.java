@@ -89,7 +89,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    output[i] = new NNMatrix( outWidth, outDepth);
+                    output[i] = new NNMatrix(outWidth, outDepth);
                     output[i].convolution(input[i], weight, step, padding);
                     output[i].add(threshold);
                 }
@@ -114,6 +114,11 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
                 for (int i = firstIndex; i < lastIndex; i++) {
                     error[i] = new NNMatrix(width, depth);
                     error[i].transposeConvolution(errorNL[i].stride(step), weight, padding);
+
+                    if (trainable) {
+                        derWeight.convolution(input[i], errorNL[i], step, padding);
+                        derThreshold.add(errorNL[i]);
+                    }
                 }
             });
         }
@@ -121,34 +126,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        if (trainable) {
-            derivativeWeight(errorNL);
-        }
-    }
-
-    private void derivativeWeight(NNMatrix[] errors) {
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * input.length / countC;
-            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
-            executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    derWeight.convolution(input[i], errors[i], step, padding);
-                    derThreshold.add(errors[i]);
-                }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-
-        if (input.length != 1) {
-            derWeight.div(input.length);
-            derThreshold.div(input.length);
-        }
-
-        if (regularization != null) {
+        if (trainable && regularization != null) {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }
@@ -157,7 +135,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         int countParam = weight.size() + threshold.size();
-        System.out.println("Convolution\t| "  + width + ",\t" + depth + "\t\t|  " + outWidth + ",\t" + outDepth + "\t\t|\t" + countParam);
+        System.out.println("Convolution\t| " + width + ",\t" + depth + "\t\t|  " + outWidth + ",\t" + outDepth + "\t\t|\t" + countParam);
         return countParam;
     }
 

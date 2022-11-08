@@ -10,11 +10,9 @@ import neural_network.layers.dense.ActivationLayer;
 import neural_network.layers.dense.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
-import neural_network.network.autoencoders.AdversarialAutoencoder;
 import neural_network.network.autoencoders.SSAdversarialAutoencoder;
 import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
-import neural_network.optimizers.SGDOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
 import trainer.DataMetric;
@@ -31,7 +29,7 @@ public class TestSSAdversialAutoencoders {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(512)
                 .addActivationLayer(new FunctionActivation.ReLU())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         LayersBlock classificationBlock = new LayersBlock()
@@ -50,7 +48,7 @@ public class TestSSAdversialAutoencoders {
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork discriminatorStyle = new NeuralNetwork()

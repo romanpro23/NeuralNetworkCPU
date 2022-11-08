@@ -11,9 +11,6 @@ import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -30,7 +27,7 @@ public class TestAutoencoders {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(32))
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
@@ -44,7 +41,7 @@ public class TestAutoencoders {
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         Autoencoder autoencoder = new Autoencoder(encoder, decoder);

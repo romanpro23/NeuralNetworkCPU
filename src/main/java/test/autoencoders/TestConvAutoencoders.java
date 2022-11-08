@@ -1,7 +1,6 @@
 package test.autoencoders;
 
 import data.ImageCreator;
-import data.mnist.MNISTLoader1D;
 import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.convolution_3d.ActivationLayer3D;
@@ -17,7 +16,6 @@ import neural_network.network.autoencoders.Autoencoder;
 import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-import nnarrays.NNVector;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -38,7 +36,7 @@ public class TestConvAutoencoders {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(32))
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
@@ -56,7 +54,7 @@ public class TestConvAutoencoders {
                 .addLayer(new ConvolutionLayer(1, 3, 1, 1))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.Sigmoid()))
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         Autoencoder autoencoder = new Autoencoder(encoder, decoder);

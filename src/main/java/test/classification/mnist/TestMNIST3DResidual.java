@@ -1,4 +1,4 @@
-package test.classification;
+package test.classification.mnist;
 
 import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
@@ -54,7 +54,7 @@ public class TestMNIST3DResidual {
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
                 .create();
 
-//        NeuralNetwork network = NeuralNetwork.read(new Scanner(new File("D:/test.txt")))
+//        NeuralNetwork network = NeuralNetwork.read(new Scanner(new File("D:/testA.txt")))
 //                .setOptimizer(new AdamOptimizer())
 //                .setFunctionLoss(new FunctionLoss.CrossEntropy())
 //                .create();
@@ -68,7 +68,7 @@ public class TestMNIST3DResidual {
             long start = System.nanoTime();
 //            trainer.score(network, new DataMetric.Top1());
             trainer.train(network, 64, 1, new DataMetric.Top1());
-            network.save(new FileWriter(new File("test.txt")));
+            network.save(new FileWriter(new File("testA.txt")));
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

@@ -1,14 +1,13 @@
 package neural_network.layers.recurrent;
 
+import lombok.NoArgsConstructor;
 import neural_network.initialization.Initializer;
-import neural_network.layers.NeuralLayer;
 import neural_network.layers.convolution_2d.ConvolutionNeuralLayer;
 import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
-import nnarrays.NNArrays;
-import nnarrays.NNMatrix;
 import nnarrays.NNVector;
 
+@NoArgsConstructor
 public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
     protected boolean returnSequences;
     protected boolean returnState;
@@ -26,7 +25,8 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
     protected NNVector[] hiddenError;
 
     protected Regularization regularization;
-    protected Initializer initializer;
+    protected Initializer initializerInput;
+    protected Initializer initializerHidden;
 
     protected boolean loadWeight;
     protected boolean dropout;
@@ -37,7 +37,8 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         this.returnState = false;
 
         this.trainable = true;
-        this.initializer = new Initializer.XavierUniform();
+        this.initializerInput = new Initializer.XavierUniform();
+        this.initializerHidden = new Initializer.XavierNormal();
         this.dropout = false;
         preLayer = null;
     }
@@ -47,6 +48,14 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         dropout = true;
         generateOutput(inputs);
         dropout = false;
+    }
+
+    public RecurrentNeuralLayer setPreLayer(RecurrentNeuralLayer layer) {
+        this.preLayer = layer;
+        layer.returnState = true;
+        layer.nextLayer = this;
+
+        return this;
     }
 
     @Override
@@ -65,11 +74,15 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         outDepth = countNeuron;
     }
 
-    protected NNVector[][] getStatePreLayer() {
-        return preLayer.state;
-    }
-
     protected boolean hasPreLayer() {
         return preLayer != null;
+    }
+
+    protected void copy(RecurrentNeuralLayer layer){
+        this.initializerInput = layer.initializerInput;
+        this.initializerHidden = layer.initializerHidden;
+        this.returnState = layer.returnState;
+        this.regularization = layer.regularization;
+        this.trainable = layer.trainable;
     }
 }

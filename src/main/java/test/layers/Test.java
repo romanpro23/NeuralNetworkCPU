@@ -3,9 +3,7 @@ package test.layers;
 import neural_network.layers.dense.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.AdamOptimizer;
-import neural_network.optimizers.MomentumOptimizer;
 import neural_network.optimizers.Optimizer;
-import neural_network.optimizers.SGDOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
 
@@ -35,7 +33,7 @@ public class Test {
         layer.initialize(new int[]{inputSize});
         layer.initialize(optimizer);
 
-        FunctionLoss loss = new FunctionLoss.Quadratic();
+        FunctionLoss loss = new FunctionLoss.MSE();
 
         for (int i = 0; i < 128; i++) {
             long start = System.nanoTime();

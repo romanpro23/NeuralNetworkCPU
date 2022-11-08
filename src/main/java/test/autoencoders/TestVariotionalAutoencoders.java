@@ -1,25 +1,16 @@
 package test.autoencoders;
 
 import data.ImageCreator;
-import data.mnist.BatchMNIST;
 import data.mnist.MNISTLoader1D;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.dense.DenseLayer;
 import neural_network.layers.dense.VariationalLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
-import neural_network.network.autoencoders.Autoencoder;
 import neural_network.network.autoencoders.VariationalAutoencoder;
 import neural_network.optimizers.AdamOptimizer;
-import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Scanner;
 
 public class TestVariotionalAutoencoders {
     public static void main(String[] args) throws Exception {
@@ -33,7 +24,7 @@ public class TestVariotionalAutoencoders {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new VariationalLayer(8))
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
@@ -47,17 +38,17 @@ public class TestVariotionalAutoencoders {
                 .addDenseLayer(784)
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.Quadratic())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
 //        NeuralNetwork encoder = NeuralNetwork.read(new Scanner(new File("D:/NetworkTest/VAE/encoder_32h.txt")))
 //                .setOptimizer(new AdamOptimizer())
-//                .setFunctionLoss(new FunctionLoss.Quadratic())
+//                .setFunctionLoss(new FunctionLoss.MSE())
 //                .create();
 //
 //        NeuralNetwork decoder = NeuralNetwork.read(new Scanner(new File("D:/NetworkTest/VAE/decoder_32h.txt")))
 //                .setOptimizer(new AdamOptimizer())
-//                .setFunctionLoss(new FunctionLoss.Quadratic())
+//                .setFunctionLoss(new FunctionLoss.MSE())
 //                .create();
 
         VariationalAutoencoder autoencoder = new VariationalAutoencoder(encoder, decoder);

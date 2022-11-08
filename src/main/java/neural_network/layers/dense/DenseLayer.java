@@ -138,6 +138,9 @@ public class DenseLayer extends DenseNeuralLayer {
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
                     error[i] = errorNL[i].mulT(weight);
+                    if(trainable) {
+                        derivativeWeight(input[i], errorNL[i]);
+                    }
                 }
             });
         }
@@ -145,41 +148,19 @@ public class DenseLayer extends DenseNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        if (trainable) {
-            derivativeWeight(errorNL);
+        if (trainable && regularization != null) {
+                regularization.regularization(weight);
+                regularization.regularization(threshold);
         }
     }
 
-    private void derivativeWeight(NNVector[] error) {
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * input.length / countC;
-            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
-            executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    for (int j = 0, index = 0; j < error[i].size(); j++) {
-                        for (int k = 0; k < input[i].size(); k++, index++) {
-                            derWeight.getData()[index] += error[i].getData()[j] * input[i].getData()[k];
-                        }
-                    }
-                    derThreshold.add(error[i]);
-                }
-            });
+    private void derivativeWeight(NNVector input, NNVector error){
+        for (int j = 0, index = 0; j < error.size(); j++) {
+            for (int k = 0; k < input.size(); k++, index++) {
+                derWeight.getData()[index] += error.getData()[j] * input.getData()[k];
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-
-        if (input.length != 1) {
-            derWeight.div(input.length);
-            derThreshold.div(input.length);
-        }
-
-        if (regularization != null) {
-            regularization.regularization(weight);
-            regularization.regularization(threshold);
-        }
+        derThreshold.add(error);
     }
 
     public static DenseLayer read(Scanner scanner) {

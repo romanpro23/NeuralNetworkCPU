@@ -44,7 +44,7 @@ public class NNMatrix extends NNArray {
         this(matrix.row, matrix.column);
     }
 
-    public NNVector[] toVectors(){
+    public NNVector[] toVectors() {
         NNVector[] vectors = new NNVector[row];
         for (int i = 0; i < row; i++) {
             vectors[i] = new NNVector(column);
@@ -54,7 +54,7 @@ public class NNMatrix extends NNArray {
         return vectors;
     }
 
-    public void set(NNVector vector, int index_t){
+    public void set(NNVector vector, int index_t) {
         int index = rowIndex[index_t];
         System.arraycopy(vector.data, 0, data, index, vector.size);
     }
@@ -66,6 +66,10 @@ public class NNMatrix extends NNArray {
 
     public float get(int i, int j) {
         return data[rowIndex[i] + j];
+    }
+
+    public void set(int i, int j, float val) {
+        data[rowIndex[i] + j] = val;
     }
 
     @SneakyThrows
@@ -106,6 +110,34 @@ public class NNMatrix extends NNArray {
             writer.write("\n");
             writer.flush();
         }
+    }
+
+    public NNMatrix dotT(NNMatrix matrix) {
+        NNMatrix result = new NNMatrix(row, matrix.getRow());
+
+        for (int n = 0, indR = 0; n < row; n++) {
+            for (int i = 0, index = 0; i < matrix.getRow(); i++, indR++) {
+                for (int j = 0, indI = rowIndex[n]; j < matrix.getColumn(); j++, index++, indI++) {
+                    result.data[indR] += data[indI] * matrix.data[index];
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public NNMatrix dot(NNMatrix matrix) {
+        NNMatrix result = new NNMatrix(row, matrix.getColumn());
+
+        for (int n = 0, indI = 0; n < row; n++) {
+            for (int i = 0, index = 0; i < matrix.getRow(); i++, indI++) {
+                for (int j = 0, indR = result.rowIndex[n]; j < matrix.getColumn(); j++, index++) {
+                    result.data[indR] += data[indI] * matrix.data[index];
+                }
+            }
+        }
+
+        return result;
     }
 
     public static NNMatrix read(Scanner scanner) {
@@ -179,11 +211,31 @@ public class NNMatrix extends NNArray {
         if (column != vector.size) {
             throw new Exception("Array has difference size");
         }
-        int inputIndex;
+        int inputIndex = 0;
         for (int i = 0; i < row; i++) {
-            inputIndex = rowIndex[i];
             for (int k = 0; k < column; k++, inputIndex++) {
                 data[inputIndex] += vector.data[k];
+            }
+        }
+    }
+
+    public void backGlobalMaxPool(NNMatrix input, NNVector output, NNVector error) {
+        int index = 0;
+        for (int i = 0; i < input.row; i++) {
+            for (int k = 0; k < input.column; k++, index++) {
+                if (output.data[k] == input.data[index]) {
+                    data[index] = error.data[k];
+                }
+            }
+        }
+    }
+
+    public void backGlobalAveragePool(NNVector error) {
+        int index = 0;
+        error.div(row);
+        for (int i = 0; i < row; i++) {
+            for (int k = 0; k < column; k++, index++) {
+                data[index] = error.data[k];
             }
         }
     }
@@ -210,5 +262,50 @@ public class NNMatrix extends NNArray {
             }
         }
         return result;
+    }
+
+    public void softmax(NNArray input) {
+        int index;
+        for (int k = 0; k < row; k++) {
+            float sum = 0;
+            index = k * column;
+            float max = input.data[index];
+            for (int i = 1; i < column; i++, index++) {
+                if (max < input.data[index])
+                    max = input.data[index];
+            }
+            index = k * column;
+            for (int i = 0; i < column; i++, index++) {
+                data[index] = (float) (Math.pow(Math.E, input.data[index] - max));
+                sum += data[index];
+            }
+            sum += 0.00000001f;
+
+            index = k * column;
+            for (int i = 0; i < column; i++, index++) {
+                data[index] /= sum;
+            }
+        }
+    }
+
+    public void derSoftmax(NNMatrix output, NNMatrix error) {
+        int index, indexI, indexJ;
+        for (int k = 0; k < row; k++) {
+            float value;
+            index = k * column;
+            indexI = index;
+            for (int i = 0; i < column; i++, indexI++) {
+                data[indexI] = 0;
+                indexJ = index;
+                for (int j = 0; j < column; j++, indexJ++) {
+                    if (i != j) {
+                        value = output.data[indexI] * -output.data[indexJ];
+                    } else {
+                        value = output.data[indexI] * (1 - output.data[indexI]);
+                    }
+                    data[indexI] += error.getData()[indexJ] * value;
+                }
+            }
+        }
     }
 }

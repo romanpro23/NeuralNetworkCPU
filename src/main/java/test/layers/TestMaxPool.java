@@ -1,17 +1,12 @@
 package test.layers;
 
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.ConvolutionLayer;
 import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
-import neural_network.layers.convolution_3d.MaxPoolingLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.AdaBeliefOptimizer;
-import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-
-import java.util.Arrays;
 
 public class TestMaxPool {
     public static void main(String[] args) {
@@ -40,7 +35,7 @@ public class TestMaxPool {
         Optimizer optimizer = new AdaBeliefOptimizer(0.01);
         layer.initialize(optimizer);
 
-        FunctionLoss loss = new FunctionLoss.Quadratic();
+        FunctionLoss loss = new FunctionLoss.MSE();
 //
         for (int i = 0; i < 128; i++) {
             long start = System.nanoTime();
@@ -50,13 +45,5 @@ public class TestMaxPool {
             optimizer.update();
             System.out.println((System.nanoTime() - start) / 1000000);
         }
-
-//        for (int i = 0; i < 1; i++) {
-//            long start = System.nanoTime();
-//            layer.generateOutput(in);
-//            System.out.println(Arrays.toString(layer.getOutput()[0].getData()));
-////            layer.generateError(error);
-//            System.out.println((System.nanoTime() - start) / 1000000);
-//        }
     }
 }

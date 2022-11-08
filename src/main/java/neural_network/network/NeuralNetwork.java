@@ -6,6 +6,7 @@ import neural_network.layers.NeuralLayer;
 import neural_network.layers.convolution_3d.ActivationLayer3D;
 import neural_network.layers.convolution_3d.BatchNormalizationLayer3D;
 import neural_network.layers.convolution_3d.DropoutLayer3D;
+import neural_network.layers.convolution_3d.u_net.UConcatenateLayer;
 import neural_network.layers.dense.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.Optimizer;
@@ -93,6 +94,12 @@ public class NeuralNetwork {
         return this;
     }
 
+    public NeuralNetwork addUConcatenateLayer(int index) {
+        layers.add(new UConcatenateLayer().addLayer(layers.get(index), index));
+
+        return this;
+    }
+
     public NeuralNetwork addLayers(ArrayList<NeuralLayer> layers) {
         this.layers.addAll(layers);
 
@@ -150,11 +157,13 @@ public class NeuralNetwork {
         throw new Exception("Network is not deep");
     }
 
-    public void queryTrain(NNArray[] input) {
+    public NNArray[] queryTrain(NNArray[] input) {
         layers.get(0).generateTrainOutput(input);
         for (int i = 1; i < layers.size(); i++) {
             layers.get(i).generateTrainOutput(layers.get(i - 1).getOutput());
         }
+
+        return getOutputs();
     }
 
     public NNArray[] query(NNArray[] input) {
@@ -167,9 +176,15 @@ public class NeuralNetwork {
     }
 
     public float train(NNArray[] input, NNArray[] idealOutput) {
+        return train(input, idealOutput, true);
+    }
+
+    public float train(NNArray[] input, NNArray[] idealOutput, boolean update) {
         queryTrain(input);
         backpropagation(findDerivative(idealOutput));
-        update();
+        if(update) {
+            update();
+        }
         return functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
@@ -181,8 +196,14 @@ public class NeuralNetwork {
     }
 
     public void train(NNArray[] error) {
+        train(error, true);
+    }
+
+    public void train(NNArray[] error, boolean update) {
         backpropagation(error);
-        update();
+        if(update) {
+            update();
+        }
     }
 
     public int[] getInputSize() {
@@ -197,6 +218,9 @@ public class NeuralNetwork {
         int[] size = layers.get(layers.size() - 1).size();
         if (size.length == 1) {
             return NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));
+        } else if (size.length == 2) {
+            return NNArrays.toMatrix(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
+                    size[0], size[1]);
         } else if (size.length == 3) {
             return NNArrays.toTensor(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
                     size[0], size[1], size[2]);
@@ -204,7 +228,7 @@ public class NeuralNetwork {
         return null;
     }
 
-    private void update() {
+    public void update() {
         optimizer.update();
     }
 

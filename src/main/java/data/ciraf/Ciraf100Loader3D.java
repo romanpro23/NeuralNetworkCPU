@@ -61,7 +61,6 @@ public class Ciraf100Loader3D extends DataLoader3D {
                 scanner.read(bytes);
 
                 trueNumb = byteNumb[1];
-                System.out.println(trueNumb);
                 generateInput();
                 NNVector output = new NNVector(100);
                 output.set(trueNumb, 1);
