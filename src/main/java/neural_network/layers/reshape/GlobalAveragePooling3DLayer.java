@@ -18,7 +18,7 @@ public class GlobalAveragePooling3DLayer extends Flatten3DLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Global average pooling 3D\n");
         writer.flush();
     }

@@ -21,7 +21,7 @@ public class SNConvolutionTransposeLayer extends ConvolutionNeuralLayer {
 
     private boolean loadWeight;
 
-    //weight
+    //weightAttention
     @Setter
     private NNTensor4D weight;
     @Getter
@@ -121,7 +121,7 @@ public class SNConvolutionTransposeLayer extends ConvolutionNeuralLayer {
         u.addMul(v, weightM);
         u.l2norm();
 
-        return 0.0000001f + NNArrays.sum(v.mul(u.mulT(weightM)));
+        return 0.0000001f + NNArrays.sum(v.mul(u.dotT(weightM)));
     }
 
     @Override
@@ -155,7 +155,7 @@ public class SNConvolutionTransposeLayer extends ConvolutionNeuralLayer {
     }
 
     private void backSpectralNorm() {
-        NNMatrix dW = u.mulVector(v);
+        NNMatrix dW = u.dot(v);
         dW.oneSub();
         dW.mul(weight);
         dW.div(sigma);
@@ -210,7 +210,7 @@ public class SNConvolutionTransposeLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Spectral normalization convolution transpose layer 3D\n");
         writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + stride + " " + paddingY + " " + paddingX + "\n");
         threshold.save(writer);

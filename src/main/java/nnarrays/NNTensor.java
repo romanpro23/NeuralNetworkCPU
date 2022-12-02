@@ -57,7 +57,7 @@ public class NNTensor extends NNArray {
     }
 
     @Override
-    public int[] getSize() {
+    public int[] shape() {
         return new int[]{rows, columns, depth};
     }
 
@@ -69,7 +69,76 @@ public class NNTensor extends NNArray {
         data[rowsIndex[i] + columnsIndex[j] + k] = value;
     }
 
-    public void shuffle(NNTensor input, int countGroup){
+    public NNTensor mul(NNVector vector) {
+        NNTensor output = new NNTensor(this.shape());
+
+        for (int i = 0, index = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                for (int k = 0; k < depth; k++, index++) {
+                    output.data[index] = data[index] * vector.data[k];
+                }
+            }
+        }
+
+        return output;
+    }
+
+    public NNVector mul(NNTensor tensor) {
+        NNVector output = new NNVector(depth);
+
+        for (int i = 0, index = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                for (int k = 0; k < depth; k++, index++) {
+                    output.data[k] += tensor.data[index] * data[index];
+                }
+            }
+        }
+
+        return output;
+    }
+
+    public NNTensor reverse() {
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                for (int k = 0; k < depth; k++) {
+                    float val = get(i, j, k);
+                    set(i, j, k, get(rows - 1 - i, j, k));
+                    set(rows - 1 - i, j, k, val);
+                }
+            }
+        }
+        return this;
+    }
+
+    public void prelu(NNTensor input, NNVector alpha) {
+        for (int i = 0, index = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                for (int k = 0; k < depth; k++, index++) {
+                    if (input.data[index] < 0) {
+                        data[index] = input.data[index] * alpha.data[k];
+                    } else {
+                        data[index] = input.data[index];
+                    }
+                }
+            }
+        }
+    }
+
+    public void derPrelu(NNTensor input, NNTensor error, NNVector alpha) {
+        for (int i = 0, index = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                for (int k = 0; k < depth; k++, index++) {
+                    if (input.data[index] < 0) {
+                        data[index] = error.data[index] * alpha.data[k];
+                    } else {
+                        data[index] = error.data[index];
+                    }
+                }
+            }
+        }
+    }
+
+    public void shuffle(NNTensor input, int countGroup) {
         int sizeGroup = input.depth / countGroup;
         int outIndex, inIndex;
 
@@ -91,7 +160,7 @@ public class NNTensor extends NNArray {
         }
     }
 
-    public void backShuffle(NNTensor input, int countGroup){
+    public void backShuffle(NNTensor input, int countGroup) {
         int sizeGroup = input.depth / countGroup;
 
         int outIndex, inIndex;
@@ -160,6 +229,42 @@ public class NNTensor extends NNArray {
                         inputIndex = inIndex;
                         for (int d = 0; d < depth; d++, outputIndex++, inputIndex++) {
                             data[outputIndex] = input.data[inputIndex];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void pixelShuffle(NNTensor input, int sizeKernel) {
+        int xIndex, yIndex;
+
+        for (int y = 0; y < input.rows; y++) {
+            for (int x = 0; x < input.columns; x++) {
+                for (int d = 0, depthIn = 0; d < depth; d++) {
+                    for (int j = 0; j < sizeKernel; j++) {
+                        yIndex = y * sizeKernel + j;
+                        for (int k = 0; k < sizeKernel; k++, depthIn++) {
+                            xIndex = x * sizeKernel + k;
+                            set(yIndex, xIndex, d, input.get(y, x, depthIn));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void backPixelShuffle(NNTensor input, int sizeKernel) {
+        int xIndex, yIndex;
+
+        for (int y = 0; y < input.rows; y++) {
+            for (int x = 0; x < input.columns; x++) {
+                for (int d = 0, depthIn = 0; d < depth; d++) {
+                    for (int j = 0; j < sizeKernel; j++) {
+                        yIndex = y * sizeKernel + j;
+                        for (int k = 0; k < sizeKernel; k++, depthIn++) {
+                            xIndex = x * sizeKernel + k;
+                            set(y, x, depthIn, input.get(yIndex, xIndex, d));
                         }
                     }
                 }

@@ -35,20 +35,12 @@ public class Pix2PixGAN extends GAN {
         //accuracy generator
         float accuracyG = discriminator.train(fakeInput, getRealLabel(input.length), false);
         NNArray[] errorGenerator = NNArrays.subArray(discriminator.getError(), generator.getOutputs());
-        NNArray[] errorRecognition = generator.findDerivative(output);
+        NNArray[] errorRecognition = generator.findDerivative(output, lambda);
         accuracyG += generator.accuracy(output);
         for (int i = 0; i < errorRecognition.length; i++) {
-            if(lambda != 1) {
-                errorRecognition[i].mul(lambda);
-            }
             errorGenerator[i].add(errorRecognition[i]);
         }
         generator.train(errorGenerator);
-        errorGenerator[0].clip(-1, 1);
-        ImageCreator.drawColorImage((NNTensor) errorGenerator[0], 64, 64, "_error", "D:/NetworkTest/Decolorize/Pix2Pix", true);
-        ImageCreator.drawColorImage((NNTensor) output[0], 64, 64, "_output", "D:/NetworkTest/Decolorize/Pix2Pix", true);
-        ImageCreator.drawColorImage((NNTensor) fake[0], 64, 64, "_test", "D:/NetworkTest/Decolorize/Pix2Pix", true);
-        ImageCreator.drawColorImage((NNTensor) input[0], 64, 64, "_input", "D:/NetworkTest/Decolorize/Pix2Pix", true);
 
         discriminator.setTrainable(true);
         discriminator.update();

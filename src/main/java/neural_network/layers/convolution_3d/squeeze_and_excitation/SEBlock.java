@@ -3,24 +3,28 @@ package neural_network.layers.convolution_3d.squeeze_and_excitation;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.LayersBlock;
 import neural_network.layers.NeuralLayer;
-import neural_network.layers.convolution_3d.UpSamplingLayer;
 import neural_network.layers.dense.*;
 import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
-import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
-import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import nnarrays.NNArrays;
+import nnarrays.NNTensor;
+import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 
 public class SEBlock extends LayersBlock {
     private int depth, height, width;
     private int outHeight, outWidth, outDepth;
+
+    private NNTensor[] input;
+    private NNTensor[] output;
+    private NNVector[] outputBlock;
+
+    private NNTensor[] error;
+    private NNVector[] errorBlock;
 
     public SEBlock() {
         layers = new ArrayList<>();
@@ -39,17 +43,14 @@ public class SEBlock extends LayersBlock {
         outHeight = height;
         outDepth = depth;
 
-        layers.add(new Reshape3DLayer(1, 1, depth));
-        layers.add(new UpSamplingLayer(height, width));
-
         super.initialize(size);
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("SE block\n");
         for (NeuralLayer neuralLayer : layers) {
-            neuralLayer.write(writer);
+            neuralLayer.save(writer);
         }
         writer.write("End\n");
         writer.flush();
@@ -62,6 +63,59 @@ public class SEBlock extends LayersBlock {
         return seBlock;
     }
 
+    @Override
+    public void generateOutput(NNArray[] inputs){
+        this.input = NNArrays.isTensor(inputs);
+        super.generateOutput(inputs);
+        generateOutput();
+    }
+
+    private void generateOutput(){
+        this.output = new NNTensor[input.length];
+        this.outputBlock = NNArrays.isVector(super.getOutput());
+        for (int i = 0; i < input.length; i++) {
+            this.output[i] = input[i].mul(outputBlock[i]);
+        }
+    }
+
+    @Override
+    public void generateTrainOutput(NNArray[] inputs){
+        this.input = NNArrays.isTensor(inputs);
+        super.generateTrainOutput(inputs);
+        generateOutput();
+    }
+
+    private void generateErrors(NNTensor[] errors){
+        this.error = new NNTensor[input.length];
+        this.errorBlock = new NNVector[input.length];
+        for (int i = 0; i < input.length; i++) {
+            this.error[i] = errors[i].mul(outputBlock[i]);
+            this.errorBlock[i] = errors[i].mul(input[i]);
+        }
+    }
+
+    public void addErrors(){
+        for (int i = 0; i < error.length; i++) {
+            error[i].add(super.getError()[i]);
+        }
+    }
+
+    @Override
+    public void generateError(NNArray[] errors){
+        generateErrors(NNArrays.isTensor(errors));
+        super.generateError(errorBlock);
+        addErrors();
+    }
+
+    @Override
+    public NNArray[] getOutput(){
+        return output;
+    }
+
+    @Override
+    public NNArray[] getError(){
+        return error;
+    }
 
     public SEBlock addGlobalPoolingLayer(Flatten3DLayer layer) {
         layers.add(layer);

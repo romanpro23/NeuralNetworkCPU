@@ -4,15 +4,11 @@ import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.convolution_3d.ActivationLayer3D;
 import neural_network.layers.convolution_3d.ConvolutionLayer;
+import neural_network.layers.convolution_3d.densely.DenseUnit;
 import neural_network.layers.convolution_3d.densely.DenseBlock;
-import neural_network.layers.convolution_3d.densely.DenseModule;
-import neural_network.layers.convolution_3d.residual.ResidualBlock;
-import neural_network.layers.convolution_3d.residual.ResidualModule;
-import neural_network.layers.convolution_3d.squeeze_and_excitation.SEBlock;
 import neural_network.layers.dense.ActivationLayer;
 import neural_network.layers.dense.DenseLayer;
 import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -28,24 +24,24 @@ public class TestMNIST3DDense {
                 .addInputLayer(28, 28, 1)
                 .addLayer(new ConvolutionLayer(8, 3, 2, 1))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                .addLayer(new DenseModule()
-                        .addDenseBlock(new DenseBlock()
+                .addLayer(new DenseBlock()
+                        .addDenseUnit(new DenseUnit()
                                 .addLayer(new ConvolutionLayer(8, 5, 1, 2))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                         )
-                        .addDenseBlock(new DenseBlock()
+                        .addDenseUnit(new DenseUnit()
                                 .addLayer(new ConvolutionLayer(8, 5, 1, 2))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                         )
-                        .addDenseBlock(new DenseBlock()
+                        .addDenseUnit(new DenseUnit()
                                 .addLayer(new ConvolutionLayer(8, 5, 1, 2))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                         )
-                        .addDenseBlock(new DenseBlock()
+                        .addDenseUnit(new DenseUnit()
                                 .addLayer(new ConvolutionLayer(8, 5, 1, 2))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                         )
-                        .addDenseBlock(new DenseBlock()
+                        .addDenseUnit(new DenseUnit()
                                 .addLayer(new ConvolutionLayer(8, 5, 1, 2))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                         )

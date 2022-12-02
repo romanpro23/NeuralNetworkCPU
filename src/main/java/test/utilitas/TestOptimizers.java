@@ -38,7 +38,7 @@ public class TestOptimizers {
 
         NeuralNetwork network = NeuralNetwork
                 .read(new Scanner(new File("optimizers_net.txt")))
-                .setOptimizer(new AMSGradOptimizer())
+                .setOptimizer(new AngularGradOptimizer().useTan())
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
@@ -49,7 +49,7 @@ public class TestOptimizers {
         DataTrainer trainer = new DataTrainer(60000, 10000, loader);
         network.info();
 
-        String nameOptimizer = "PAdamT";
+        String nameOptimizer = "AngularGrad";
         writer.write(nameOptimizer + "\t\t\t\t");
 
         for (int i = 0; i < 20; i++) {

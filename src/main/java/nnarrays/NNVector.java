@@ -33,7 +33,7 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector mul(NNMatrix matrix) {
+    public NNVector dot(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getRow());
 
         for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -61,6 +61,21 @@ public class NNVector extends NNArray {
         for (int j = 0, indexInput = input.getRowIndex()[n_row]; j < size; j++, indexInput++) {
             data[j] += input.data[indexInput];
         }
+    }
+
+    public NNVector concat(NNVector vector){
+        NNVector result = new NNVector(size + vector.size());
+        System.arraycopy(data, 0, result.data, 0, size);
+        System.arraycopy(vector.data, 0, result.data, size, vector.size);
+
+        return result;
+    }
+
+    public NNVector subVector(int startPos, int size){
+        NNVector result = new NNVector(size);
+        System.arraycopy(data, startPos, result.data, 0, size);
+
+        return result;
     }
 
     @SneakyThrows
@@ -135,7 +150,7 @@ public class NNVector extends NNArray {
         }
     }
 
-    public NNVector mulT(NNMatrix matrix) {
+    public NNVector dotT(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getColumn());
 
         for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -203,7 +218,7 @@ public class NNVector extends NNArray {
         div(input.getRow());
     }
 
-    public NNMatrix mulVector(NNVector vector) {
+    public NNMatrix dot(NNVector vector) {
         NNMatrix result = new NNMatrix(vector.size, size);
 
         for (int i = 0, index = 0; i < result.getRow(); i++) {

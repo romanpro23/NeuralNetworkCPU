@@ -186,12 +186,12 @@ public class SelfAttentionLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("SelfAttention layer 3D\n");
         writer.write(depthAttention + "\n");
-        queryLayer.write(writer);
-        keyLayer.write(writer);
-        valueLayer.write(writer);
+        queryLayer.save(writer);
+        keyLayer.save(writer);
+        valueLayer.save(writer);
         gamma.save(writer);
 
         writer.write(trainable + "\n");

@@ -21,7 +21,7 @@ public class DilatedConvolutionLayer extends ConvolutionNeuralLayer {
 
     private boolean loadWeight;
 
-    //weight
+    //weightAttention
     @Getter
     @Setter
     private NNTensor4D weight;
@@ -157,7 +157,7 @@ public class DilatedConvolutionLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Dilated convolution layer 3D\n");
         writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + step + " " + paddingY + " " + paddingX
                 + " " + dilatationY + " " + dilatationX + "\n");

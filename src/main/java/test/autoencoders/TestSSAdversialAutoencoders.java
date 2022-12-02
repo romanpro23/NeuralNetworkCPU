@@ -115,8 +115,8 @@ public class TestSSAdversialAutoencoders {
                 decoder.save(new FileWriter(new File("D:/NetworkTest/SSAAE/decoder.txt")));
                 discriminatorLabel.save(new FileWriter(new File("D:/NetworkTest/SSAAE/discriminatorL.txt")));
                 discriminatorStyle.save(new FileWriter(new File("D:/NetworkTest/SSAAE/discriminatorS.txt")));
-                classificationBlock.write(new FileWriter(new File("D:/NetworkTest/SSAAE/classificationBlock.txt")));
-                styleBlock.write(new FileWriter(new File("D:/NetworkTest/SSAAE/styleBlock.txt")));
+                classificationBlock.save(new FileWriter(new File("D:/NetworkTest/SSAAE/classificationBlock.txt")));
+                styleBlock.save(new FileWriter(new File("D:/NetworkTest/SSAAE/styleBlock.txt")));
 
                 if(i % 500 == 0){
                     NNVector[] random = new NNVector[10];

@@ -1,5 +1,6 @@
 package neural_network.layers.dense;
 
+import lombok.Getter;
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public abstract class DenseNeuralLayer extends NeuralLayer {
+    @Getter
     protected int countNeuron;
     protected NNVector[] input;
     protected NNVector[] output;

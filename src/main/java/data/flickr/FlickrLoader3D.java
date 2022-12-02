@@ -116,9 +116,9 @@ public class FlickrLoader3D extends DataLoader3D {
         for (int i = 0; i < sizeImage; i++) {
             for (int j = 0; j < sizeImage; j++) {
                 Color color = new Color(image.getRGB(i, j));
-                input.set(i, j, 0, transformData.transform(color.getRed()));
-                input.set(i, j, 1, transformData.transform(color.getGreen()));
-                input.set(i, j, 2, transformData.transform(color.getBlue()));
+                input.set(i, j, 0, transformData.transformR(color.getRed()));
+                input.set(i, j, 1, transformData.transformG(color.getGreen()));
+                input.set(i, j, 2, transformData.transformB(color.getBlue()));
             }
         }
         imageIndex++;

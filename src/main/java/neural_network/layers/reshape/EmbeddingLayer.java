@@ -20,7 +20,6 @@ public class EmbeddingLayer extends NeuralLayer {
     //trainable parts
     private Regularization regularization;
     private Initializer initializer;
-    private boolean trainable;
     @Setter
     private boolean loadWeight;
 
@@ -29,6 +28,7 @@ public class EmbeddingLayer extends NeuralLayer {
     protected NNMatrix[] errorNL;
 
     private int sizeInput;
+    @Getter
     private final int sizeVocabulary;
     @Getter
     private final int lengthVector;
@@ -122,7 +122,7 @@ public class EmbeddingLayer extends NeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Embedding layer\n");
         writer.write(sizeVocabulary + " " + lengthVector  + "\n");
         weight.save(writer);

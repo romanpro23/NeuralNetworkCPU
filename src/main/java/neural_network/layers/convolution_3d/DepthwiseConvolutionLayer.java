@@ -1,7 +1,5 @@
 package neural_network.layers.convolution_3d;
 
-import lombok.Getter;
-import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
@@ -11,8 +9,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class DepthwiseConvolutionLayer extends ConvolutionNeuralLayer {
     private ConvolutionLayer convolutionLayer;
@@ -103,12 +99,12 @@ public class DepthwiseConvolutionLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Depthwise convolution layer 3D\n");
         writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + step + " "
                 + paddingY + " " + paddingX + "\n");
-        groupedConvolutionLayer.write(writer);
-        convolutionLayer.write(writer);
+        groupedConvolutionLayer.save(writer);
+        convolutionLayer.save(writer);
         writer.write(trainable + "\n");
         writer.flush();
     }

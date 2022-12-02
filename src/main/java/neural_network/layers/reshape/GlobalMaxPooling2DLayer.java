@@ -15,7 +15,7 @@ public class GlobalMaxPooling2DLayer extends Flatten2DLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Global max pooling 2D\n");
         writer.flush();
     }

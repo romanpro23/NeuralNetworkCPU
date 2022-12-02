@@ -252,7 +252,7 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Batch normalization layer\n");
         writer.write(momentum + "\n");
         gamma.save(writer);

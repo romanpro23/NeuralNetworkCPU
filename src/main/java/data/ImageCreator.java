@@ -61,7 +61,7 @@ public class ImageCreator {
                         blue *= 0.5f;
                         blue += 0.5f;
                     }
-                    color = new Color(red, green, blue);
+                    color = new Color(Math.min(red, 1), Math.min(green, 1), Math.min(blue, 1));
                     result.setRGB(i, j, color.getRGB());
                 } catch (Exception e) {
 
@@ -114,6 +114,37 @@ public class ImageCreator {
                 try {
                     float data = tensor.get(i, j, 0);
                     if(tanh) {
+                        data *= 0.5f;
+                        data += 0.5f;
+                    }
+                    color = new Color(data, data, data);
+                    result.setRGB(i, j, color.getRGB());
+                } catch (Exception e) {
+
+                }
+            }
+        }
+
+        File output = new File(path + "/" + nameImg + ".png");
+        try {
+            ImageIO.write(result, "png", output);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void drawImage(NNTensor tensor, int h, int w, String nameImg, String path, int d) {
+        drawImage(tensor, h, w, nameImg, path, d, false);
+    }
+
+    public static void drawImage(NNTensor tensor, int h, int w, String nameImg, String path, int d, boolean tanh) {
+        Color color;
+        BufferedImage result = new BufferedImage(h, w, BufferedImage.TYPE_INT_RGB);
+        for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+                try {
+                    float data = tensor.get(i, j, d);
+                    if(tanh){
                         data *= 0.5f;
                         data += 0.5f;
                     }

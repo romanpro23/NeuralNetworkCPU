@@ -329,7 +329,7 @@ public class BatchRenormalizationLayer3D extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Batch renormalization layer 3D\n");
         writer.write(momentum + "\n");
         gamma.save(writer);

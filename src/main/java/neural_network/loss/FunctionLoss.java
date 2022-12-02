@@ -9,7 +9,15 @@ import static java.lang.Math.log;
 public interface FunctionLoss {
     float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs);
 
+    default float findAccuracy(NNArray outputs, NNArray idealOutputs){
+        return findAccuracy(new NNArray[]{outputs}, new NNArray[]{idealOutputs});
+    }
+
     NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs);
+
+    default NNArray[] findDerivative(NNArray outputs, NNArray idealOutputs){
+        return findDerivative(new NNArray[]{outputs}, new NNArray[]{idealOutputs});
+    }
 
     class MSE implements FunctionLoss {
         private final float n;

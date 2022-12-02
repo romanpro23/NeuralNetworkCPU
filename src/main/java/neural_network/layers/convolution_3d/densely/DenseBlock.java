@@ -1,25 +1,30 @@
 package neural_network.layers.convolution_3d.densely;
 
-import neural_network.layers.LayersBlock;
-import neural_network.layers.NeuralLayer;
+import lombok.Getter;
+import neural_network.layers.convolution_3d.ConvolutionNeuralLayer;
+import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import nnarrays.NNArrays;
+import nnarrays.NNTensor;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Scanner;
 
-public class DenseBlock extends LayersBlock {
-    private int outDepth, outWidth, outHeight;
-    private NNArray[] input;
+public class DenseBlock extends ConvolutionNeuralLayer {
+    @Getter
+    private ArrayList<DenseUnit> module;
 
     public DenseBlock() {
-        super();
+        module = new ArrayList<>();
     }
 
     @Override
-    public int[] size() {
-        return new int[]{outHeight, outWidth, outDepth};
+    public void initialize(Optimizer optimizer) {
+        for (DenseUnit denseUnit : module) {
+            denseUnit.initialize(optimizer);
+        }
     }
 
     @Override
@@ -27,79 +32,92 @@ public class DenseBlock extends LayersBlock {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-        inputSize = size;
-        if (!layers.isEmpty()) {
-            super.initialize(size);
 
-            outDepth = layers.get(layers.size() - 1).size()[2];
-            outHeight = layers.get(layers.size() - 1).size()[1];
-            outWidth = layers.get(layers.size() - 1).size()[0];
-        } else {
-            outDepth = inputSize[2];
-            outHeight = inputSize[0];
-            outWidth = inputSize[1];
+        height = size[0];
+        width = size[1];
+        depth = size[2];
+
+        outDepth = depth;
+        outWidth = width;
+        outHeight = height;
+
+        for (DenseUnit denseUnit : module) {
+            denseUnit.initialize(new int[]{outHeight, outWidth, outDepth});
+            outDepth += denseUnit.size()[2];
         }
     }
 
     @Override
-    public void generateOutput(NNArray[] input) {
-        if (layers.isEmpty()) {
-            this.input = input;
-        } else {
-            this.input = input;
-            super.generateOutput(input);
+    public void generateOutput(NNArray[] inputs) {
+        this.input = NNArrays.isTensor(inputs);
+
+        module.get(0).generateOutput(input);
+        this.output = NNArrays.concatTensor(this.input, module.get(0).getOutput());
+        for (int i = 1; i < module.size(); i++) {
+            module.get(i).generateOutput(output);
+            this.output = NNArrays.concatTensor(this.output, module.get(i).getOutput());
         }
     }
 
     @Override
     public void generateTrainOutput(NNArray[] input) {
-        if (layers.isEmpty()) {
-            this.input = input;
-        } else {
-            this.input = input;
-            super.generateTrainOutput(input);
+        this.input = NNArrays.isTensor(input);
+
+        module.get(0).generateTrainOutput(this.input);
+        this.output = NNArrays.concatTensor(this.input, module.get(0).getOutput());
+        for (int i = 1; i < module.size(); i++) {
+            module.get(i).generateTrainOutput(output);
+            this.output = NNArrays.concatTensor(this.output, module.get(i).getOutput());
         }
     }
 
     @Override
-    public void generateError(NNArray[] error) {
-        super.generateError(error);
+    public void generateError(NNArray[] errors) {
+        this.errorNL = getErrorNextLayer(errors);
+
+        int index = output[0].size();
+        for (int i = module.size() - 1; i >= 0; i--) {
+            index -= module.get(i).getOutput()[0].size();
+            module.get(i).generateError(NNArrays.subTensor(errorNL, module.get(i).getOutput(), index));
+            addErrorBlock(NNArrays.isTensor(module.get(i).getError()));
+        }
+
+        this.error = NNArrays.subTensor(errorNL, input, 0);
+    }
+
+    private void addErrorBlock(NNTensor[] errorBlock) {
+        int row = errorNL[0].getRows();
+        int column = errorNL[0].getColumns();
+        int depth = errorBlock[0].shape()[2];
+        int index, indexSubTensor = 0;
+        for (int i = 0; i < errorNL.length; i++) {
+            indexSubTensor = 0;
+            for (int j = 0; j < row; j++) {
+                for (int k = 0; k < column; k++) {
+                    index = errorNL[i].getRowsIndex()[j] + errorNL[i].getColumnsIndex()[k];
+                    for (int d = 0; d < depth; d++, index++, indexSubTensor++) {
+                        errorNL[i].getData()[index] += errorBlock[i].getData()[indexSubTensor];
+                    }
+                }
+            }
+        }
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void trainable(boolean trainable) {
+        for (DenseUnit denseUnit : module) {
+            denseUnit.trainable(trainable);
+        }
+    }
+
+    @Override
+    public void save(FileWriter writer) throws IOException {
         writer.write("Dense block\n");
-        for (NeuralLayer layer : layers) {
-            layer.write(writer);
+        for (DenseUnit layer : module) {
+            layer.save(writer);
         }
         writer.write("End\n");
         writer.flush();
-    }
-
-    @Override
-    public NNArray[] getError() {
-        return super.getError();
-    }
-
-    @Override
-    public NNArray[] getOutput() {
-        return super.getOutput();
-    }
-
-    public NNArray[] getInput() {
-        return input;
-    }
-
-    public DenseBlock addLayer(NeuralLayer layer) {
-        layers.add(layer);
-
-        return this;
-    }
-
-    public DenseBlock setTrainable(boolean trainable) {
-        super.setTrainable(trainable);
-
-        return this;
     }
 
     @Override
@@ -107,18 +125,35 @@ public class DenseBlock extends LayersBlock {
         int countParam = 0;
         System.out.println("            |           Dense block         |             ");
         System.out.println("____________|_______________________________|_____________");
-        for (NeuralLayer neuralLayer : layers) {
-            countParam += neuralLayer.info();
-            System.out.println("____________|_______________|_______________|_____________");
+        for (DenseUnit denseUnit : module) {
+            countParam += denseUnit.info();
         }
-        System.out.println("____________|_______________|_______________|_____________");
+        System.out.println("            |  " + height + ",\t" + width + ",\t" + depth + "\t|  "
+                + outHeight + ",\t" + outWidth + ",\t" + outDepth + "\t|\t" + countParam);
         return countParam;
     }
 
-    public static DenseBlock read(Scanner scanner) {
-        DenseBlock inceptionBlock = new DenseBlock();
-        NeuralLayer.read(scanner, inceptionBlock.layers);
+    public DenseBlock addDenseUnit(DenseUnit denseUnit) {
+        module.add(denseUnit);
+        return this;
+    }
 
-        return inceptionBlock;
+    public DenseBlock setTrainable(boolean trainable) {
+        for (DenseUnit denseUnit : module) {
+            denseUnit.setTrainable(trainable);
+        }
+        return this;
+    }
+
+    public static DenseBlock read(Scanner scanner) {
+        DenseBlock denseBlock = new DenseBlock();
+
+        String layer = scanner.nextLine();
+        while (!layer.equals("End")) {
+            denseBlock.module.add(DenseUnit.read(scanner));
+            layer = scanner.nextLine();
+        }
+
+        return denseBlock;
     }
 }

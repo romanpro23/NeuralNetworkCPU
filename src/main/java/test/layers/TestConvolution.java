@@ -24,7 +24,7 @@ public class TestConvolution {
 //
 //        FileWriter writerOut = new FileWriter("output.txt");
 //        FileWriter writerIn = new FileWriter("input.txt");
-//        FileWriter writerWeight = new FileWriter("weight.txt");
+//        FileWriter writerWeight = new FileWriter("weightAttention.txt");
 //
 //        for (int i = 0; i < input.length; i++) {
 //            input[i] = new NNTensor(32, 32, 64);
@@ -38,7 +38,7 @@ public class TestConvolution {
 
         Scanner readerOut = new Scanner(new File("output.txt"));
         Scanner readerIn = new Scanner(new File("input.txt"));
-        Scanner readerWeight = new Scanner(new File("weight.txt"));
+        Scanner readerWeight = new Scanner(new File("weightAttention.txt"));
 
         for (int i = 0; i < input.length; i++) {
             input[i] = NNTensor.read(readerIn);

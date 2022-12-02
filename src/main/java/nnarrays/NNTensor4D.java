@@ -82,7 +82,7 @@ public class NNTensor4D extends NNArray {
     }
 
     @Override
-    public int[] getSize() {
+    public int[] shape() {
         return new int[]{depth, length, row, column};
     }
 

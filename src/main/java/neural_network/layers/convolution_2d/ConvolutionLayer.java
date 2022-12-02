@@ -20,7 +20,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
 
     private boolean loadWeight;
 
-    //weight
+    //weightAttention
     @Setter
     private NNTensor weight;
     private NNTensor derWeight;
@@ -140,7 +140,7 @@ public class ConvolutionLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Convolution layer 2D\n");
         writer.write(countKernel + " " + sizeKernel + " " + step + " " + padding + "\n");
         threshold.save(writer);

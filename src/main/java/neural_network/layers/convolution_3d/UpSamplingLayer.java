@@ -72,7 +72,7 @@ public class UpSamplingLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Up sampling layer\n");
         writer.write(heightKernel + " " + widthKernel + "\n");
         writer.flush();

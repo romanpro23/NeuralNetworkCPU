@@ -33,7 +33,7 @@ public class Flatten2DLayer extends NeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Flatten layer 2D\n");
         writer.flush();
     }

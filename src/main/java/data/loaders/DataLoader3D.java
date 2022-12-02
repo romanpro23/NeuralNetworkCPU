@@ -11,6 +11,10 @@ public abstract class DataLoader3D extends DataLoader {
     protected ArrayList<ImageData3D> train;
     protected ArrayList<ImageData3D> test;
 
+    protected boolean useReverse;
+    protected boolean useNoise;
+    protected boolean useCrop;
+
     private int curTrain = 0, curTest = 0;
 
     protected void reloadTrainData(){};
@@ -27,7 +31,11 @@ public abstract class DataLoader3D extends DataLoader {
         NNVector[] output = new NNVector[size];
 
         for (int i = 0; i < size; i++) {
-            input[i] = train.get(curTrain).getInputs();
+            if(useReverse && Math.random() < 0.5) {
+                input[i] = train.get(curTrain).getInputs().reverse();
+            } else {
+                input[i] = train.get(curTrain).getInputs();
+            }
             output[i] = train.get(curTrain).getOutputs();
 
             curTrain++;
@@ -40,6 +48,14 @@ public abstract class DataLoader3D extends DataLoader {
         }
 
         return new NNData3D(input, output);
+    }
+
+    public void setUseReverse(boolean useReverse) {
+        this.useReverse = useReverse;
+    }
+
+    public void setUseNoise(boolean useNoise) {
+        this.useNoise = useNoise;
     }
 
     @Override

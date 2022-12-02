@@ -20,7 +20,7 @@ public class GlobalMaxPooling3DLayer extends Flatten3DLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Global max pooling 3D\n");
         writer.flush();
     }

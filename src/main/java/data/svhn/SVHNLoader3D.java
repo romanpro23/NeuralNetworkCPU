@@ -93,8 +93,14 @@ public class SVHNLoader3D extends DataLoader3D {
 
     private void generateInput() {
         inputsData = new float[3072];
-        for (int i = 0; i < 3072; i++) {
-            inputsData[i] = transformData.transform(bytes[i]);
+        for (int i = 0; i < 1024; i++) {
+            inputsData[i] = transformData.transformR(bytes[i]);
+        }
+        for (int i = 1024; i < 2048; i++) {
+            inputsData[i] = transformData.transformG(bytes[i]);
+        }
+        for (int i = 2048; i < 3072; i++) {
+            inputsData[i] = transformData.transformB(bytes[i]);
         }
     }
 }

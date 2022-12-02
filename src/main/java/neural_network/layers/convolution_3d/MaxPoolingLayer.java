@@ -98,13 +98,13 @@ public class MaxPoolingLayer extends ConvolutionNeuralLayer{
 
     @Override
     public int info() {
-        System.out.println("Max pool\t|  " + height + ",\t" + width + ",\t" + depth + "\t|  "
+        System.out.println("Max pool\t| " + height + ",\t" + width + ",\t" + depth + "\t| "
                 + outHeight + ",\t"+ outWidth + ",\t" + outDepth + "\t|");
         return 0;
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Max pooling layer 3D\n");
         writer.write(heightKernel + " " + widthKernel + " "  + step + " "  + paddingY + " "  + paddingX + "\n");
         writer.flush();

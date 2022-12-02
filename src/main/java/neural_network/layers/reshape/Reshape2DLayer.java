@@ -41,7 +41,7 @@ public class Reshape2DLayer extends NeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Reshape layer 2D\n");
         writer.write(width + " " + depth + "\n");
         writer.flush();

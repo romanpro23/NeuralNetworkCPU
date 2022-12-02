@@ -130,7 +130,7 @@ public class LSTMLayer extends RecurrentNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("LSTM layer\n");
         writer.write(countNeuron + "\n");
         writer.write(recurrentDropout + "\n");
@@ -226,8 +226,8 @@ public class LSTMLayer extends RecurrentNeuralLayer {
                 hiddenS_t = hiddenSMemory[i][t - 1];
                 hiddenL_t = inputHidden[i][t - 1];
             } else if (hasPreLayer()) {
-                hiddenS_t = preLayer.state[i][0];
-                hiddenL_t = preLayer.state[i][1];
+                hiddenS_t = getStatePreLayer(i)[0];
+                hiddenL_t = getStatePreLayer(i)[1];
             }
 
             //generate new hiddenSMemory state for update and reset gate
@@ -282,23 +282,23 @@ public class LSTMLayer extends RecurrentNeuralLayer {
     @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
-        this.error = new NNMatrix[errors.length];
-        this.hiddenError = new NNVector[errors.length];
+        this.error = new NNMatrix[input.length];
+        this.hiddenError = new NNVector[input.length];
         if (hasPreLayer()) {
-            this.errorState = new NNVector[errors.length][2];
+            this.errorState = new NNVector[input.length][2];
         }
 
-        gateFDelta = new NNVector[errors.length];
-        gateFError = new NNVector[errors.length];
-        gateIDelta = new NNVector[errors.length];
-        gateIError = new NNVector[errors.length];
-        gateODelta = new NNVector[errors.length];
-        gateOError = new NNVector[errors.length];
-        gateCDelta = new NNVector[errors.length];
-        gateCError = new NNVector[errors.length];
-        gateCError = new NNVector[errors.length];
-        hiddenLongDelta = new NNVector[errors.length];
-        hiddenLongError = new NNVector[errors.length];
+        gateFDelta = new NNVector[input.length];
+        gateFError = new NNVector[input.length];
+        gateIDelta = new NNVector[input.length];
+        gateIError = new NNVector[input.length];
+        gateODelta = new NNVector[input.length];
+        gateOError = new NNVector[input.length];
+        gateCDelta = new NNVector[input.length];
+        gateCError = new NNVector[input.length];
+        gateCError = new NNVector[input.length];
+        hiddenLongDelta = new NNVector[input.length];
+        hiddenLongError = new NNVector[input.length];
 
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
@@ -315,8 +315,8 @@ public class LSTMLayer extends RecurrentNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        //regularization derivative weight
-        if (regularization != null) {
+        //regularization derivative weightAttention
+        if (trainable && regularization != null) {
             for (int i = 0; i < 4; i++) {
                 regularization.regularization(weightInput[i]);
                 regularization.regularization(weightHidden[i]);
@@ -342,10 +342,12 @@ public class LSTMLayer extends RecurrentNeuralLayer {
 
         //copy error from next layer
         int tError = (returnSequences) ? hiddenSMemory[i].length - 1 : 0;
-        hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        if(errorNL != null) {
+            hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        }
         if (returnState) {
-            hiddenError[i].add(nextLayer.errorState[i][0]);
-            hiddenLongError[i].set(nextLayer.errorState[i][1]);
+            hiddenError[i].add(getErrorStateNextLayer(i)[0]);
+            hiddenLongError[i].set(getErrorStateNextLayer(i)[1]);
         }
 
         //pass through time
@@ -356,8 +358,8 @@ public class LSTMLayer extends RecurrentNeuralLayer {
                 hiddenS_t = hiddenSMemory[i][t - 1];
                 hiddenL_t = inputHidden[i][t - 1];
             } else if (hasPreLayer()) {
-                hiddenS_t = preLayer.state[i][0];
-                hiddenL_t = preLayer.state[i][1];
+                hiddenS_t = getStatePreLayer(i)[0];
+                hiddenL_t = getStatePreLayer(i)[1];
             }
             //dropout back for error
             hiddenError[i].dropoutBack(hiddenSMemory[i][t], hiddenError[i], recurrentDropout);
@@ -379,14 +381,14 @@ public class LSTMLayer extends RecurrentNeuralLayer {
             functionActivationSigmoid.derivativeActivation(gateOInput[i][t], gateOOutput[i][t], gateOError[i], gateODelta[i]);
             functionActivationTanh.derivativeActivation(gateCInput[i][t], gateCOutput[i][t], gateCError[i], gateCDelta[i]);
 
-            //find derivative for weight
+            //find derivative for weightAttention
             if (trainable) {
                 derivativeWeight(t, i, hiddenS_t);
             }
 
             //find error for previous time step
             hiddenLongError[i].mulVectors(hiddenLongDelta[i], gateFOutput[i][t]);
-            if (returnSequences && t > 0) {
+            if (returnSequences && t > 0 && errorNL != null) {
                 hiddenError[i].setRowFromMatrix(errorNL[i], t - 1);
             } else {
                 hiddenError[i].clear();
@@ -403,6 +405,8 @@ public class LSTMLayer extends RecurrentNeuralLayer {
             error[i].addMulT(t, gateCDelta[i], weightInput[3]);
         }
         if (hasPreLayer()) {
+            errorState[i][0] = new NNVector(countNeuron);
+            errorState[i][1] = new NNVector(countNeuron);
             errorState[i][0].set(this.hiddenError[i]);
             errorState[i][1].set(this.hiddenLongError[i]);
         }
@@ -419,7 +423,7 @@ public class LSTMLayer extends RecurrentNeuralLayer {
             indexInput = input[i].getRowIndex()[t];
 
             if (hidden_t != null) {
-                //find derivative for hiddenSMemory weight
+                //find derivative for hiddenSMemory weightAttention
                 for (int m = 0; m < countNeuron; m++, indexHWeight++) {
                     derWeightHidden[0].getData()[indexHWeight] += gateFDelta[i].get(k) * hidden_t.get(m);
                     derWeightHidden[1].getData()[indexHWeight] += gateIDelta[i].get(k) * hidden_t.get(m);
@@ -427,7 +431,7 @@ public class LSTMLayer extends RecurrentNeuralLayer {
                     derWeightHidden[3].getData()[indexHWeight] += gateCDelta[i].get(k) * hidden_t.get(m);
                 }
             }
-            //find derivative for input's weight
+            //find derivative for input's weightAttention
             for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
                 derWeightInput[0].getData()[indexIWeight] += gateFDelta[i].get(k) * input[i].getData()[indexInput];
                 derWeightInput[1].getData()[indexIWeight] += gateIDelta[i].get(k) * input[i].getData()[indexInput];

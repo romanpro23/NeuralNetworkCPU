@@ -1,9 +1,43 @@
 package data.loaders;
 
-public interface TransformData {
-    float transform(int input);
+public abstract class TransformData {
+    public abstract float transform(int input);
+    public abstract float transformR(int input);
+    public abstract float transformG(int input);
+    public abstract float transformB(int input);
 
-    class Sigmoid implements TransformData {
+    protected boolean addNoise = false;
+
+    public TransformData addNoise(){
+        this.addNoise = true;
+
+        return this;
+    }
+
+    public static class VGG extends TransformData{
+
+        @Override
+        public float transform(int input) {
+            return input;
+        }
+
+        @Override
+        public float transformR(int input) {
+            return input - 123.64f;
+        }
+
+        @Override
+        public float transformG(int input) {
+            return input - 116.779f;
+        }
+
+        @Override
+        public float transformB(int input) {
+            return input - 103.939f;
+        }
+    }
+
+    public static class Sigmoid extends TransformData {
         private float threshold;
         private float th;
 
@@ -19,23 +53,66 @@ public interface TransformData {
 
         @Override
         public float transform(int input) {
+            float data;
             if (input < 0) {
-                return (1 + input / 255.0f) * th + threshold;
+                data = (1 + input / 255.0f) * th + threshold;
             } else {
-                return input / 255.0f * th + threshold;
+                data = input / 255.0f * th + threshold;
             }
+
+            if (addNoise){
+                data = (float) Math.max(0, Math.min(1, data + (Math.random() - 0.5f) * 0.2));
+            }
+
+            return data;
+        }
+
+        @Override
+        public float transformR(int input) {
+            return transform(input);
+        }
+
+        @Override
+        public float transformG(int input) {
+            return transform(input);
+        }
+
+        @Override
+        public float transformB(int input) {
+            return transform(input);
         }
     }
 
-    class Tanh implements TransformData {
+    public static class Tanh extends TransformData {
 
         @Override
         public float transform(int input) {
+            float data;
             if (input < 0) {
-                return (1 + input * 2 / 255.0f);
+                data = (1 + input * 2 / 255.0f);
             } else {
-                return (input *2 / 255.0f - 1);
+                data = (input *2 / 255.0f - 1);
             }
+            if (addNoise){
+                data = (float) Math.max(-1, Math.min(1, data + (Math.random() - 0.5f) * 0.4));
+            }
+
+            return data;
+        }
+
+        @Override
+        public float transformR(int input) {
+            return transform(input);
+        }
+
+        @Override
+        public float transformG(int input) {
+            return transform(input);
+        }
+
+        @Override
+        public float transformB(int input) {
+            return transform(input);
         }
     }
 }

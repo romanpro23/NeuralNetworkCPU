@@ -25,6 +25,26 @@ public class Bidirectional extends RecurrentNeuralLayer {
         this.backLayer = new GRULayer(forwardLayer);
     }
 
+    public Bidirectional(GRUBahdAttentionLayer forwardLayer) {
+        this.forwardLayer = forwardLayer;
+        this.backLayer = new GRUBahdAttentionLayer(forwardLayer);
+    }
+
+    public Bidirectional(GRULuongAttentionLayer forwardLayer) {
+        this.forwardLayer = forwardLayer;
+        this.backLayer = new GRULuongAttentionLayer(forwardLayer);
+    }
+
+    public Bidirectional(LSTMLuongAttentionLayer forwardLayer) {
+        this.forwardLayer = forwardLayer;
+        this.backLayer = new LSTMLuongAttentionLayer(forwardLayer);
+    }
+
+    public Bidirectional(LSTMBahdAttentionLayer forwardLayer) {
+        this.forwardLayer = forwardLayer;
+        this.backLayer = new LSTMBahdAttentionLayer(forwardLayer);
+    }
+
     public Bidirectional(LSTMLayer forwardLayer) {
         this.forwardLayer = forwardLayer;
         this.backLayer = new LSTMLayer(forwardLayer);
@@ -86,11 +106,11 @@ public class Bidirectional extends RecurrentNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Bidirectional block\n");
         writer.write(returnState + "\n");
-        forwardLayer.write(writer);
-        backLayer.write(writer);
+        forwardLayer.save(writer);
+        backLayer.save(writer);
         writer.write(trainable + "\n");
         writer.flush();
     }
@@ -114,6 +134,10 @@ public class Bidirectional extends RecurrentNeuralLayer {
             case "Peephole LSTM layer" -> recurrentLayer = PeepholeLSTMLayer.read(scanner);
             case "GRU layer" -> recurrentLayer = GRULayer.read(scanner);
             case "Recurrent layer" -> recurrentLayer = RecurrentLayer.read(scanner);
+            case "GRU luong attention layer" -> recurrentLayer = (GRULuongAttentionLayer.read(scanner));
+            case "GRU bahdanau attention layer" -> recurrentLayer = (GRUBahdAttentionLayer.read(scanner));
+            case "LSTM luong attention layer" -> recurrentLayer = (LSTMLuongAttentionLayer.read(scanner));
+            case "LSTM bahdanau attention layer" -> recurrentLayer = (LSTMBahdAttentionLayer.read(scanner));
         }
         return recurrentLayer;
     }
@@ -133,7 +157,7 @@ public class Bidirectional extends RecurrentNeuralLayer {
     private void generateState(){
         state = new NNVector[input.length][];
         for (int i = 0; i < input.length; i++) {
-            state[i] = NNArrays.concatVector(forwardLayer.errorState[i], backLayer.errorState[i]);
+            state[i] = NNArrays.concatVector(forwardLayer.getStatePreLayer(i), backLayer.getStatePreLayer(i));
         }
     }
 
@@ -173,12 +197,12 @@ public class Bidirectional extends RecurrentNeuralLayer {
     private void generateErrorState(){
         this.errorState = new NNVector[input.length][];
         for (int i = 0; i < errorState.length; i++) {
-            this.errorState[i] = new NNVector[forwardLayer.errorState[i].length];
+            this.errorState[i] = new NNVector[forwardLayer.getStatePreLayer(i).length];
             for (int j = 0; j < errorState[i].length; j++) {
                 this.errorState[i][j] = new NNVector(forwardLayer.countNeuron);
 
-                this.errorState[i][j].add(forwardLayer.errorState[i][j]);
-                this.errorState[i][j].add(backLayer.errorState[i][j]);
+                this.errorState[i][j].add(forwardLayer.getErrorStateNextLayer(i)[j]);
+                this.errorState[i][j].add(backLayer.getErrorStateNextLayer(i)[j]);
             }
         }
     }

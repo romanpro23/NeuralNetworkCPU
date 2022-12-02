@@ -83,9 +83,9 @@ public class FishOldToNewLoader3D extends Img2ImgDataLoader3D {
                     Color color = new Color(image.getRGB(i, j), true);
 
                     if (color.getAlpha() > 0) {
-                        input.set(i, j, 0, transformData.transform(color.getRed()));
-                        input.set(i, j, 1, transformData.transform(color.getGreen()));
-                        input.set(i, j, 2, transformData.transform(color.getBlue()));
+                        input.set(i, j, 0, transformData.transformR(color.getRed()));
+                        input.set(i, j, 1, transformData.transformG(color.getGreen()));
+                        input.set(i, j, 2, transformData.transformB(color.getBlue()));
                     } else {
                         input.set(i, j, 0, 1);
                         input.set(i, j, 1, 1);

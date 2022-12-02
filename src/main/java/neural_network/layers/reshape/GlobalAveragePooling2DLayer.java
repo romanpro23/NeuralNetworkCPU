@@ -14,7 +14,7 @@ public class GlobalAveragePooling2DLayer extends Flatten2DLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Global average pooling 2D\n");
         writer.flush();
     }

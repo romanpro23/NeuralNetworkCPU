@@ -19,7 +19,7 @@ public class SNConvolutionLayer extends ConvolutionNeuralLayer {
     private Initializer initializer;
 
     private boolean loadWeight;
-    //weight
+    //weightAttention
     @Setter
     private NNTensor4D weight;
     private NNTensor4D derWeight;
@@ -113,7 +113,7 @@ public class SNConvolutionLayer extends ConvolutionNeuralLayer {
         u.addMul(v, weightM);
         u.l2norm();
 
-        return 0.0000001f + NNArrays.sum(v.mul(u.mulT(weightM)));
+        return 0.0000001f + NNArrays.sum(v.mul(u.dotT(weightM)));
     }
 
     @Override
@@ -145,7 +145,7 @@ public class SNConvolutionLayer extends ConvolutionNeuralLayer {
     }
 
     private void backSpectralNorm() {
-        NNMatrix dW = u.mulVector(v);
+        NNMatrix dW = u.dot(v);
         dW.oneSub();
         dW.mul(weight);
         dW.div(sigma);
@@ -194,13 +194,13 @@ public class SNConvolutionLayer extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         int countParam = weight.size() + threshold.size();
-        System.out.println("SN conv\t| " + height + ",\t" + width + ",\t" + depth + "\t| "
+        System.out.println("SN conv\t\t| " + height + ",\t" + width + ",\t" + depth + "\t| "
                 + outHeight + ",\t" + outWidth + ",\t" + outDepth + "\t|\t" + countParam);
         return countParam;
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Spectral normalization convolution layer 3D\n");
         writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + step + " " + paddingY + " " + paddingX + "\n");
         threshold.save(writer);

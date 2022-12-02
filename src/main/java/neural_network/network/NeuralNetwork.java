@@ -5,14 +5,14 @@ import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
 import neural_network.layers.convolution_3d.ActivationLayer3D;
 import neural_network.layers.convolution_3d.BatchNormalizationLayer3D;
+import neural_network.layers.convolution_3d.ConvolutionNeuralLayer;
 import neural_network.layers.convolution_3d.DropoutLayer3D;
-import neural_network.layers.convolution_3d.u_net.UConcatenateLayer;
+import neural_network.layers.convolution_3d.u_net.ConcatenateLayer;
 import neural_network.layers.dense.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
-import nnarrays.NNMatrix;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -22,9 +22,10 @@ import java.util.Scanner;
 
 public class NeuralNetwork {
     @Getter
-    private ArrayList<NeuralLayer> layers;
+    private final ArrayList<NeuralLayer> layers;
 
     private int[] inputSize;
+    private int stopGradient;
 
     private FunctionLoss functionLoss;
     @Getter
@@ -32,6 +33,7 @@ public class NeuralNetwork {
 
     public NeuralNetwork() {
         layers = new ArrayList<>();
+        stopGradient = 0;
     }
 
     public NeuralNetwork copy() {
@@ -42,6 +44,24 @@ public class NeuralNetwork {
         newNetwork.optimizer = optimizer;
 
         return newNetwork;
+    }
+    
+    public NeuralNetwork removeLastLayers(int count){
+        for (int i = layers.size() - 1, c = 0; c < count; i--, c++) {
+            layers.remove(i);
+        }
+
+        return this;
+    }
+
+    public NeuralLayer getLastLayer(){
+        return layers.get(layers.size() - 1);
+    }
+
+    public NeuralNetwork setStopGradient(int stopGradient) {
+        this.stopGradient = stopGradient;
+
+        return this;
     }
 
     public NeuralNetwork addInputLayer(int... size) {
@@ -57,8 +77,10 @@ public class NeuralNetwork {
         }
 
         if (optimizer != null) {
-            for (NeuralLayer layer : layers) {
-                layer.initialize(optimizer);
+            for (int i = stopGradient; i < layers.size(); i++) {
+                if (layers.get(i).isTrainable()) {
+                    layers.get(i).initialize(optimizer);
+                }
             }
         }
 
@@ -94,8 +116,8 @@ public class NeuralNetwork {
         return this;
     }
 
-    public NeuralNetwork addUConcatenateLayer(int index) {
-        layers.add(new UConcatenateLayer().addLayer(layers.get(index), index));
+    public NeuralNetwork addConcatenateLayer(int index) {
+        layers.add(new ConcatenateLayer().addLayer(layers.get(index), index));
 
         return this;
     }
@@ -140,7 +162,7 @@ public class NeuralNetwork {
         fileWriter.flush();
 
         for (NeuralLayer layer : layers) {
-            layer.write(fileWriter);
+            layer.save(fileWriter);
         }
         fileWriter.write("End\n");
         fileWriter.flush();
@@ -179,13 +201,21 @@ public class NeuralNetwork {
         return train(input, idealOutput, true);
     }
 
+    public float train(NNArray[] input, NNArray[] idealOutput, float lambda) {
+        return train(input, idealOutput, true, lambda);
+    }
+
     public float train(NNArray[] input, NNArray[] idealOutput, boolean update) {
+        return train(input, idealOutput, update, 1);
+    }
+
+    public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
         queryTrain(input);
-        backpropagation(findDerivative(idealOutput));
-        if(update) {
+        backpropagation(findDerivative(idealOutput, lambda));
+        if (update) {
             update();
         }
-        return functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
+        return lambda * functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
     public float forwardBackpropagation(NNArray[] input, NNArray[] idealOutput) {
@@ -201,7 +231,7 @@ public class NeuralNetwork {
 
     public void train(NNArray[] error, boolean update) {
         backpropagation(error);
-        if(update) {
+        if (update) {
             update();
         }
     }
@@ -215,17 +245,29 @@ public class NeuralNetwork {
     }
 
     public NNArray[] findDerivative(NNArray[] idealOutput) {
+        return findDerivative(idealOutput, 1);
+    }
+
+    public NNArray[] findDerivative(NNArray[] idealOutput, float lambda) {
         int[] size = layers.get(layers.size() - 1).size();
+        NNArray[] result = null;
         if (size.length == 1) {
-            return NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));
+            result = NNArrays.toVector(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput));
         } else if (size.length == 2) {
-            return NNArrays.toMatrix(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
+            result = NNArrays.toMatrix(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
                     size[0], size[1]);
         } else if (size.length == 3) {
-            return NNArrays.toTensor(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
+            result = NNArrays.toTensor(functionLoss.findDerivative(layers.get(layers.size() - 1).getOutput(), idealOutput),
                     size[0], size[1], size[2]);
         }
-        return null;
+
+        if (lambda != 1) {
+            for (NNArray array : result) {
+                array.mul(lambda);
+            }
+        }
+
+        return result;
     }
 
     public void update() {
@@ -234,13 +276,35 @@ public class NeuralNetwork {
 
     private void backpropagation(NNArray[] error) {
         layers.get(layers.size() - 1).generateError(error);
-        for (int i = layers.size() - 2; i >= 0; i--) {
+        for (int i = layers.size() - 2; i >= stopGradient; i--) {
             layers.get(i).generateError(layers.get(i + 1).getError());
         }
     }
 
     public float accuracy(NNArray[] idealOutput) {
         return functionLoss.findAccuracy(getOutputs(), idealOutput);
+    }
+
+    public ArrayList<NeuralLayer> getConvolutionLayers() {
+        ArrayList<NeuralLayer> convLayers = new ArrayList<>();
+        for (NeuralLayer layer : layers) {
+            if (layer instanceof ConvolutionNeuralLayer) {
+                convLayers.add(layer);
+            } else {
+                break;
+            }
+        }
+
+        return convLayers;
+    }
+
+    public ArrayList<NeuralLayer> getLayers(int first, int last) {
+        ArrayList<NeuralLayer> neuralLayers = new ArrayList<>();
+        for (int i = first; i < last; i++) {
+            neuralLayers.add(layers.get(i));
+        }
+
+        return neuralLayers;
     }
 
     public NeuralNetwork addDenseLayer(int countNeuron) {

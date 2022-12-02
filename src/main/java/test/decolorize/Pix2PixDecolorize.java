@@ -7,7 +7,6 @@ import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
 import neural_network.layers.convolution_3d.*;
-import neural_network.layers.convolution_3d.u_net.UConcatenateLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.Pix2PixGAN;
 import neural_network.network.NeuralNetwork;
@@ -15,12 +14,8 @@ import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Scanner;
 

@@ -59,8 +59,13 @@ public class NNMatrix extends NNArray {
         System.arraycopy(vector.data, 0, data, index, vector.size);
     }
 
+    public void set(NNMatrix matrix, int index_t) {
+        int index = rowIndex[index_t];
+        System.arraycopy(matrix.data, 0, data, index, matrix.size);
+    }
+
     @Override
-    public int[] getSize() {
+    public int[] shape() {
         return new int[]{row, column};
     }
 
@@ -127,16 +132,49 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix dot(NNMatrix matrix) {
-        NNMatrix result = new NNMatrix(row, matrix.getColumn());
+        NNMatrix result = new NNMatrix(row, matrix.column);
+        float val;
 
-        for (int n = 0, indI = 0; n < row; n++) {
-            for (int i = 0, index = 0; i < matrix.getRow(); i++, indI++) {
-                for (int j = 0, indR = result.rowIndex[n]; j < matrix.getColumn(); j++, index++) {
-                    result.data[indR] += data[indI] * matrix.data[index];
+        for (int n = 0, indR = 0; n < row; n++) {
+            for (int i = 0; i < matrix.column; i++, indR++) {
+                val = 0;
+                for (int j = 0; j < column; j++) {
+                    val += get(n, j) * matrix.get(j, i);
                 }
+                result.data[indR] = val;
             }
         }
 
+        return result;
+    }
+
+    public NNMatrix dot(NNVector vector) {
+        NNMatrix result = new NNMatrix(row, vector.size);
+        float val;
+
+        for (int n = 0, indR = 0; n < row; n++) {
+            for (int i = 0; i < vector.size; i++, indR++) {
+                val = 0;
+                for (int j = 0; j < column; j++) {
+                    val += get(n, j) * vector.get(i);
+                }
+                result.data[indR] = val;
+            }
+        }
+        return result;
+    }
+
+    public NNMatrix dotT(NNVector vector) {
+        NNMatrix result = new NNMatrix(row, 1);
+        float val;
+
+        for (int n = 0; n < row; n++) {
+            val = 0;
+            for (int i = 0; i < column; i++) {
+                val += get(n, i) * vector.get(i);
+            }
+            result.data[n] = val;
+        }
         return result;
     }
 
@@ -219,6 +257,35 @@ public class NNMatrix extends NNArray {
         }
     }
 
+    @SneakyThrows
+    public NNMatrix sum(NNVector vector) {
+        if (column != vector.size) {
+            throw new Exception("Array has difference size");
+        }
+        NNMatrix result = new NNMatrix(this);
+        int inputIndex = 0;
+        for (int i = 0; i < row; i++) {
+            for (int k = 0; k < column; k++, inputIndex++) {
+                result.data[inputIndex] = data[inputIndex] + vector.data[k];
+            }
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public NNVector sum() {
+        NNVector result = new NNVector(column);
+        int inputIndex = 0;
+        for (int i = 0; i < row; i++) {
+            for (int k = 0; k < column; k++, inputIndex++) {
+                result.data[k] = data[inputIndex];
+            }
+        }
+
+        return result;
+    }
+
     public void backGlobalMaxPool(NNMatrix input, NNVector output, NNVector error) {
         int index = 0;
         for (int i = 0; i < input.row; i++) {
@@ -264,7 +331,7 @@ public class NNMatrix extends NNArray {
         return result;
     }
 
-    public void softmax(NNArray input) {
+    public void softmax(NNMatrix input) {
         int index;
         for (int k = 0; k < row; k++) {
             float sum = 0;
@@ -307,5 +374,14 @@ public class NNMatrix extends NNArray {
                 }
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return "NNMatrix [" +
+                "size: (" + column +
+                ", " + row +
+                "), data: " + Arrays.toString(data) +
+                ']';
     }
 }

@@ -3,19 +3,14 @@ package test.gan;
 import data.ImageCreator;
 import data.image2image.AppleToOrangeLoader3D;
 import data.loaders.TransformData;
-import data.mnist.BatchMNIST;
-import data.mnist.MNISTLoader3D;
-import data.svhn.SVHNLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.convolution_3d.ActivationLayer3D;
 import neural_network.layers.convolution_3d.ConvolutionLayer;
 import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
 import neural_network.layers.convolution_3d.InstanceNormalizationLayer3D;
+import neural_network.layers.convolution_3d.residual.ResidualUnit;
 import neural_network.layers.convolution_3d.residual.ResidualBlock;
-import neural_network.layers.convolution_3d.residual.ResidualModule;
-import neural_network.layers.dense.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.CycleGAN;
 import neural_network.network.NeuralNetwork;
@@ -157,10 +152,10 @@ public class TestCycleGAN {
         return generator;
     }
 
-    private static ResidualModule getResModule(){
-        return new ResidualModule()
-                .addResidualBlock(new ResidualBlock())
-                .addResidualBlock(new ResidualBlock()
+    private static ResidualBlock getResModule(){
+        return new ResidualBlock()
+                .addResidualUnit(new ResidualUnit())
+                .addResidualUnit(new ResidualUnit()
                         .addLayer(new ConvolutionLayer(128, 3, 1, 1).setInitializer(new Initializer.RandomNormal(0.02)))
                         .addLayer(new InstanceNormalizationLayer3D())
                         .addLayer( new ActivationLayer3D(new FunctionActivation.ReLU()))

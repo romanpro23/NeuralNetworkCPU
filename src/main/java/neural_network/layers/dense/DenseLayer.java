@@ -1,7 +1,6 @@
 package neural_network.layers.dense;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
@@ -13,8 +12,6 @@ import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,7 +22,7 @@ public class DenseLayer extends DenseNeuralLayer {
     private Initializer initializer;
     private boolean loadWeight;
 
-    //weight and threshold
+    //weightAttention and threshold
     @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
@@ -72,7 +69,7 @@ public class DenseLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer\n");
         writer.write(countNeuron + "\n");
         threshold.save(writer);
@@ -114,7 +111,7 @@ public class DenseLayer extends DenseNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    output[i] = input[i].mul(weight);
+                    output[i] = input[i].dot(weight);
                     output[i].add(threshold);
                 }
             });
@@ -137,8 +134,8 @@ public class DenseLayer extends DenseNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    error[i] = errorNL[i].mulT(weight);
-                    if(trainable) {
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
                         derivativeWeight(input[i], errorNL[i]);
                     }
                 }
@@ -149,12 +146,12 @@ public class DenseLayer extends DenseNeuralLayer {
         }
 
         if (trainable && regularization != null) {
-                regularization.regularization(weight);
-                regularization.regularization(threshold);
+            regularization.regularization(weight);
+            regularization.regularization(threshold);
         }
     }
 
-    private void derivativeWeight(NNVector input, NNVector error){
+    private void derivativeWeight(NNVector input, NNVector error) {
         for (int j = 0, index = 0; j < error.size(); j++) {
             for (int k = 0; k < input.size(); k++, index++) {
                 derWeight.getData()[index] += error.getData()[j] * input.getData()[k];

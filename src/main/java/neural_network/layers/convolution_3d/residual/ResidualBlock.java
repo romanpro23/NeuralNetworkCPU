@@ -1,24 +1,30 @@
 package neural_network.layers.convolution_3d.residual;
 
-import neural_network.layers.LayersBlock;
-import neural_network.layers.NeuralLayer;
+import lombok.Getter;
 import neural_network.layers.convolution_3d.ConvolutionNeuralLayer;
+import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import nnarrays.NNArrays;
+import nnarrays.NNTensor;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Scanner;
 
-public class ResidualBlock extends LayersBlock {
-    private NNArray[] input, error;
+public class ResidualBlock extends ConvolutionNeuralLayer {
+    @Getter
+    private ArrayList<ResidualUnit> module;
 
     public ResidualBlock() {
-        super();
+        module = new ArrayList<>();
     }
 
     @Override
-    public int[] size() {
-        return inputSize;
+    public void initialize(Optimizer optimizer) {
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.initialize(optimizer);
+        }
     }
 
     @Override
@@ -26,77 +32,76 @@ public class ResidualBlock extends LayersBlock {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-        inputSize = size;
-        if (!layers.isEmpty()) {
-            super.initialize(size);
+
+        height = size[0];
+        width = size[1];
+        depth = size[2];
+
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.initialize(size);
         }
+
+        outDepth = module.get(0).size()[0];
+        outHeight = module.get(0).size()[1];
+        outWidth = module.get(0).size()[2];
     }
 
     @Override
-    public void generateOutput(NNArray[] input) {
-        if (layers.isEmpty()) {
-            this.input = input;
+    public void generateOutput(NNArray[] inputs) {
+        this.input = NNArrays.isTensor(inputs);
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.generateOutput(inputs);
+        }
+        generateOutputModule();
+    }
+
+    private void generateOutputModule() {
+        if (module.size() == 1) {
+            this.output = NNArrays.isTensor(module.get(0).getOutput());
         } else {
-            super.generateOutput(input);
+            this.output = new NNTensor[input.length];
+            for (int i = 0; i < output.length; i++) {
+                output[i] = new NNTensor(height, width, depth);
+                for (ResidualUnit residualUnit : module) {
+                    output[i].add(residualUnit.getOutput()[i]);
+                }
+            }
         }
     }
 
     @Override
     public void generateTrainOutput(NNArray[] input) {
-        if (layers.isEmpty()) {
-            this.input = input;
-        } else {
-            super.generateTrainOutput(input);
+        this.input = NNArrays.isTensor(input);
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.generateTrainOutput(input);
+        }
+        generateOutputModule();
+    }
+
+    @Override
+    public void generateError(NNArray[] errors) {
+        this.errorNL = getErrorNextLayer(errors);
+        this.error = new NNTensor[errorNL.length];
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.generateError(errorNL);
+        }
+
+        for (int i = 0; i < errorNL.length; i++) {
+            error[i] = new NNTensor(height, width, depth);
+            for (ResidualUnit residualUnit : module) {
+                error[i].add(residualUnit.getError()[i]);
+            }
         }
     }
 
     @Override
-    public void generateError(NNArray[] error) {
-        if (layers.isEmpty()) {
-            this.error = error;
-        } else {
-            super.generateError(error);
-        }
-    }
-
-    @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Residual block\n");
-        for (NeuralLayer layer : layers) {
-            layer.write(writer);
+        for (ResidualUnit layer : module) {
+            layer.save(writer);
         }
         writer.write("End\n");
         writer.flush();
-    }
-
-    @Override
-    public NNArray[] getError() {
-        if (layers.isEmpty()) {
-            return error;
-        } else {
-            return super.getError();
-        }
-    }
-
-    @Override
-    public NNArray[] getOutput() {
-        if (layers.isEmpty()) {
-            return input;
-        } else {
-            return super.getOutput();
-        }
-    }
-
-    public ResidualBlock addLayer(NeuralLayer layer) {
-        layers.add(layer);
-
-        return this;
-    }
-
-    public ResidualBlock setTrainable(boolean trainable) {
-        super.setTrainable(trainable);
-
-        return this;
     }
 
     @Override
@@ -104,18 +109,42 @@ public class ResidualBlock extends LayersBlock {
         int countParam = 0;
         System.out.println("            |          Residual block       |             ");
         System.out.println("____________|_______________________________|_____________");
-        for (NeuralLayer neuralLayer : layers) {
-            countParam += neuralLayer.info();
-            System.out.println("____________|_______________|_______________|_____________");
+        for (ResidualUnit residualUnit : module) {
+            countParam += residualUnit.info();
         }
-        System.out.println("____________|_______________|_______________|_____________");
+        System.out.println("            |  " + height + ",\t" + width + ",\t" + depth + "\t|  "
+                + outHeight + ",\t" + outWidth + ",\t" + outDepth + "\t|\t" + countParam);
         return countParam;
     }
 
-    public static ResidualBlock read(Scanner scanner) {
-        ResidualBlock inceptionBlock = new ResidualBlock();
-        NeuralLayer.read(scanner, inceptionBlock.layers);
+    public ResidualBlock addResidualUnit(ResidualUnit residualUnit) {
+        module.add(residualUnit);
+        return this;
+    }
 
-        return inceptionBlock;
+    public ResidualBlock setTrainable(boolean trainable) {
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.setTrainable(trainable);
+        }
+        return this;
+    }    
+
+    @Override
+    public void trainable(boolean trainable) {
+        for (ResidualUnit residualUnit : module) {
+            residualUnit.trainable(trainable);
+        }
+    }
+
+    public static ResidualBlock read(Scanner scanner) {
+        ResidualBlock residualBlock = new ResidualBlock();
+
+        String layer = scanner.nextLine();
+        while (!layer.equals("End")) {
+            residualBlock.module.add(ResidualUnit.read(scanner));
+            layer = scanner.nextLine();
+        }
+
+        return residualBlock;
     }
 }

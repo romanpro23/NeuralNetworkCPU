@@ -1,7 +1,6 @@
 package neural_network.layers;
 
 import lombok.Getter;
-import lombok.SneakyThrows;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 
@@ -40,9 +39,7 @@ public class LayersBlock extends NeuralLayer {
     }
 
     public LayersBlock setTrainable(boolean trainable) {
-        for (NeuralLayer layer : layers) {
-            layer.trainable(trainable);
-        }
+        trainable(trainable);
         return this;
     }
 
@@ -67,7 +64,7 @@ public class LayersBlock extends NeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Layers block\n");
         for (int j : inputSize) {
             writer.write(j + " ");
@@ -76,7 +73,7 @@ public class LayersBlock extends NeuralLayer {
         writer.flush();
 
         for (NeuralLayer layer : layers) {
-            layer.write(writer);
+            layer.save(writer);
         }
         writer.write("End\n");
         writer.flush();

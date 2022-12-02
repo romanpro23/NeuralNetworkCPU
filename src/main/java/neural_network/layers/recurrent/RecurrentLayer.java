@@ -100,7 +100,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Recurrent layer\n");
         writer.write(countNeuron + "\n");
         writer.write(recurrentDropout + "\n");
@@ -128,7 +128,8 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
         this.output = new NNMatrix[inputs.length];
         this.inputHidden = new NNVector[inputs.length][];
         this.outputHidden = new NNVector[inputs.length][];
-        if(returnState) {
+
+        if (returnState) {
             this.state = new NNVector[input.length][1];
         }
 
@@ -164,7 +165,7 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
             if (t > 0) {
                 hidden_t = outputHidden[i][t - 1];
             } else if (hasPreLayer()) {
-                hidden_t = preLayer.state[i][0];
+                hidden_t = getStatePreLayer(i)[0];
             }
 
             inputHidden[i][t].set(threshold);
@@ -193,11 +194,11 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
-        this.error = new NNMatrix[errors.length];
-        this.hiddenDelta = new NNVector[errors.length];
-        this.hiddenError = new NNVector[errors.length];
-        if(hasPreLayer()) {
-            this.errorState = new NNVector[errors.length][1];
+        this.error = new NNMatrix[input.length];
+        this.hiddenDelta = new NNVector[input.length];
+        this.hiddenError = new NNVector[input.length];
+        if (hasPreLayer()) {
+            this.errorState = new NNVector[input.length][1];
         }
 
         int countC = getCountCores();
@@ -215,8 +216,8 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        //regularization derivative weight
-        if (regularization != null) {
+        //regularization derivative weightAttention
+        if (trainable && regularization != null) {
             regularization.regularization(weightInput);
             regularization.regularization(weightHidden);
             regularization.regularization(threshold);
@@ -224,32 +225,34 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     }
 
     private void generateError(int i) {
-        this.error[i] = new NNMatrix(input[i]);
+        this.error[i] = new NNMatrix(width, depth);
         hiddenError[i] = new NNVector(countNeuron);
         hiddenDelta[i] = new NNVector(countNeuron);
 
         //copy error from next layer
         int tError = (returnSequences) ? outputHidden[i].length - 1 : 0;
-        hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        if (errorNL != null) {
+            hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        }
         if (returnState) {
-            hiddenError[i].add(nextLayer.errorState[i][0]);
+            hiddenError[i].add(getErrorStateNextLayer(i)[0]);
         }
 
         //pass through time
-        for (int t = input[i].getRow() - 1; t >= 0; t--) {
+        for (int t = outputHidden[i].length - 1; t >= 0; t--) {
             //dropout back for error
-            if(recurrentDropout != 0) {
+            if (recurrentDropout != 0) {
                 hiddenError[i].dropoutBack(outputHidden[i][t], hiddenError[i], recurrentDropout);
             }
             //derivative activation for current time step
             functionActivation.derivativeActivation(inputHidden[i][t], outputHidden[i][t], hiddenError[i], hiddenDelta[i]);
-            //find derivative for weight
+            //find derivative for weightAttention
             if (trainable) {
                 derivativeWeight(t, i);
             }
             //find error for previous time step
             //get error for current time step from next layer
-            if (returnSequences && t > 0) {
+            if (returnSequences && t > 0 && errorNL != null) {
                 hiddenError[i].setRowFromMatrix(errorNL[i], t - 1);
             } else {
                 hiddenError[i].clear();
@@ -273,18 +276,18 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
         if (t > 0) {
             hidden_t = outputHidden[i][t - 1];
         } else if (hasPreLayer()) {
-            hidden_t = preLayer.state[i][0];
+            hidden_t = getStatePreLayer(i)[0];
         }
 
         for (int k = 0; k < hiddenDelta[i].size(); k++) {
             indexInput = input[i].getRowIndex()[t];
             if (hidden_t != null) {
-                //find derivative for hidden weight
+                //find derivative for hidden weightAttention
                 for (int m = 0; m < countNeuron; m++, indexHWeight++) {
                     derWeightHidden.getData()[indexHWeight] += hiddenDelta[i].get(k) * hidden_t.get(m);
                 }
             }
-            //find derivative for input's weight
+            //find derivative for input's weightAttention
             for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
                 derWeightInput.getData()[indexIWeight] += hiddenDelta[i].get(k) * input[i].getData()[indexInput];
             }

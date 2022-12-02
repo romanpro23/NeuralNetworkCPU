@@ -1,30 +1,16 @@
 package test.gan;
 
 import data.ImageCreator;
-import data.image2image.AppleToOrangeLoader3D;
-import data.loaders.TransformData;
 import lombok.SneakyThrows;
-import neural_network.activation.FunctionActivation;
-import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.ActivationLayer3D;
-import neural_network.layers.convolution_3d.ConvolutionLayer;
-import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
-import neural_network.layers.convolution_3d.InstanceNormalizationLayer3D;
-import neural_network.layers.convolution_3d.residual.ResidualBlock;
-import neural_network.layers.convolution_3d.residual.ResidualModule;
 import neural_network.loss.FunctionLoss;
-import neural_network.network.GAN.CycleGAN;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
-import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-import org.imgscalr.Scalr;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileWriter;
 import java.util.Scanner;
 
 public class TestCycleGANReal {

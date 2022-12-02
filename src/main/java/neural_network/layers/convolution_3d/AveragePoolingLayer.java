@@ -105,7 +105,7 @@ public class AveragePoolingLayer extends ConvolutionNeuralLayer{
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Average pooling layer 3D\n");
         writer.write(heightKernel + " " + widthKernel + " "  + step + " "  + paddingY + " "  + paddingX + "\n");
         writer.flush();

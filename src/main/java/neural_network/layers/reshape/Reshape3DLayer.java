@@ -47,7 +47,7 @@ public class Reshape3DLayer extends NeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Reshape layer 3D\n");
         writer.write(height + " " + width + " " + depth + "\n");
         writer.flush();

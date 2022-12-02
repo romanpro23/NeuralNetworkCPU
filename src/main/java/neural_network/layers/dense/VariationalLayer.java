@@ -1,6 +1,5 @@
 package neural_network.layers.dense;
 
-import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
@@ -191,10 +190,10 @@ public class VariationalLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Variational layer\n");
-        mu.write(writer);
-        gamma.write(writer);
+        mu.save(writer);
+        gamma.save(writer);
         writer.write(trainable + "\n");
         writer.flush();
     }

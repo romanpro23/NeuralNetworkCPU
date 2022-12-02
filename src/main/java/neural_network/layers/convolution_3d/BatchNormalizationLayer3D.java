@@ -18,6 +18,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
     private Regularization regularization;
     @Setter
     private boolean loadWeight;
+    private boolean queryTrain;
 
     private final float momentum;
     private final float epsilon;
@@ -119,6 +120,7 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
         this.input = NNArrays.isTensor(input);
         this.output = new NNTensor[input.length];
         this.normOutput = new NNTensor[input.length];
+        this.queryTrain = true;
 
         findMean();
         findVariance();
@@ -171,10 +173,18 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
             }
         }
 
-        NNVector errorVariance = derVar(errorNorm, mean, var);
-        NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
+        if(queryTrain) {
+            NNVector errorVariance = derVar(errorNorm, mean, var);
+            NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
 
-        derNorm(errorNorm, errorMean, errorVariance, mean, var);
+            derNorm(errorNorm, errorMean, errorVariance, mean, var);
+            queryTrain = false;
+        } else {
+            NNVector errorVariance = derVar(errorNorm, movingMean, movingVar);
+            NNVector errorMean = derMean(errorNorm, errorVariance, movingMean, movingVar);
+
+            derNorm(errorNorm, errorMean, errorVariance, movingMean, movingVar);
+        }
 
         if (trainable) {
             movingMean.momentum(mean, momentum);
@@ -281,14 +291,14 @@ public class BatchNormalizationLayer3D extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         int countParam = betta.size() * 4;
-        System.out.println("Batch norm\t|  " + height + ",\t" + width + ",\t" + depth + "\t|  "
+        System.out.println("Batch norm\t| " + height + ",\t" + width + ",\t" + depth + "\t| "
                 + outHeight + ",\t" + outWidth + ",\t" + outDepth + "\t|\t" + countParam);
 
         return countParam;
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Batch normalization layer 3D\n");
         writer.write(momentum + "\n");
         gamma.save(writer);

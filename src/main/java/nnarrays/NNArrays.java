@@ -2,8 +2,6 @@ package nnarrays;
 
 import lombok.SneakyThrows;
 
-import java.util.Arrays;
-
 import static java.lang.Math.log;
 
 public final class NNArrays {
@@ -18,6 +16,36 @@ public final class NNArrays {
         }
 
         return arr;
+    }
+
+    public static NNArray[] empty(){
+        return null;
+    }
+
+    public static NNMatrix[] empty(NNMatrix[] out){
+        NNMatrix[] res = new NNMatrix[out.length];
+
+        for (int i = 0; i < res.length; i++) {
+            res[i] = new NNMatrix(out[i]);
+        }
+        return res;
+    }
+
+    public static NNMatrix[] toHotVectorNLP(NNArray[] batch, int sizeVoc) {
+        NNMatrix[] arr = new NNMatrix[batch.length];
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = new NNMatrix(batch[i].size, sizeVoc);
+            for (int j = 0; j < batch[i].size - 1; j++) {
+                arr[i].set(j, (int) batch[i].data[j + 1], 1);
+            }
+            arr[i].set(batch[i].size - 1, 1,1);
+        }
+
+        return arr;
+    }
+
+    public static NNTensor[] toTensor(NNArray[] batch, int[] size) {
+        return toTensor(batch, size[0], size[1], size[2]);
     }
 
     public static NNTensor[] toTensor(NNArray[] batch, int depth, int height, int width) {
@@ -98,15 +126,15 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            int size = second[i].getSize()[0];
+            int size = second[i].shape()[0];
             int startDepth = startIndex / size;
-            int depth = second[i].getSize()[0];
-            int column = second[i].getSize()[1];
+            int depth = second[i].shape()[0];
+            int column = second[i].shape()[1];
 
             int index = 0, indexF;
 
             for (int j = 0; j < size; j++) {
-                indexF = j * first[i].getSize()[1] + startDepth;
+                indexF = j * first[i].shape()[1] + startDepth;
                 for (int k = 0; k < column; k++, index++, indexF++) {
                     data[index] = first[i].data[indexF];
                 }
@@ -126,8 +154,8 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
 
-            int size = first[i].getSize()[0];
-            int columnF = first[i].getSize()[1], columnS = second[i].getSize()[1];
+            int size = first[i].shape()[0];
+            int columnF = first[i].shape()[1], columnS = second[i].shape()[1];
             int column = columnF + columnS;
             int index = 0;
             int indexF = 0;
@@ -142,7 +170,7 @@ public final class NNArrays {
                 }
             }
 
-            int depth = first[i].getSize()[0];
+            int depth = first[i].shape()[0];
             result[i] = new NNMatrix(depth, column, data);
         }
         return result;
@@ -154,16 +182,16 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
 
-            int size = second[i].getSize()[0] * second[i].getSize()[1];
+            int size = second[i].shape()[0] * second[i].shape()[1];
             int startDepth = startIndex / size;
-            int depth = second[i].getSize()[0];
-            int row = second[i].getSize()[1];
-            int column = second[i].getSize()[2];
+            int depth = second[i].shape()[0];
+            int row = second[i].shape()[1];
+            int column = second[i].shape()[2];
 
             int index = 0, indexF;
 
             for (int j = 0; j < size; j++) {
-                indexF = j * first[i].getSize()[2] + startDepth;
+                indexF = j * first[i].shape()[2] + startDepth;
                 for (int k = 0; k < column; k++, index++, indexF++) {
                     data[index] = first[i].data[indexF];
                 }
@@ -228,8 +256,8 @@ public final class NNArrays {
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
 
-            int size = first[i].getSize()[0] * first[i].getSize()[1];
-            int columnF = first[i].getSize()[2], columnS = second[i].getSize()[2];
+            int size = first[i].shape()[0] * first[i].shape()[1];
+            int columnF = first[i].shape()[2], columnS = second[i].shape()[2];
             int column = columnF + columnS;
             int index = 0;
             int indexF = 0;
@@ -244,8 +272,8 @@ public final class NNArrays {
                 }
             }
 
-            int depth = first[i].getSize()[0];
-            int row = first[i].getSize()[1];
+            int depth = first[i].shape()[0];
+            int row = first[i].shape()[1];
             result[i] = new NNTensor(depth, row, column, data);
         }
         return result;
@@ -271,6 +299,10 @@ public final class NNArrays {
 
     public static NNTensor[] isTensor(NNArray[] batch) {
         return (NNTensor[]) batch;
+    }
+
+    public static NNTensor4D[] isTensor4D(NNArray[] batch) {
+        return (NNTensor4D[]) batch;
     }
 
     public static float sum(NNArray array) {

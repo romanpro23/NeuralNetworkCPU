@@ -60,7 +60,7 @@ public class DropoutLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Dropout layer\n");
         writer.write(dropout + "\n");
         writer.flush();

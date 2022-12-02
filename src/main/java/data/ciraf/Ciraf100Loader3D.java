@@ -68,17 +68,23 @@ public class Ciraf100Loader3D extends DataLoader3D {
                 NNTensor input = new NNTensor(32, 32, 3);
                 int index = 0;
                 for (int j = 0; j < 3; j++) {
+                    float rand = (float) (Math.random() * 0.3 - 0.15);
                     for (int l = 0; l < 32; l++) {
                         for (int k = 0; k < 32; k++, index++) {
                             input.set(l, k, j, inputsData[index]);
                         }
                     }
                 }
+
                 train.add(new ImageData3D(input, output));
             }
-
         }
         Collections.shuffle(train);
+    }
+
+    public Ciraf100Loader3D useReverse() {
+        this.useReverse = true;
+        return this;
     }
 
     private void loadTestData() throws IOException {
@@ -110,8 +116,14 @@ public class Ciraf100Loader3D extends DataLoader3D {
 
     private void generateInput() {
         inputsData = new float[3072];
-        for (int i = 0; i < 3072; i++) {
-            inputsData[i] = transformData.transform(bytes[i]);
+        for (int i = 0; i < 1024; i++) {
+            inputsData[i] = transformData.transformR(bytes[i]);
+        }
+        for (int i = 1024; i < 2048; i++) {
+            inputsData[i] = transformData.transformG(bytes[i]);
+        }
+        for (int i = 2048; i < 3072; i++) {
+            inputsData[i] = transformData.transformB(bytes[i]);
         }
     }
 }

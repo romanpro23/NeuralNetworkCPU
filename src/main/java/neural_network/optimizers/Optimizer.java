@@ -2,10 +2,13 @@ package neural_network.optimizers;
 
 import lombok.Data;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import nnarrays.NNArray;
 
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -20,6 +23,35 @@ public abstract class Optimizer {
 
     public Optimizer() {
         optimizeData = new ArrayList<>();
+    }
+    
+    @SneakyThrows
+    public void save(FileWriter writer){
+        writer.write(t + "\n");
+        writer.write(clipValue + "\n");
+        writer.write(countParam + "\n");
+        writer.flush();
+
+        for (DataOptimize data : optimizeData) {
+            for (int j = 0; j < countParam; j++) {
+                data.getAdditionParam()[j].save(writer);
+            }
+        }
+    }
+
+    @SneakyThrows
+    public Optimizer read(Scanner scanner){
+        this.t = Integer.parseInt(scanner.nextLine());
+        this.clipValue = Float.parseFloat(scanner.nextLine());
+        this.countParam = Integer.parseInt(scanner.nextLine());
+
+        for (DataOptimize data : optimizeData) {
+            for (int j = 0; j < countParam; j++) {
+                data.getAdditionParam()[j] = NNArray.read(scanner);
+            }
+        }
+
+        return this;
     }
 
     public void update() {
@@ -53,9 +85,5 @@ public abstract class Optimizer {
         this.clipValue = (float) clipValue;
 
         return this;
-    }
-
-    public float getClipValue() {
-        return clipValue;
     }
 }

@@ -70,7 +70,7 @@ public class ActivationLayer2D extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer 2D\n");
         functionActivation.save(writer);
         writer.flush();

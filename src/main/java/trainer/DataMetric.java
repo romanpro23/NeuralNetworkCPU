@@ -21,6 +21,23 @@ public interface DataMetric {
         }
     }
 
+    class Top5 implements DataMetric {
+        @Override
+        public int quality(NNArray[] ideal, NNArray[] output) {
+            int counter = 0;
+            for (int i = 0; i < ideal.length; i++) {
+                int[] index = ideal[i].indexMaxElement(5);
+                int real = output[i].indexMaxElement();
+                for (int j = 0; j < 5; j++) {
+                    if (real == index[j]) {
+                        counter++;
+                    }
+                }
+            }
+            return counter;
+        }
+    }
+
     class Binary implements DataMetric {
         private float threshold;
 

@@ -123,7 +123,7 @@ public class GRULayer extends RecurrentNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("GRU layer\n");
         writer.write(countNeuron + "\n");
         writer.write(recurrentDropout + "\n");
@@ -208,7 +208,7 @@ public class GRULayer extends RecurrentNeuralLayer {
             if (t > 0) {
                 hidden_t = hidden[i][t - 1];
             } else if (hasPreLayer()) {
-                hidden_t = preLayer.state[i][0];
+                hidden_t = getStatePreLayer(i)[0];
             }
 
             //generate new hidden state for update and reset gate
@@ -261,19 +261,19 @@ public class GRULayer extends RecurrentNeuralLayer {
     @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
-        this.error = new NNMatrix[errors.length];
-        this.hiddenError = new NNVector[errors.length];
+        this.error = new NNMatrix[input.length];
+        this.hiddenError = new NNVector[input.length];
         if (hasPreLayer()) {
-            this.errorState = new NNVector[errors.length][1];
+            this.errorState = new NNVector[input.length][1];
         }
 
-        resetDelta = new NNVector[errors.length];
-        resetError = new NNVector[errors.length];
-        hiddenHDelta = new NNVector[errors.length];
-        hiddenHError = new NNVector[errors.length];
-        updateDelta = new NNVector[errors.length];
-        updateError = new NNVector[errors.length];
-        resetHiddenError = new NNVector[errors.length];
+        resetDelta = new NNVector[input.length];
+        resetError = new NNVector[input.length];
+        hiddenHDelta = new NNVector[input.length];
+        hiddenHError = new NNVector[input.length];
+        updateDelta = new NNVector[input.length];
+        updateError = new NNVector[input.length];
+        resetHiddenError = new NNVector[input.length];
 
         int countC = getCountCores();
         ExecutorService executor = Executors.newFixedThreadPool(countC);
@@ -290,8 +290,8 @@ public class GRULayer extends RecurrentNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        //regularization derivative weight
-        if (regularization != null) {
+        //regularization derivative weightAttention
+        if (trainable && regularization != null) {
             for (int i = 0; i < 3; i++) {
                 regularization.regularization(weightInput[i]);
                 regularization.regularization(weightHidden[i]);
@@ -313,9 +313,11 @@ public class GRULayer extends RecurrentNeuralLayer {
 
         //copy error from next layer
         int tError = (returnSequences) ? hidden[i].length - 1 : 0;
-        hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        if (errorNL != null) {
+            hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+        }
         if (returnState) {
-            hiddenError[i].add(nextLayer.errorState[i][0]);
+            hiddenError[i].add(getErrorStateNextLayer(i)[0]);
         }
 
         //pass through time
@@ -324,7 +326,7 @@ public class GRULayer extends RecurrentNeuralLayer {
             if (t > 0) {
                 hidden_t = hidden[i][t - 1];
             } else if (hasPreLayer()) {
-                hidden_t = preLayer.state[i][0];
+                hidden_t = getStatePreLayer(i)[0];
             }
             //dropout back for error
             hiddenError[i].dropoutBack(hidden[i][t], hiddenError[i], recurrentDropout);
@@ -348,14 +350,14 @@ public class GRULayer extends RecurrentNeuralLayer {
                 functionActivationSigmoid.derivativeActivation(resetGateInput[i][t], resetGateOutput[i][t], resetError[i], resetDelta[i]);
             }
 
-            //find derivative for weight
+            //find derivative for weightAttention
             if (trainable) {
                 derivativeWeight(t, i, hidden_t);
             }
 
             //find error for previous time step
             hiddenError[i].mul(updateGateOutput[i][t]);
-            if (returnSequences && t > 0) {
+            if (returnSequences && t > 0 && errorNL != null) {
                 hiddenError[i].addRowFromMatrix(errorNL[i], t - 1);
             }
             hiddenError[i].addProduct(resetHiddenError[i], resetGateOutput[i][t]);
@@ -368,6 +370,7 @@ public class GRULayer extends RecurrentNeuralLayer {
             error[i].addMulT(t, hiddenHDelta[i], weightInput[2]);
 
             if (t == 0 && hasPreLayer()) {
+                errorState[i][0] = new NNVector(countNeuron);
                 errorState[i][0].set(this.hiddenError[i]);
             }
         }
@@ -383,14 +386,14 @@ public class GRULayer extends RecurrentNeuralLayer {
             indexInput = input[i].getRowIndex()[t];
 
             if (hidden_t != null) {
-                //find derivative for hidden weight
+                //find derivative for hidden weightAttention
                 for (int m = 0; m < countNeuron; m++, indexHWeight++) {
                     derWeightHidden[0].getData()[indexHWeight] += updateDelta[i].get(k) * hidden_t.get(m);
                     derWeightHidden[1].getData()[indexHWeight] += resetDelta[i].get(k) * hidden_t.get(m);
                     derWeightHidden[2].getData()[indexHWeight] += hiddenHDelta[i].get(k) * resetHidden[i][t].get(m);
                 }
             }
-            //find derivative for input's weight
+            //find derivative for input's weightAttention
             for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
                 derWeightInput[0].getData()[indexIWeight] += updateDelta[i].get(k) * input[i].getData()[indexInput];
                 derWeightInput[1].getData()[indexIWeight] += resetDelta[i].get(k) * input[i].getData()[indexInput];

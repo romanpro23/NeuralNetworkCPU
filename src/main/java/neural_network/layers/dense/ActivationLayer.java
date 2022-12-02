@@ -55,7 +55,7 @@ public class ActivationLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer\n");
         functionActivation.save(writer);
         writer.flush();

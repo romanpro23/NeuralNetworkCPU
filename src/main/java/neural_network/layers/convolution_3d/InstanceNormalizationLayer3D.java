@@ -89,7 +89,6 @@ public class InstanceNormalizationLayer3D extends ConvolutionNeuralLayer {
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
                     output[i] = new NNTensor(outHeight, outWidth, outDepth);
-                    //normOutput[i] = new NNTensor(outHeight, outWidth, outDepth);
                     findMean(i);
                     findVariance(i);
                     normalization(i);
@@ -281,7 +280,7 @@ public class InstanceNormalizationLayer3D extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Instance normalization layer 3D\n");
         gamma.save(writer);
         betta.save(writer);

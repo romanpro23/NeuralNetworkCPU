@@ -19,10 +19,11 @@ public interface FunctionActivation {
         String activ = scanner.nextLine();
         functionActivation = switch (activ) {
             case "ReLU" -> new ReLU();
+            case "ReLUMax" -> new ReLUMax(Double.parseDouble(scanner.nextLine()));
             case "Linear" -> new Linear();
             case "SiLU" -> new SiLU();
             case "LeakyReLU" -> new LeakyReLU(Double.parseDouble(scanner.nextLine()));
-            case "SineReLU" -> new LeakyReLU(Double.parseDouble(scanner.nextLine()));
+            case "SineReLU" -> new SineReLU(Double.parseDouble(scanner.nextLine()));
             case "ELU" -> new ELU(Double.parseDouble(scanner.nextLine()));
             case "Sigmoid" -> new Sigmoid();
             case "Gaussian" -> new Gaussian();
@@ -53,20 +54,31 @@ public interface FunctionActivation {
         }
     }
 
-    class AReLU implements FunctionActivation {
+    class ReLUMax implements FunctionActivation {
+        private final float max;
+
+        public ReLUMax() {
+            this(5);
+        }
+
+        public ReLUMax(double max) {
+            this.max = (float) max;
+        }
+
         @Override
         public void activation(NNArray input, NNArray output) {
-            output.arelu(input);
+            output.relu_max(input, max);
         }
 
         @Override
         public void derivativeActivation(NNArray input, NNArray output, NNArray error, NNArray delta) {
-            delta.derRelu(input, error);
+            delta.derReluMax(input, error, max);
         }
 
         @Override
         public void save(FileWriter writer) throws IOException {
-            writer.write("ReLU\n");
+            writer.write("ReLUMax\n");
+            writer.write(max + "\n");
         }
     }
 

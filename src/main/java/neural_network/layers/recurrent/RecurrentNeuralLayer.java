@@ -1,6 +1,7 @@
 package neural_network.layers.recurrent;
 
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.layers.convolution_2d.ConvolutionNeuralLayer;
 import neural_network.regularization.Regularization;
@@ -31,6 +32,9 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
     protected boolean loadWeight;
     protected boolean dropout;
 
+    @Setter
+    protected boolean returnOwnState;
+
     public RecurrentNeuralLayer(int countNeuron, double recurrentDropout) {
         this.countNeuron = countNeuron;
         this.recurrentDropout = (float) recurrentDropout;
@@ -40,6 +44,7 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         this.initializerInput = new Initializer.XavierUniform();
         this.initializerHidden = new Initializer.XavierNormal();
         this.dropout = false;
+        this.returnOwnState = false;
         preLayer = null;
     }
 
@@ -56,6 +61,20 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         layer.nextLayer = this;
 
         return this;
+    }
+
+    public NNVector[] getStatePreLayer(int i){
+        if(returnOwnState){
+            return state[i];
+        }
+        return preLayer.state[i];
+    }
+
+    public NNVector[] getErrorStateNextLayer(int i){
+        if(returnOwnState){
+            return errorState[i];
+        }
+        return nextLayer.errorState[i];
     }
 
     @Override

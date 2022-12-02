@@ -4,6 +4,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Scanner;
+
 import static java.lang.Math.pow;
 import static java.lang.Math.signum;
 
@@ -20,7 +25,7 @@ public class NNArray {
         this.data = new float[size];
     }
 
-    public int[] getSize() {
+    public int[] shape() {
         return new int[]{size};
     }
 
@@ -101,6 +106,14 @@ public class NNArray {
         return this;
     }
 
+    public NNArray addMul(NNArray array, float val) {
+        for (int i = 0; i < size; i++) {
+            data[i] += array.data[i] * val;
+        }
+
+        return this;
+    }
+
     public void clear() {
         for (int i = 0; i < size; i++) {
             data[i] = 0;
@@ -120,6 +133,14 @@ public class NNArray {
         for (int i = 0; i < size; i++) {
             data[i] -= array.data[i];
         }
+    }
+
+    @SneakyThrows
+    public void copy(NNArray array) {
+        if (size != array.size) {
+            throw new Exception("Array has difference size");
+        }
+        System.arraycopy(array.data, 0, data, 0, size);
     }
 
     @SneakyThrows
@@ -169,9 +190,56 @@ public class NNArray {
         }
     }
 
-    public void arelu(NNArray input) {
+    public void relu_max(NNArray input, float max) {
         for (int i = 0; i < size; i++) {
-            data[i] = Math.abs(input.data[i]);
+            data[i] = Math.min(max, Math.max(0, input.data[i]));
+        }
+    }
+
+    public void randomrelu(NNArray input, NNArray alpha) {
+        for (int i = 0; i < size; i++) {
+            if (data[i] >= 0) {
+                data[i] = input.data[i];
+            } else {
+                data[i] = input.data[i] * alpha.data[i];
+            }
+        }
+    }
+
+    public void fillRandom(float min, float max) {
+        float sub = max - min;
+        for (int i = 0; i < size; i++) {
+            data[i] = (float) (Math.random() * sub + min);
+        }
+    }
+
+    public void prelu(NNArray input, NNArray alpha) {
+        for (int index = 0; index < size; index++) {
+            if (input.data[index] < 0) {
+                data[index] = input.data[index] * alpha.data[index];
+            } else {
+                data[index] = input.data[index];
+            }
+        }
+    }
+
+    public void derPrelu(NNArray input, NNArray error, NNArray alpha) {
+        for (int index = 0; index < size; index++) {
+            if (input.data[index] < 0) {
+                data[index] = error.data[index] * alpha.data[index];
+            } else {
+                data[index] = error.data[index];
+            }
+        }
+    }
+
+    public void derRandomRelu(NNArray input, NNArray error, NNArray alpha) {
+        for (int i = 0; i < size; i++) {
+            if (input.data[i] >= 0) {
+                data[i] = error.data[i];
+            } else {
+                data[i] = alpha.data[i] * error.data[i];
+            }
         }
     }
 
@@ -209,12 +277,10 @@ public class NNArray {
         }
     }
 
-    public void derARelu(NNArray input, NNArray error) {
+    public void derReluMax(NNArray input, NNArray error, float max) {
         for (int i = 0; i < size; i++) {
-            if (input.data[i] > 0) {
+            if (input.data[i] > 0 && input.data[i] <= max) {
                 data[i] = error.data[i];
-            } else {
-                data[i] = -error.data[i];
             }
         }
     }
@@ -357,6 +423,34 @@ public class NNArray {
         return index;
     }
 
+    public int[] indexMaxElement(int count) {
+        int[] index = new int[count];
+        for (int m = 0; m < count; m++) {
+            float max = 0;
+            for (int i = 0; i < size; i++) {
+                if (max < data[i] && m == 0) {
+                    index[m] = i;
+                    max = data[i];
+                } else if (max < data[i]) {
+                    boolean is = false;
+                    for (int j = m - 1; j >= 0; j--) {
+                        if (data[i] == data[index[j]]) {
+                            is = true;
+                            break;
+                        }
+                    }
+                    if (is) {
+                        continue;
+                    }
+                    index[m] = i;
+                    max = data[i];
+                }
+            }
+        }
+
+        return index;
+    }
+
     public void softmax(NNArray input) {
         float sum = 0;
         float max = input.max();
@@ -391,6 +485,20 @@ public class NNArray {
         final float rt = 1.0f - decay;
         for (int i = 0; i < size; i++) {
             data[i] = decay * data[i] + array.data[i] * rt;
+        }
+    }
+
+    public void momentumAbs(NNArray array, final float decay) {
+        final float rt = 1.0f - decay;
+        for (int i = 0; i < size; i++) {
+            data[i] = decay * data[i] + Math.abs(array.data[i]) * rt;
+        }
+    }
+
+    public void momentumNorm(NNArray array, NNArray e_array, final float decay) {
+        final float rt = 1.0f - decay;
+        for (int i = 0; i < size; i++) {
+            data[i] = decay * data[i] + array.data[i] * rt * Math.max(1, e_array.data[i] / (Math.abs(array.data[i]) + 0.0000001f));
         }
     }
 
@@ -440,6 +548,26 @@ public class NNArray {
         float cur_lr = lr / (normN + 0.0000001f);
         for (int i = 0; i < size; i++) {
             data[i] -= cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    private float absSigmoid(float val) {
+        return (float) (1.0f / (1.0f + Math.pow(Math.E, -Math.abs(val))));
+    }
+
+    public void subDivSqrtNormDiff(NNArray nominator, NNArray denominator, NNArray der, NNArray derPre, float lr, float normN, float normD) {
+        float cur_lr = lr / (normN + 0.0000001f);
+        for (int i = 0; i < size; i++) {
+            data[i] -= cur_lr * absSigmoid(derPre.data[i] - der.data[i]) * (nominator.data[i])
+                    / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
+        }
+    }
+
+    public void subDivSqrtNorm(NNArray nominator, NNArray denominator, NNArray phi, float lr, float normN, float normD) {
+        float cur_lr = lr / (normN + 0.0000001f);
+        for (int i = 0; i < size; i++) {
+            data[i] -= cur_lr * phi.data[i] * (nominator.data[i])
+                    / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f);
         }
     }
 
@@ -521,6 +649,29 @@ public class NNArray {
         return result;
     }
 
+    public NNArray angularGrad(NNArray array) {
+        NNArray result = new NNArray(array.size);
+        for (int i = 0; i < size; i++) {
+            result.data[i] = (float) Math.atan((data[i] - array.data[i]) / (1 + data[i] * array.data[i]));
+        }
+        return result;
+    }
+
+    public NNArray angularCos(NNArray array, float lambda1, float lambda2) {
+        NNArray result = new NNArray(array.size);
+        for (int i = 0; i < size; i++) {
+            result.data[i] = (float) Math.tanh(Math.cos(Math.min(data[i], array.data[i]))) * lambda1 + lambda2;
+        }
+        return result;
+    }
+
+    public NNArray angularTan(NNArray array, float lambda1, float lambda2) {
+        NNArray result = new NNArray(array.size);
+        for (int i = 0; i < size; i++) {
+            result.data[i] = (float) Math.tanh(Math.tan(Math.min(data[i], array.data[i]))) * lambda1 + lambda2;
+        }
+        return result;
+    }
 
     public void dropout(NNArray input, double chanceDrop) {
         float drop = (float) (1.0f / (1.0f - chanceDrop));
@@ -538,5 +689,26 @@ public class NNArray {
                 data[i] = error.data[i] * drop;
             }
         }
+    }
+
+    public void save(FileWriter writer) throws IOException {
+        writer.write(size + "\n");
+        for (int i = 0; i < size; i++) {
+            writer.write(data[i] + " ");
+            if (i % 1000 == 0) {
+                writer.flush();
+            }
+        }
+        writer.write("\n");
+        writer.flush();
+    }
+
+    public static NNArray read(Scanner scanner) {
+        NNArray array = new NNArray(Integer.parseInt(scanner.nextLine()));
+        double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+        for (int j = 0; j < array.size; j++) {
+            array.data[j] = (float) arr[j];
+        }
+        return array;
     }
 }

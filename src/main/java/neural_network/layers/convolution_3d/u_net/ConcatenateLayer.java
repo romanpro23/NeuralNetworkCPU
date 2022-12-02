@@ -4,14 +4,13 @@ import neural_network.layers.NeuralLayer;
 import neural_network.layers.convolution_3d.ConvolutionNeuralLayer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
-import nnarrays.NNTensor;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class UConcatenateLayer extends ConvolutionNeuralLayer {
+public class ConcatenateLayer extends ConvolutionNeuralLayer {
     private NeuralLayer inputLayer;
     private int indexLayer;
 
@@ -31,7 +30,7 @@ public class UConcatenateLayer extends ConvolutionNeuralLayer {
         outDepth += inputLayer.size()[2];
     }
 
-    public UConcatenateLayer addLayer(NeuralLayer layer, int indexLayer) {
+    public ConcatenateLayer addLayer(NeuralLayer layer, int indexLayer) {
         layer.addNextLayer(this);
         this.inputLayer = layer;
         this.indexLayer = indexLayer;
@@ -60,8 +59,8 @@ public class UConcatenateLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
-        writer.write("U concatenate layer\n");
+    public void save(FileWriter writer) throws IOException {
+        writer.write("Concatenate layer\n");
         writer.write(indexLayer + "\n");
         writer.flush();
     }
@@ -76,8 +75,8 @@ public class UConcatenateLayer extends ConvolutionNeuralLayer {
         return NNArrays.subTensor(errorNL, inputLayer.getOutput(), input[0].size());
     }
 
-    public static UConcatenateLayer read(ArrayList<NeuralLayer> layers, Scanner scanner) {
+    public static ConcatenateLayer read(ArrayList<NeuralLayer> layers, Scanner scanner) {
         int index = Integer.parseInt(scanner.nextLine());
-        return new UConcatenateLayer().addLayer(layers.get(index), index);
+        return new ConcatenateLayer().addLayer(layers.get(index), index);
     }
 }

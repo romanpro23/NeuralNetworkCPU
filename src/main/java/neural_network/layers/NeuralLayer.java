@@ -1,13 +1,16 @@
 package neural_network.layers;
 
+import lombok.Getter;
 import neural_network.layers.convolution_2d.ActivationLayer2D;
 import neural_network.layers.convolution_2d.DropoutLayer2D;
+import neural_network.layers.convolution_2d.SoftmaxLayer2D;
 import neural_network.layers.convolution_3d.*;
-import neural_network.layers.convolution_3d.densely.DenseModule;
-import neural_network.layers.convolution_3d.inception.InceptionModule;
-import neural_network.layers.convolution_3d.residual.ResidualModule;
+import neural_network.layers.convolution_3d.densely.DenseBlock;
+import neural_network.layers.convolution_3d.densely.ResidualDenseBlock;
+import neural_network.layers.convolution_3d.inception.InceptionBlock;
+import neural_network.layers.convolution_3d.residual.ResidualBlock;
 import neural_network.layers.convolution_3d.squeeze_and_excitation.SEBlock;
-import neural_network.layers.convolution_3d.u_net.UConcatenateLayer;
+import neural_network.layers.convolution_3d.u_net.ConcatenateLayer;
 import neural_network.layers.dense.*;
 import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.*;
@@ -20,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public abstract class NeuralLayer {
+    @Getter
     protected boolean trainable;
     protected ArrayList<NeuralLayer> nextLayers;
 
@@ -32,12 +36,17 @@ public abstract class NeuralLayer {
         while (!layer.equals("End")) {
             switch (layer) {
                 case "Dense layer" -> layers.add(DenseLayer.read(scanner));
+                case "Dense time layer" -> layers.add(DenseTimeLayer.read(scanner));
                 case "Spectral normalization dense layer" -> layers.add(SNDenseLayer.read(scanner));
                 case "Variational layer" -> layers.add(VariationalLayer.read(scanner));
                 case "Dropout layer" -> layers.add(DropoutLayer.read(scanner));
                 case "Activation layer" -> layers.add(ActivationLayer.read(scanner));
-                case "Activation layer 3D" -> layers.add(ActivationLayer3D.read(scanner));
                 case "Activation layer 2D" -> layers.add(ActivationLayer2D.read(scanner));
+                case "Softmax layer 2D" -> layers.add(SoftmaxLayer2D.read(scanner));
+                case "Activation layer 3D" -> layers.add(ActivationLayer3D.read(scanner));
+                case "Parametric ReLU activation layer 3D" -> layers.add(ParametricReLULayer3D.read(scanner));
+                case "Parametric ReLU activation layer" -> layers.add(ParametricReLULayer.read(scanner));
+                case "Random ReLU activation layer 3D" -> layers.add(RandomReLULayer3D.read(scanner));
                 case "Average pooling layer 3D" -> layers.add(AveragePoolingLayer.read(scanner));
                 case "Batch normalization layer 3D" -> layers.add(BatchNormalizationLayer3D.read(scanner));
                 case "Instance normalization layer 3D" -> layers.add(InstanceNormalizationLayer3D.read(scanner));
@@ -62,19 +71,24 @@ public abstract class NeuralLayer {
                 case "Global average pooling 3D" -> layers.add(GlobalAveragePooling3DLayer.read(scanner));
                 case "Global average pooling 2D" -> layers.add(GlobalAveragePooling2DLayer.read(scanner));
                 case "Reshape layer 3D" -> layers.add(Reshape3DLayer.read(scanner));
-                case "Inception module" -> layers.add(InceptionModule.read(scanner));
+                case "Pixel shuffler layer 3D" -> layers.add(PixelShufflerLayer.read(scanner));
+                case "Inception block" -> layers.add(InceptionBlock.read(scanner));
                 case "SE block" -> layers.add(SEBlock.read(scanner));
                 case "Layers block" -> layers.add(LayersBlock.readBlock(scanner));
-                case "U concatenate layer" -> layers.add(UConcatenateLayer.read(layers, scanner));
+                case "Concatenate layer" -> layers.add(ConcatenateLayer.read(layers, scanner));
+                case "U concatenate layer" -> layers.add(ConcatenateLayer.read(layers, scanner));
                 case "Batch normalization layer" -> layers.add(BatchNormalizationLayer.read(scanner));
                 case "Batch renormalization layer" -> layers.add(BatchRenormalizationLayer.read(scanner));
                 case "LSTM layer" -> layers.add(LSTMLayer.read(scanner));
                 case "Peephole LSTM layer" -> layers.add(PeepholeLSTMLayer.read(scanner));
                 case "GRU layer" -> layers.add(GRULayer.read(scanner));
+                case "GRU luong attention layer" -> layers.add(GRULuongAttentionLayer.read(scanner));
+                case "GRU bahdanau attention layer" -> layers.add(GRUBahdAttentionLayer.read(scanner));
                 case "Recurrent layer" -> layers.add(RecurrentLayer.read(scanner));
                 case "Bidirectional block" -> layers.add(Bidirectional.read(scanner));
-                case "Residual module" -> layers.add(ResidualModule.read(scanner));
-                case "Dense module" -> layers.add(DenseModule.read(scanner));
+                case "Residual block" -> layers.add(ResidualBlock.read(scanner));
+                case "Dense block" -> layers.add(DenseBlock.read(scanner));
+                case "Residual dense block" -> layers.add(ResidualDenseBlock.read(scanner));
                 case "Embedding layer" -> layers.add(EmbeddingLayer.read(scanner));
             }
             layer = scanner.nextLine();
@@ -87,7 +101,7 @@ public abstract class NeuralLayer {
 
     public abstract int info();
 
-    public abstract void write(FileWriter writer) throws IOException;
+    public abstract void save(FileWriter writer) throws IOException;
 
     public abstract void initialize(int[] size);
 

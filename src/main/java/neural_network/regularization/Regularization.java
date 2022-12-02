@@ -46,7 +46,7 @@ public interface Regularization {
 
         @Override
         public void write(FileWriter fileWriter) throws IOException {
-            fileWriter.write("L1");
+            fileWriter.write("L1\n");
             fileWriter.write(lambda + "\n");
         }
     }
@@ -72,7 +72,7 @@ public interface Regularization {
 
         @Override
         public void write(FileWriter fileWriter) throws IOException {
-            fileWriter.write("L2");
+            fileWriter.write("L2\n");
             fileWriter.write(lambda + "\n");
         }
     }
@@ -102,7 +102,7 @@ public interface Regularization {
 
         @Override
         public void write(FileWriter fileWriter) throws IOException {
-            fileWriter.write("ElasticNet");
+            fileWriter.write("ElasticNet\n");
             fileWriter.write(lambda1 + "\n");
             fileWriter.write(lambda2 + "\n");
         }

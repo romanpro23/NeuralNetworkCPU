@@ -93,9 +93,9 @@ public class AppleToOrangeLoader3D extends Img2ImgDataLoader3D {
                 Color color = new Color(scaledImg.getRGB(i, j));
                 int i1 = i - i0;
                 int j1 = j - j0;
-                input.set(i1, j1, 0, transformData.transform(color.getRed()));
-                input.set(i1, j1, 1, transformData.transform(color.getGreen()));
-                input.set(i1, j1, 2, transformData.transform(color.getBlue()));
+                input.set(i1, j1, 0, transformData.transformR(color.getRed()));
+                input.set(i1, j1, 1, transformData.transformG(color.getGreen()));
+                input.set(i1, j1, 2, transformData.transformB(color.getBlue()));
             }
         }
 

@@ -23,7 +23,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
     private boolean loadWeight;
     private boolean useBias;
 
-    //weight and threshold
+    //weightAttention and threshold
     @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
@@ -80,7 +80,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Spectral normalization dense layer\n");
         writer.write(countNeuron + "\n");
         threshold.save(writer);
@@ -131,7 +131,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
         u.addMul(v, weight);
         u.l2norm();
 
-        return 0.0000001f + NNArrays.sum(v.mul(u.mulT(weight)));
+        return 0.0000001f + NNArrays.sum(v.mul(u.dotT(weight)));
     }
 
     @SneakyThrows
@@ -150,7 +150,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    output[i] = input[i].mul(weight);
+                    output[i] = input[i].dot(weight);
                     if(useBias) {
                         output[i].add(threshold);
                     }
@@ -163,7 +163,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
     }
 
     private void backSpectralNorm() {
-        NNMatrix dW = u.mulVector(v);
+        NNMatrix dW = u.dot(v);
         dW.oneSub();
         dW.dotT(weight);
         dW.div(sigma);
@@ -185,7 +185,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    error[i] = errorNL[i].mulT(weight);
+                    error[i] = errorNL[i].dotT(weight);
                     if (trainable) {
                         derivativeWeight(input[i], errorNL[i]);
                         if (useBias) {

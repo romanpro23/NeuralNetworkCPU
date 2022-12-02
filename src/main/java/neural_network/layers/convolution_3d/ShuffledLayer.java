@@ -51,7 +51,7 @@ public class ShuffledLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Shuffled layer\n");
         writer.write(countGroup + "\n");
         writer.flush();

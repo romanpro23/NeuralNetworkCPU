@@ -21,7 +21,7 @@ public class GroupedConvolutionLayer extends ConvolutionNeuralLayer {
 
     private boolean loadWeight;
 
-    //weight
+    //weightAttention
     @Setter
     @Getter
     private NNTensor4D weight;
@@ -156,7 +156,7 @@ public class GroupedConvolutionLayer extends ConvolutionNeuralLayer {
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Grouped convolution layer 3D\n");
         writer.write(countKernel + " " + heightKernel + " " + widthKernel + " " + step + " "
                 + paddingY + " " + paddingX + " " + countGroups + "\n");

@@ -1,5 +1,6 @@
 package neural_network.layers.convolution_3d;
 
+import lombok.Setter;
 import neural_network.activation.FunctionActivation;
 import nnarrays.*;
 
@@ -10,7 +11,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ActivationLayer3D extends ConvolutionNeuralLayer {
-    private final FunctionActivation functionActivation;
+    @Setter
+    private FunctionActivation functionActivation;
 
     public ActivationLayer3D(FunctionActivation functionActivation) {
         this.functionActivation = functionActivation;
@@ -62,13 +64,13 @@ public class ActivationLayer3D extends ConvolutionNeuralLayer {
 
     @Override
     public int info() {
-        System.out.println("Activation\t|  " + height + ",\t"+ width + ",\t" + depth + "\t| "
+        System.out.println("Activation\t| " + height + ",\t"+ width + ",\t" + depth + "\t| "
                 + height + ",\t" + width + ",\t" + depth + "\t|");
         return 0;
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer 3D\n");
         functionActivation.save(writer);
         writer.flush();

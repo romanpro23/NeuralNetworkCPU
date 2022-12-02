@@ -37,18 +37,13 @@ public class CycleGAN extends GAN {
 
     public float train(NNArray[] input, NNArray[] output, float lambdaCycle, float lambdaIdentity) {
         float accuracy = 0;
-        System.out.println("Train forward generator");
         accuracy += generatorOutputTrain(input, output);
-        System.out.println("Train forward cycle");
         accuracy += forwardCycleTrain(input, lambdaCycle);
 
-        System.out.println("Train back generator");
         accuracy += generatorInputTrain(input, output);
-        System.out.println("Train back cycle");
         accuracy += backCycleTrain(output, lambdaCycle);
 
         if (identityLoss) {
-            System.out.println("Train identity");
             accuracy += identityTrain(input, output, lambdaIdentity);
         }
 
@@ -66,15 +61,10 @@ public class CycleGAN extends GAN {
         generator.queryTrain(output);
         generatorInput.queryTrain(input);
 
-        NNArray[] errGenerator = generator.findDerivative(output);
-        NNArray[] errGeneratorInput = generatorInput.findDerivative(input);
-        accuracy += generator.accuracy(output);
-        accuracy += generatorInput.accuracy(input);
-
-        for (int i = 0; i < input.length; i++) {
-            errGenerator[i].mul(lambda);
-            errGeneratorInput[i].mul(lambda);
-        }
+        NNArray[] errGenerator = generator.findDerivative(output, lambda);
+        NNArray[] errGeneratorInput = generatorInput.findDerivative(input, lambda);
+        accuracy += generator.accuracy(output) * lambda;
+        accuracy += generatorInput.accuracy(input) * lambda;
 
         generator.train(errGenerator, false);
         generatorInput.train(errGeneratorInput, false);
@@ -86,8 +76,8 @@ public class CycleGAN extends GAN {
         generator.queryTrain(input);
 
         float accuracy = 0;
-        accuracy += discriminator.train(output, getRealLabel(input.length), false);
-        accuracy += discriminator.train(generator.getOutputs(), getFakeLabel(input.length), false);
+        accuracy += discriminator.train(output, getRealLabel(input.length), false, 0.5f);
+        accuracy += discriminator.train(generator.getOutputs(), getFakeLabel(input.length), false, 0.5f);
 
         discriminator.setTrainable(false);
         accuracy += discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
@@ -100,8 +90,8 @@ public class CycleGAN extends GAN {
         generatorInput.queryTrain(output);
 
         float accuracy = 0;
-        accuracy += discriminatorInput.train(input, getRealLabel(input.length), false);
-        accuracy += discriminatorInput.train(generatorInput.getOutputs(), getFakeLabel(input.length), false);
+        accuracy += discriminatorInput.train(input, getRealLabel(input.length), false, 0.5f);
+        accuracy += discriminatorInput.train(generatorInput.getOutputs(), getFakeLabel(input.length), false, 0.5f);
 
         discriminatorInput.setTrainable(false);
         accuracy += discriminatorInput.train(generatorInput.getOutputs(), getRealLabel(input.length), false);
@@ -117,12 +107,7 @@ public class CycleGAN extends GAN {
         accuracy += generatorInput.accuracy(input);
 
         NNArray[] errorGenerator = discriminator.getError();
-        NNArray[] errorRecognition = generatorInput.findDerivative(input);
-        for (NNArray array : errorRecognition) {
-            if (lambda != 1) {
-                array.mul(lambda);
-            }
-        }
+        NNArray[] errorRecognition = generatorInput.findDerivative(input, lambda);
         generatorInput.train(errorRecognition, false);
 
         for (int i = 0; i < generatorInput.getError().length; i++) {
@@ -140,12 +125,8 @@ public class CycleGAN extends GAN {
         accuracy += generator.accuracy(output);
 
         NNArray[] errorGenerator = discriminatorInput.getError();
-        NNArray[] errorRecognition = generator.findDerivative(output);
-        for (NNArray array : errorRecognition) {
-            if (lambda != 1) {
-                array.mul(lambda);
-            }
-        }
+        NNArray[] errorRecognition = generator.findDerivative(output, lambda);
+
         generator.train(errorRecognition, false);
 
         for (int i = 0; i < generator.getError().length; i++) {

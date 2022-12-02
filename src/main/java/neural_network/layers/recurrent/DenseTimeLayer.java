@@ -13,6 +13,7 @@ import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,9 +24,9 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
     private Initializer initializer;
     private boolean loadWeight;
 
-    private final int countNeuron;
+    protected final int countNeuron;
 
-    //weight and threshold
+    //weightAttention and threshold
     @Getter
     private NNMatrix weight;
     private NNMatrix derWeight;
@@ -67,12 +68,12 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
     @Override
     public int info() {
         int countParam = weight.size() + threshold.size();
-        System.out.println("Dense time\t|  "  + width + ",\t" + depth + "\t\t|  " + outWidth + ",\t" + outDepth + "\t\t|\t" + countParam);
+        System.out.println("Dense time\t| " + width + ",\t" + depth + "\t\t| " + outWidth + ",\t" + outDepth + "\t\t|\t" + countParam);
         return countParam;
     }
 
     @Override
-    public void write(FileWriter writer) throws IOException {
+    public void save(FileWriter writer) throws IOException {
         writer.write("Dense time layer\n");
         writer.write(countNeuron + "\n");
         threshold.save(writer);
@@ -97,11 +98,11 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
         outDepth = countNeuron;
 
         derThreshold = new NNVector(countNeuron);
-        derWeight = new NNMatrix(countNeuron, depth);
+        derWeight = new NNMatrix(depth, countNeuron);
 
         if (!loadWeight) {
             threshold = new NNVector(countNeuron);
-            weight = new NNMatrix(countNeuron, depth);
+            weight = new NNMatrix(depth, countNeuron);
             initializer.initialize(weight);
         }
     }
@@ -119,7 +120,7 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    output[i] = input[i].dotT(weight);
+                    output[i] = input[i].dot(weight);
                     output[i].add(threshold);
                 }
             });
@@ -142,7 +143,11 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
             final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
             executor.execute(() -> {
                 for (int i = firstIndex; i < lastIndex; i++) {
-                    error[i] = errorNL[i].dot(weight);
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
+                        derWeight.add(input[i].transpose().dot(errorNL[i]));
+                        derThreshold.add(errorNL[i]);
+                    }
                 }
             });
         }
@@ -150,34 +155,7 @@ public class DenseTimeLayer extends ConvolutionNeuralLayer {
         while (!executor.isTerminated()) {
         }
 
-        if (trainable) {
-            derivativeWeight(errorNL);
-        }
-    }
-
-    private void derivativeWeight(NNMatrix[] error) {
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int t = 0; t < countC; t++) {
-            final int firstIndex = t * input.length / countC;
-            final int lastIndex = Math.min(input.length, (t + 1) * input.length / countC);
-            executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-//                    for (int j = 0, index = 0; j < error[i].size(); j++) {
-//                        for (int k = 0; k < input[i].size(); k++, index++) {
-//                            derWeight.getData()[index] += error[i].getData()[j] * input[i].getData()[k];
-//                        }
-//                    }
-                    derWeight.add(input[i].dotT(error[i]));
-                    derThreshold.add(error[i]);
-                }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-
-        if (regularization != null) {
+        if (trainable && regularization != null) {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }
