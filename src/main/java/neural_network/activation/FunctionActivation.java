@@ -19,6 +19,7 @@ public interface FunctionActivation {
         String activ = scanner.nextLine();
         functionActivation = switch (activ) {
             case "ReLU" -> new ReLU();
+            case "GeLU" -> new GELU();
             case "ReLUMax" -> new ReLUMax(Double.parseDouble(scanner.nextLine()));
             case "Linear" -> new Linear();
             case "SiLU" -> new SiLU();
@@ -51,6 +52,23 @@ public interface FunctionActivation {
         @Override
         public void save(FileWriter writer) throws IOException {
             writer.write("ReLU\n");
+        }
+    }
+
+    class GELU implements FunctionActivation {
+        @Override
+        public void activation(NNArray input, NNArray output) {
+            output.gelu(input);
+        }
+
+        @Override
+        public void derivativeActivation(NNArray input, NNArray output, NNArray error, NNArray delta) {
+            delta.derGelu(input, error);
+        }
+
+        @Override
+        public void save(FileWriter writer) throws IOException {
+            writer.write("GeLU\n");
         }
     }
 

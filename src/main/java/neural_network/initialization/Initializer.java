@@ -195,7 +195,6 @@ public abstract class Initializer {
         @Override
         public void initialize(NNTensor4D weight) {
             range = (float) (Math.sqrt(2.0 / (weight.getLength() * weight.column() * weight.row())));
-
             initializeNormal(weight);
         }
     }

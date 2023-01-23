@@ -4,6 +4,7 @@ import data.loaders.DataLoader3D;
 import data.loaders.ImageData3D;
 import data.loaders.TransformData;
 import data.network_train.NNData3D;
+import nnarrays.NNMatrix;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
 
@@ -113,5 +114,6 @@ public class MNISTLoader3D extends DataLoader3D {
         for (int i = 0; i < 784; i++) {
             inputsData[i] = transformData.transform(bytes[i]);
         }
+        inputsData = new NNMatrix(28,28, inputsData).transpose().getData();
     }
 }

@@ -1,29 +1,22 @@
 package neural_network.layers.recurrent;
 
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_2d.ConvolutionNeuralLayer;
+import neural_network.layers.layer_2d.NeuralLayer2D;
 import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNVector;
 
 @NoArgsConstructor
-public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
+public abstract class RecurrentNeuralLayer extends NeuralLayer2D {
     protected boolean returnSequences;
-    protected boolean returnState;
-
-    protected RecurrentNeuralLayer preLayer, nextLayer;
-
     protected int countNeuron;
     protected double recurrentDropout;
 
-    protected NNVector[][] inputHidden;
-    protected NNVector[][] outputHidden;
+    protected NNVector[][] inputState;
     protected NNVector[][] state;
-    protected NNVector[][] errorState;
 
-    protected NNVector[] hiddenError;
+    protected NNVector[][] errorState;
 
     protected Regularization regularization;
     protected Initializer initializerInput;
@@ -32,20 +25,24 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
     protected boolean loadWeight;
     protected boolean dropout;
 
-    @Setter
-    protected boolean returnOwnState;
-
     public RecurrentNeuralLayer(int countNeuron, double recurrentDropout) {
         this.countNeuron = countNeuron;
         this.recurrentDropout = (float) recurrentDropout;
-        this.returnState = false;
 
         this.trainable = true;
         this.initializerInput = new Initializer.XavierUniform();
         this.initializerHidden = new Initializer.XavierNormal();
         this.dropout = false;
-        this.returnOwnState = false;
-        preLayer = null;
+    }
+
+    @Override
+    public void generateOutput(NNArray[] inputs) {
+        generateOutput(inputs, null);
+    }
+
+    @Override
+    public void generateError(NNArray[] errors) {
+        generateError(errors, null);
     }
 
     @Override
@@ -55,26 +52,18 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         dropout = false;
     }
 
-    public RecurrentNeuralLayer setPreLayer(RecurrentNeuralLayer layer) {
-        this.preLayer = layer;
-        layer.returnState = true;
-        layer.nextLayer = this;
-
-        return this;
+    public void generateTrainOutput(NNArray[] inputs, NNArray[][] state) {
+        dropout = true;
+        generateOutput(inputs, state);
+        dropout = false;
     }
 
-    public NNVector[] getStatePreLayer(int i){
-        if(returnOwnState){
-            return state[i];
-        }
-        return preLayer.state[i];
+    public NNVector[][] getState() {
+            return state;
     }
 
-    public NNVector[] getErrorStateNextLayer(int i){
-        if(returnOwnState){
-            return errorState[i];
-        }
-        return nextLayer.errorState[i];
+    public NNVector[][] getErrorState() {
+            return errorState;
     }
 
     @Override
@@ -93,15 +82,21 @@ public abstract class RecurrentNeuralLayer extends ConvolutionNeuralLayer {
         outDepth = countNeuron;
     }
 
-    protected boolean hasPreLayer() {
-        return preLayer != null;
+    public RecurrentNeuralLayer setReturnSequences(boolean returnSequences) {
+        this.returnSequences = returnSequences;
+
+        return this;
     }
 
-    protected void copy(RecurrentNeuralLayer layer){
+    protected void copy(RecurrentNeuralLayer layer) {
         this.initializerInput = layer.initializerInput;
         this.initializerHidden = layer.initializerHidden;
-        this.returnState = layer.returnState;
+
         this.regularization = layer.regularization;
         this.trainable = layer.trainable;
     }
+
+    public abstract void generateOutput(NNArray[] input, NNArray[][] state);
+
+    public abstract void generateError(NNArray[] error, NNArray[][] errorState);
 }

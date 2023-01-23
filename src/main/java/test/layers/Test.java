@@ -1,6 +1,6 @@
 package test.layers;
 
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;

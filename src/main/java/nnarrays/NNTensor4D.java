@@ -108,12 +108,24 @@ public class NNTensor4D extends NNArray {
                             if (x0 < 0 || x0 >= input.getColumns()) {
                                 continue;
                             }
-                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0] ;
+                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0];
                             weightIndex = w0 + rowIndex[k];
                             for (int c = 0; c < column; c++, inputIndex++, weightIndex++) {
                                 data[weightIndex] += input.data[inputIndex] * error.data[outputIndex];
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    public void derCapsuleAffineTransform(NNMatrix input, NNTensor error) {
+        for (int i = 0; i < depth; i++) {
+            for (int j = 0; j < input.getRow(); j++) {
+                for (int k = 0; k < column; k++) {
+                    for (int l = 0; l < input.getColumn(); l++) {
+                        add(i, j, l, k, input.get(j, l) * error.get(i, j, k));
                     }
                 }
             }
@@ -141,7 +153,7 @@ public class NNTensor4D extends NNArray {
                             if (x0 < 0 || x0 >= input.getColumns()) {
                                 continue;
                             }
-                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0] ;
+                            inputIndex = input.getRowsIndex()[y0] + input.getColumnsIndex()[x0];
                             weightIndex = w0 + rowIndex[k];
                             for (int c = 0; c < column; c++, inputIndex++, weightIndex++) {
                                 data[weightIndex] += input.data[inputIndex] * error.data[outputIndex];

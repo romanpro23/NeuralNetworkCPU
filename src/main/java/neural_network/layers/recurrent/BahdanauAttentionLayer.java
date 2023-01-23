@@ -1,12 +1,14 @@
 package neural_network.layers.recurrent;
 
-import neural_network.activation.FunctionActivation;
+import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
 
 public abstract class BahdanauAttentionLayer extends RecurrentNeuralLayer {
+    protected NeuralLayer encoderLayer;
+
     protected NNMatrix weightAttention;
     protected NNMatrix derWeightAttention;
 
@@ -119,7 +121,7 @@ public abstract class BahdanauAttentionLayer extends RecurrentNeuralLayer {
         }
 
         width = size[0];
-        depth = size[1] + preLayer.size()[1];
+        depth = size[1] + encoderLayer.size()[1];
         if (returnSequences) {
             outWidth = width;
         } else {
@@ -141,5 +143,12 @@ public abstract class BahdanauAttentionLayer extends RecurrentNeuralLayer {
     @Override
     public NNArray[] getErrorNL() {
         return errorInput;
+    }
+
+    public BahdanauAttentionLayer setEncoderLayer(NeuralLayer layer){
+        layer.addNextLayer(this);
+        this.encoderLayer = layer;
+
+        return this;
     }
 }

@@ -30,12 +30,19 @@ public abstract class DataLoader1D extends DataLoader {
             curTrain++;
         }
 
-        if(size != sizeBatch || curTrain == train.size()){
+        if (size != sizeBatch || curTrain == train.size()) {
             curTrain = 0;
+            reloadTrainData();
             //Collections.shuffle(train);
         }
 
         return new NNData1D(input, output);
+    }
+
+    public void reloadTestData() {
+    }
+
+    public void reloadTrainData() {
     }
 
     @Override
@@ -55,8 +62,9 @@ public abstract class DataLoader1D extends DataLoader {
             curTest++;
         }
 
-        if(size != sizeBatch || curTest == test.size()){
+        if (size != sizeBatch || curTest == test.size()) {
             curTest = 0;
+            reloadTestData();
             //Collections.shuffle(test);
         }
 

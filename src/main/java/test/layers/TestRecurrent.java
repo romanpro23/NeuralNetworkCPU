@@ -1,7 +1,7 @@
 package test.layers;
 
 import neural_network.initialization.Initializer;
-import neural_network.layers.recurrent.PeepholeLSTMLayer;
+import neural_network.layers.recurrent.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
@@ -23,7 +23,7 @@ public class TestRecurrent {
             initializer.initialize(output[i]);
         }
 
-        PeepholeLSTMLayer layer = new PeepholeLSTMLayer(64, 0.1, true).setHiddenPeephole(true);
+        Bidirectional layer = new Bidirectional(new GRULayer(32, 0.1, true));
         layer.initialize(new int[]{64, 64});
         Optimizer optimizer = new AdamOptimizer();
         layer.initialize(optimizer);

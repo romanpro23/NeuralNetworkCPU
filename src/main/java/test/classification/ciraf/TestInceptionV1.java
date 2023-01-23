@@ -2,10 +2,10 @@ package test.classification.ciraf;
 
 import data.ciraf.Ciraf100Loader3D;
 import neural_network.activation.FunctionActivation;
-import neural_network.layers.convolution_3d.*;
-import neural_network.layers.convolution_3d.inception.InceptionBlock;
-import neural_network.layers.convolution_3d.inception.InceptionUnit;
-import neural_network.layers.dense.DropoutLayer;
+import neural_network.layers.layer_3d.*;
+import neural_network.layers.layer_3d.inception.InceptionBlock;
+import neural_network.layers.layer_3d.inception.InceptionUnit;
+import neural_network.layers.layer_1d.DropoutLayer;
 import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;

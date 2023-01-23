@@ -129,40 +129,55 @@ public class TextTranslateLoader {
     }
 
     public void createOneVocabularyWords(Scanner scanner, String path) throws IOException {
-        String[] englishWord;
+        String[] word;
 
-        LinkedHashMap<String, Integer> englishWords = new LinkedHashMap<>();
+        LinkedHashMap<String, Integer> words = new LinkedHashMap<>();
 
+        int ind = 0;
         while (scanner.hasNextLine()) {
-            englishWord = scanner.nextLine().split(" ");
+            word = scanner.nextLine().split("[ ,.:;!?/()\"*%»«]");
 
-            for (String s : englishWord) {
+            for (String s : word) {
                 if (!s.equals(""))
-                    if (englishWords.containsKey(s)) {
-                        Integer val = englishWords.get(s);
+                    if (words.containsKey(s)) {
+                        Integer val = words.get(s);
                         val++;
-                        englishWords.put(s, val);
+                        words.put(s, val);
                     } else {
-                        englishWords.put(s, 1);
+                        words.put(s, 1);
                     }
             }
+
+            if(ind % 10000 == 0){
+                System.out.println(ind);
+            }
+            ind++;
         }
 
-        englishWords = sortHashMapByValues(englishWords);
+//        List<String> mapKeys = new ArrayList<>(words.keySet());
+//        System.out.println(mapKeys.size());
+//        for (int i = 0; i < mapKeys.size(); i++) {
+//            if(words.get(mapKeys.get(i)) <= 20){
+//                words.remove(mapKeys.get(i));
+//            }
+//        }
 
-        List<String> enVoc = new ArrayList<>(englishWords.keySet());
+        words = sortHashMapByValues(words);
 
-        FileWriter writerEn = new FileWriter(path + "en.txt");
-        System.out.println(enVoc.size());
-        for (int i = enVoc.size() - 1; i >= 0; i--) {
-            writerEn.write(enVoc.get(i) + "\n");
-            writerEn.flush();
+        List<String> voc = new ArrayList<>(words.keySet());
+
+        FileWriter writer = new FileWriter(path);
+        System.out.println(voc.size());
+        for (int i = voc.size() - 1; i >= 0; i--) {
+            writer.write(voc.get(i) + "\n");
+            writer.flush();
         }
     }
 
     private LinkedHashMap<String, Integer> sortHashMapByValues(HashMap<String, Integer> passedMap) {
         List<String> mapKeys = new ArrayList<>(passedMap.keySet());
         List<Integer> mapValues = new ArrayList<>(passedMap.values());
+
         Collections.sort(mapValues);
         Collections.sort(mapKeys);
 

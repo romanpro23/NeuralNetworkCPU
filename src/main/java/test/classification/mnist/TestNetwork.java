@@ -2,10 +2,10 @@ package test.classification.mnist;
 
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.ActivationLayer3D;
-import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_3d.ActivationLayer3D;
+import neural_network.layers.layer_3d.ConvolutionTransposeLayer;
+import neural_network.layers.layer_1d.ActivationLayer;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;

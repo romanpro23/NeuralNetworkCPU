@@ -1,4 +1,4 @@
-//package neural_network.layers.recurrent;
+package neural_network.layers.recurrent;//package neural_network.layers.recurrent;
 //
 //import neural_network.activation.FunctionActivation;
 //import neural_network.initialization.Initializer;
@@ -48,12 +48,12 @@
 //    private final FunctionActivation functionActivationSigmoid;
 //    private final FunctionActivation functionActivationTanh;
 //
-//    //    public ConvolutionLSTMLayer(int countNeuron) {
-////        this(countNeuron, 0);
+//    //    public ConvolutionLSTMLayer(int countHead) {
+////        this(countHead, 0);
 ////    }
 ////
 ////    public ConvolutionLSTMLayer(ConvolutionLSTMLayer layer) {
-////        this(layer.countNeuron, layer.recurrentDropout, layer.returnSequences);
+////        this(layer.countHead, layer.recurrentDropout, layer.returnSequences);
 ////        this.copy(layer);
 ////    }
 ////
@@ -64,8 +64,8 @@
 //        this.functionActivationSigmoid = new FunctionActivation.Sigmoid();
 //    }
 //
-////    public ConvolutionLSTMLayer(int countNeuron, double recurrentDropout, boolean returnSequences) {
-////        this(countNeuron, recurrentDropout);
+////    public ConvolutionLSTMLayer(int countHead, double recurrentDropout, boolean returnSequences) {
+////        this(countHead, recurrentDropout);
 ////        setReturnSequences(returnSequences);
 ////    }
 //
@@ -325,18 +325,18 @@
 //
 //    private void generateError(int i) {
 //        this.error[i] = new NNMatrix(input[i]);
-//        hiddenError[i] = new NNVector(countNeuron);
-//        hiddenLongDelta[i] = new NNVector(countNeuron);
-//        hiddenLongError[i] = new NNVector(countNeuron);
+//        hiddenError[i] = new NNVector(countHead);
+//        hiddenLongDelta[i] = new NNVector(countHead);
+//        hiddenLongError[i] = new NNVector(countHead);
 //
-//        gateFDelta[i] = new NNVector(countNeuron);
-//        gateFError[i] = new NNVector(countNeuron);
-//        gateIDelta[i] = new NNVector(countNeuron);
-//        gateIError[i] = new NNVector(countNeuron);
-//        gateODelta[i] = new NNVector(countNeuron);
-//        gateOError[i] = new NNVector(countNeuron);
-//        gateCDelta[i] = new NNVector(countNeuron);
-//        gateCError[i] = new NNVector(countNeuron);
+//        gateFDelta[i] = new NNVector(countHead);
+//        gateFError[i] = new NNVector(countHead);
+//        gateIDelta[i] = new NNVector(countHead);
+//        gateIError[i] = new NNVector(countHead);
+//        gateODelta[i] = new NNVector(countHead);
+//        gateOError[i] = new NNVector(countHead);
+//        gateCDelta[i] = new NNVector(countHead);
+//        gateCError[i] = new NNVector(countHead);
 //
 //        //copy error from next layer
 //        int tError = (returnSequences) ? hiddenSMemory[i].length - 1 : 0;
@@ -403,8 +403,8 @@
 //            error[i].addMulT(t, gateCDelta[i], weightInput[3]);
 //        }
 //        if (hasPreLayer()) {
-//            errorState[i][0] = new NNVector(countNeuron);
-//            errorState[i][1] = new NNVector(countNeuron);
+//            errorState[i][0] = new NNVector(countHead);
+//            errorState[i][1] = new NNVector(countHead);
 //            errorState[i][0].set(this.hiddenError[i]);
 //            errorState[i][1].set(this.hiddenLongError[i]);
 //        }
@@ -422,7 +422,7 @@
 //
 //            if (hidden_t != null) {
 //                //find derivative for hiddenSMemory weightAttention
-//                for (int m = 0; m < countNeuron; m++, indexHWeight++) {
+//                for (int m = 0; m < countHead; m++, indexHWeight++) {
 //                    derWeightHidden[0].getData()[indexHWeight] += gateFDelta[i].get(k) * hidden_t.get(m);
 //                    derWeightHidden[1].getData()[indexHWeight] += gateIDelta[i].get(k) * hidden_t.get(m);
 //                    derWeightHidden[2].getData()[indexHWeight] += gateODelta[i].get(k) * hidden_t.get(m);

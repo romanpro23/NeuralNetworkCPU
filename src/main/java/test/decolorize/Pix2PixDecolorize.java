@@ -6,7 +6,7 @@ import data.loaders.TransformData;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
-import neural_network.layers.convolution_3d.*;
+import neural_network.layers.layer_3d.*;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.Pix2PixGAN;
 import neural_network.network.NeuralNetwork;

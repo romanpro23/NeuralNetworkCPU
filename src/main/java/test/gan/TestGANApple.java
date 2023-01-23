@@ -2,11 +2,7 @@ package test.gan;
 
 import data.ImageCreator;
 import data.quick_draw.QuickDrawLoader3D;
-import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.*;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.GAN;
 import neural_network.network.NeuralNetwork;

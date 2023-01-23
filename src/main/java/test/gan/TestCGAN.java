@@ -7,25 +7,20 @@ import data.mnist.MNISTLoader3D;
 import data.svhn.SVHNLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.BatchNormalizationLayer3D;
-import neural_network.layers.convolution_3d.ConvolutionLayer;
-import neural_network.layers.convolution_3d.ConvolutionTransposeLayer;
-import neural_network.layers.convolution_3d.InstanceNormalizationLayer3D;
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_3d.ConvolutionLayer;
+import neural_network.layers.layer_3d.ConvolutionTransposeLayer;
+import neural_network.layers.layer_3d.InstanceNormalizationLayer3D;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.CycleGAN;
-import neural_network.network.GAN.GAN;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-import nnarrays.NNVector;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Scanner;
 
 public class TestCGAN {
     public static void main(String[] args) throws Exception {

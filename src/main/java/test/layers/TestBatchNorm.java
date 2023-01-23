@@ -1,12 +1,8 @@
 package test.layers;
 
-import neural_network.layers.dense.BatchNormalizationLayer;
-import neural_network.layers.dense.DenseLayer;
-import neural_network.loss.FunctionLoss;
+import neural_network.layers.layer_1d.BatchNormalizationLayer;
 import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
-import neural_network.optimizers.SGDOptimizer;
-import nnarrays.NNArrays;
 import nnarrays.NNVector;
 
 import java.util.Arrays;

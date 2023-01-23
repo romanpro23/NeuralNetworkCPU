@@ -1,23 +1,14 @@
 package test.utilitas;
 
 import data.mnist.MNISTLoader1D;
-import neural_network.activation.FunctionActivation;
-import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.GroupedConvolutionLayer;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.*;
-import nnarrays.NNArrays;
-import nnarrays.NNTensor;
-import nnarrays.NNVector;
 import trainer.DataMetric;
 import trainer.DataTrainer;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Scanner;
 
 public class TestOptimizers {

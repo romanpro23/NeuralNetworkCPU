@@ -3,13 +3,13 @@ package neural_network.network.classification;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
-import neural_network.layers.convolution_3d.ActivationLayer3D;
-import neural_network.layers.convolution_3d.BatchNormalizationLayer3D;
-import neural_network.layers.convolution_3d.ConvolutionLayer;
-import neural_network.layers.convolution_3d.MaxPoolingLayer;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
-import neural_network.layers.dense.DropoutLayer;
+import neural_network.layers.layer_3d.ActivationLayer3D;
+import neural_network.layers.layer_3d.BatchNormalizationLayer3D;
+import neural_network.layers.layer_3d.ConvolutionLayer;
+import neural_network.layers.layer_3d.MaxPoolingLayer;
+import neural_network.layers.layer_1d.ActivationLayer;
+import neural_network.layers.layer_1d.DenseLayer;
+import neural_network.layers.layer_1d.DropoutLayer;
 import neural_network.layers.reshape.Flatten3DLayer;
 import neural_network.network.NeuralNetwork;
 
@@ -48,7 +48,7 @@ public class VGG {
     }
 
     public VGG addMaxPoolingLayer() {
-        vgg.addLayer(new MaxPoolingLayer(2));
+        vgg.addLayer(new MaxPoolingLayer(2, 2, 0));
 
         return this;
     }
@@ -72,5 +72,132 @@ public class VGG {
 
     public NeuralNetwork createVGG() {
         return vgg;
+    }
+
+    public NeuralNetwork createVGG16(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout) {
+        return createVGG16(height, width, depth, scaleWidth, sizeHidden, sizeOutput, dropout, false);
+    }
+
+    public NeuralNetwork createVGG16(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout, boolean batchnorm) {
+        addInputLayer(height, width, depth);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addMaxPoolingLayer();
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeOutput, new FunctionActivation.Softmax());
+
+        return createVGG();
+    }
+
+    public NeuralNetwork createVGG19(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout) {
+        return createVGG19(height, width, depth, scaleWidth, sizeHidden, sizeOutput, dropout, false);
+    }
+
+    public NeuralNetwork createVGG19(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout, boolean batchnorm) {
+        addInputLayer(height, width, depth);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addMaxPoolingLayer();
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeOutput, new FunctionActivation.Softmax());
+
+        return createVGG();
+    }
+
+    public NeuralNetwork createVGG13(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout) {
+        return createVGG13(height, width, depth, scaleWidth, sizeHidden, sizeOutput, dropout, false);
+    }
+
+    public NeuralNetwork createVGG13(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout, boolean batchnorm) {
+        addInputLayer(height, width, depth);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addMaxPoolingLayer();
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeOutput, new FunctionActivation.Softmax());
+
+        return createVGG();
+    }
+
+    public NeuralNetwork createVGG11(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout) {
+        return createVGG11(height, width, depth, scaleWidth, sizeHidden, sizeOutput, dropout, false);
+    }
+
+    public NeuralNetwork createVGG11(int height, int width, int depth, double scaleWidth, int sizeHidden, int sizeOutput, double dropout, boolean batchnorm) {
+        addInputLayer(height, width, depth);
+        addConvolutionLayer((int) (64 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (128 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (256 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addConvolutionLayer((int) (512 * scaleWidth), 3, batchnorm);
+        addMaxPoolingLayer();
+        addConvolutionLayer(512, 3, batchnorm);
+        addConvolutionLayer(512, 3, batchnorm);
+        addMaxPoolingLayer();
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeHidden, new FunctionActivation.ReLU());
+        addDropoutLayer(dropout);
+        addDenseLayer(sizeOutput, new FunctionActivation.Softmax());
+
+        return createVGG();
     }
 }

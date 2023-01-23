@@ -5,7 +5,7 @@ import data.mnist.MNISTLoader1D;
 import data.network_train.NNData1D;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.dense.VariationalLayer;
+import neural_network.layers.layer_1d.VariationalLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.autoencoders.ConditionalVAE;

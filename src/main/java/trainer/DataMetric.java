@@ -31,6 +31,7 @@ public interface DataMetric {
                 for (int j = 0; j < 5; j++) {
                     if (real == index[j]) {
                         counter++;
+                        break;
                     }
                 }
             }

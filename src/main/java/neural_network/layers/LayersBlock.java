@@ -19,6 +19,13 @@ public class LayersBlock extends NeuralLayer {
     public LayersBlock() {
         layers = new ArrayList<>();
         trainable = true;
+        inputSize = null;
+    }
+
+    public LayersBlock addInputLayer(int... size){
+        this.inputSize = size;
+
+        return this;
     }
 
     public LayersBlock addLayer(NeuralLayer layer) {
@@ -99,8 +106,14 @@ public class LayersBlock extends NeuralLayer {
 
     @Override
     public void initialize(int[] size) {
-        this.inputSize = size;
         layers.get(0).initialize(size);
+        for (int i = 1; i < layers.size(); i++) {
+            layers.get(i).initialize(layers.get(i - 1).size());
+        }
+    }
+
+    public void initialize() {
+        layers.get(0).initialize(inputSize);
         for (int i = 1; i < layers.size(); i++) {
             layers.get(i).initialize(layers.get(i - 1).size());
         }

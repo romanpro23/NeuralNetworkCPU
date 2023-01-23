@@ -60,6 +60,13 @@ public class NNArray {
         }
     }
 
+    public NNVector subVector(int startPos, int size){
+        NNVector result = new NNVector(size);
+        System.arraycopy(data, startPos, result.data, 0, size);
+
+        return result;
+    }
+
     public NNArray pow2() {
         for (int i = 0; i < size; i++) {
             data[i] *= data[i];
@@ -190,6 +197,27 @@ public class NNArray {
         }
     }
 
+    public void relu() {
+        for (int i = 0; i < size; i++) {
+            data[i] = Math.max(0, data[i]);
+        }
+    }
+
+    public void gelu(NNArray input) {
+        for (int i = 0; i < size; i++) {
+            float x = input.data[i];
+            data[i] = (float) (0.5f * x * (1f + Math.tanh(0.7978846f * x + 0.0356774f * Math.pow(x, 3))));
+        }
+    }
+
+    public void derGelu(NNArray input, NNArray error) {
+        for (int i = 0; i < size; i++) {
+            float x = input.data[i];
+            float val = (float) Math.tanh(0.7978846f * x + 0.0356774f * Math.pow(x, 3));
+            data[i] = error.data[i] * 0.5f * (1f + val + x * (1f - val * val) * (0.79788846f + 0.1070322f * x * x));
+        }
+    }
+
     public void relu_max(NNArray input, float max) {
         for (int i = 0; i < size; i++) {
             data[i] = Math.min(max, Math.max(0, input.data[i]));
@@ -273,6 +301,14 @@ public class NNArray {
         for (int i = 0; i < size; i++) {
             if (input.data[i] > 0) {
                 data[i] = error.data[i];
+            }
+        }
+    }
+
+    public void derRelu(NNArray output) {
+        for (int i = 0; i < size; i++) {
+            if (output.data[i] == 0) {
+                data[i] = 0;
             }
         }
     }
@@ -693,21 +729,31 @@ public class NNArray {
 
     public void save(FileWriter writer) throws IOException {
         writer.write(size + "\n");
-        for (int i = 0; i < size; i++) {
-            writer.write(data[i] + " ");
-            if (i % 1000 == 0) {
-                writer.flush();
+        int row = (int) Math.ceil(size / 1024.0);
+        int column = 1024;
+        for (int i = 0; i < row; i++) {
+            int i_index = i * 1024;
+            if (size - i_index < 1024) {
+                column = size - i_index;
             }
+            for (int j = 0; j < column; j++, i_index++) {
+                writer.write(data[i_index] + " ");
+            }
+            writer.write("\n");
+            writer.flush();
         }
-        writer.write("\n");
         writer.flush();
     }
 
     public static NNArray read(Scanner scanner) {
         NNArray array = new NNArray(Integer.parseInt(scanner.nextLine()));
-        double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
-        for (int j = 0; j < array.size; j++) {
-            array.data[j] = (float) arr[j];
+        int row = (int) Math.ceil(array.size / 1024.0);
+        for (int i = 0; i < row; i++) {
+            int i_index = i * 1024;
+            double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+            for (int j = 0; j < arr.length; j++, i_index++) {
+                array.data[i_index] = (float) arr[j];
+            }
         }
         return array;
     }

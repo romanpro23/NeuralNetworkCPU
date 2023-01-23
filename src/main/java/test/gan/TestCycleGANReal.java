@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileWriter;
 import java.util.Scanner;
 
 public class TestCycleGANReal {
@@ -28,18 +29,22 @@ public class TestCycleGANReal {
                 .setFunctionLoss(new FunctionLoss.MAE())
                 .create();
 
+        generatorA.save(new FileWriter("D:/NetworkTest/CycleGAN/res_generator_orange.txt"));
+
         NeuralNetwork generatorB = NeuralNetwork
                 .read(new Scanner(new File("D:/NetworkTest/CycleGAN/res_generator_apple.txt")))
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0002))
                 .setFunctionLoss(new FunctionLoss.MAE())
                 .create();
 
+        generatorB.save(new FileWriter("D:/NetworkTest/CycleGAN/res_generator_apple.txt"));
+
         System.out.println(generatorA.getLayers().size());
 
         generatorB.info();
 
-        NNTensor[] apples = new NNTensor[]{loadImage("D:/apple.jpg")};
-        NNTensor[] oranges = new NNTensor[]{loadImage("D:/orange.jpg")};
+        NNTensor[] apples = new NNTensor[]{loadImage("D:/NetworkTest/Photo/apple.jpg")};
+        NNTensor[] oranges = new NNTensor[]{loadImage("D:/NetworkTest/Photo/orange.jpg")};
 
         ImageCreator.drawColorImage((NNTensor) generatorA.query(apples)[0], 64, 64, "apple_orange", "D:", true);
         ImageCreator.drawColorImage((NNTensor) generatorB.query(generatorA.getOutputs())[0], 64, 64, "apple_recon", "D:", true);

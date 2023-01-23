@@ -3,11 +3,11 @@ package neural_network.network.classification;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
-import neural_network.layers.convolution_3d.*;
-import neural_network.layers.convolution_3d.residual.ResidualBlock;
-import neural_network.layers.convolution_3d.residual.ResidualUnit;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_3d.*;
+import neural_network.layers.layer_3d.residual.ResidualBlock;
+import neural_network.layers.layer_3d.residual.ResidualUnit;
+import neural_network.layers.layer_1d.ActivationLayer;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.reshape.Flatten3DLayer;
 import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
 import neural_network.network.NeuralNetwork;
@@ -69,8 +69,12 @@ public class ResNet {
     }
 
     public ResNet addResBlock(int countKernel, boolean downsample) {
+        return addResBlock(countKernel, downsample, 2);
+    }
+
+    public ResNet addResBlock(int countKernel, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleResBlock(countKernel);
+            return addDownsampleResBlock(countKernel, step);
         }
         return addResBlockV1(countKernel);
     }
@@ -80,8 +84,12 @@ public class ResNet {
     }
 
     public ResNet addResBlockV2(int countKernel, boolean downsample) {
+        return addResBlockV2(countKernel, downsample, 2);
+    }
+
+    public ResNet addResBlockV2(int countKernel, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleResBlockV2(countKernel);
+            return addDownsampleResBlockV2(countKernel, step);
         }
         return addResBlockPreActivation(countKernel);
     }
@@ -91,12 +99,16 @@ public class ResNet {
     }
 
     public ResNet addBottleneckResBlock(int countKernel, boolean downsample) {
-        return addBottleneckResBlock(countKernel, 4, 4, downsample);
+        return addBottleneckResBlock(countKernel, 4, 4, downsample, 2);
     }
 
-    public ResNet addBottleneckResBlock(int countKernel, int scale1x1, int scale3x3, boolean downsample) {
+    public ResNet addBottleneckResBlock(int countKernel, boolean downsample, int step) {
+        return addBottleneckResBlock(countKernel, 4, 4, downsample, step);
+    }
+
+    public ResNet addBottleneckResBlock(int countKernel, int scale1x1, int scale3x3, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleBottleneckResBlock(countKernel, scale1x1, scale3x3);
+            return addDownsampleBottleneckResBlock(countKernel, step, scale1x1, scale3x3);
         }
         return addBottleneckResBlock(countKernel, scale1x1, scale3x3);
     }
@@ -106,34 +118,38 @@ public class ResNet {
     }
 
     public ResNet addBottleneckResBlockV2(int countKernel, boolean downsample) {
-        return addBottleneckResBlockV2(countKernel, 4, 4, downsample);
+        return addBottleneckResBlockV2(countKernel, 4, 4, downsample, 2);
     }
 
-    public ResNet addBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3, boolean downsample) {
+    public ResNet addBottleneckResBlockV2(int countKernel, boolean downsample, int step) {
+        return addBottleneckResBlockV2(countKernel, 4, 4, downsample, step);
+    }
+
+    public ResNet addBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleBottleneckResBlockV2(countKernel, scale1x1, scale3x3);
+            return addDownsampleBottleneckResBlockV2(countKernel, step, scale1x1, scale3x3);
         }
         return addBottleneckResBlockV2(countKernel, scale1x1, scale3x3);
     }
 
     public ResNet addResBlock(int countKernel, int countGroup) {
-        return addResBlock(countKernel, countGroup, false);
+        return addResBlock(countKernel, countGroup, false, 2);
     }
 
-    public ResNet addResBlock(int countKernel, int countGroup, boolean downsample) {
+    public ResNet addResBlock(int countKernel, int countGroup, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleResBlock(countKernel, countGroup);
+            return addDownsampleResBlock(countKernel, step, countGroup);
         }
         return addResBlockV1(countKernel, countGroup);
     }
 
     public ResNet addResBlockV2(int countKernel, int countGroup) {
-        return addResBlockV2(countKernel, countGroup, false);
+        return addResBlockV2(countKernel, countGroup, false, 2);
     }
 
-    public ResNet addResBlockV2(int countKernel, int countGroup, boolean downsample) {
+    public ResNet addResBlockV2(int countKernel, int countGroup, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleResBlockV2(countKernel, countGroup);
+            return addDownsampleResBlockV2(countKernel, step, countGroup);
         }
         return addResBlockPreActivation(countKernel, countGroup);
     }
@@ -142,13 +158,17 @@ public class ResNet {
         return addBottleneckResBlock(countKernel, countGroup, false);
     }
 
-    public ResNet addBottleneckResBlock(int countKernel, int countGroup, boolean downsample) {
-        return addBottleneckResBlock(countKernel, 4, 4, countGroup, downsample);
+    public ResNet addBottleneckResBlock(int countKernel, int countGroup, boolean downsample, int step) {
+        return addBottleneckResBlock(countKernel, 4,4, countGroup, downsample, step);
     }
 
-    public ResNet addBottleneckResBlock(int countKernel, int scale1x1, int scale3x3, int countGroup, boolean downsample) {
+    public ResNet addBottleneckResBlock(int countKernel, int countGroup, boolean downsample) {
+        return addBottleneckResBlock(countKernel, 4, 4, countGroup, downsample, 2);
+    }
+
+    public ResNet addBottleneckResBlock(int countKernel, int scale1x1, int scale3x3, int countGroup, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleBottleneckResBlock(countKernel, scale1x1, scale3x3, countGroup);
+            return addDownsampleBottleneckResBlock(countKernel, step, scale1x1, scale3x3, countGroup);
         }
         return addBottleneckResBlock(countKernel, scale1x1, scale3x3, countGroup);
     }
@@ -158,12 +178,12 @@ public class ResNet {
     }
 
     public ResNet addBottleneckResBlockV2(int countKernel, int countGroup, boolean downsample) {
-        return addBottleneckResBlockV2(countKernel, 4, 4, countGroup, downsample);
+        return addBottleneckResBlockV2(countKernel, 4, 4, countGroup, downsample, 2);
     }
 
-    public ResNet addBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3, int countGroup, boolean downsample) {
+    public ResNet addBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3, int countGroup, boolean downsample, int step) {
         if (downsample) {
-            return addDownsampleBottleneckResBlockV2(countKernel, scale1x1, scale3x3, countGroup);
+            return addDownsampleBottleneckResBlockV2(countKernel, step, scale1x1, scale3x3, countGroup);
         }
         return addBottleneckResBlockV2(countKernel, scale1x1, scale3x3, countGroup);
     }
@@ -205,18 +225,22 @@ public class ResNet {
         return this;
     }
 
-    private ResNet addDownsampleBottleneckResBlock(int countKernel, int scale1x1, int scale3x3) {
+    private ResNet addDownsampleBottleneckResBlock(int countKernel, int step, int scale1x1, int scale3x3) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new ConvolutionLayer(countKernel, 3, 2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, sizeKernel, step, sizeKernel / 2))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new ConvolutionLayer(countKernel / scale1x1, 1, 1, 0))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new ConvolutionLayer(countKernel / scale3x3, 3, 2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel / scale3x3, 3, step, 1))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new ConvolutionLayer(countKernel, 1, 1, 0))
@@ -228,15 +252,19 @@ public class ResNet {
         return this;
     }
 
-    public ResNet addDownsampleResBlock(int countKernel) {
+    public ResNet addDownsampleResBlock(int countKernel, int step) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new ConvolutionLayer(countKernel, 3,2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, sizeKernel,step, sizeKernel/2))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                         )
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new ConvolutionLayer(countKernel, 3, 2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, 3, step, 1))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new ConvolutionLayer(countKernel, 3, 1, 1))
@@ -285,13 +313,17 @@ public class ResNet {
         return this;
     }
 
-    private ResNet addDownsampleBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3) {
+    private ResNet addDownsampleBottleneckResBlockV2(int countKernel, int step, int scale1x1, int scale3x3) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new ConvolutionLayer(countKernel, 3,2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, sizeKernel,step, sizeKernel/2))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
@@ -299,7 +331,7 @@ public class ResNet {
                                 .addLayer(new ConvolutionLayer(countKernel / scale1x1, 1, 1, 0))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new ConvolutionLayer(countKernel / scale3x3, 3, 2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel / scale3x3, 3, step, 1))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new ConvolutionLayer(countKernel, 1, 1, 0))
@@ -309,18 +341,22 @@ public class ResNet {
         return this;
     }
 
-    public ResNet addDownsampleResBlockV2(int countKernel) {
+    public ResNet addDownsampleResBlockV2(int countKernel, int step) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new ConvolutionLayer(countKernel, 3,2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, sizeKernel,step, sizeKernel/2))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new ConvolutionLayer(countKernel, 3, 2, 1))
+                                .addLayer(new ConvolutionLayer(countKernel, 3, step, 1))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new ConvolutionLayer(countKernel, 3, 1, 1))
@@ -367,18 +403,22 @@ public class ResNet {
         return this;
     }
 
-    private ResNet addDownsampleBottleneckResBlock(int countKernel, int scale1x1, int scale3x3, int countGroup) {
+    private ResNet addDownsampleBottleneckResBlock(int countKernel, int step, int scale1x1, int scale3x3, int countGroup) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, sizeKernel, step, sizeKernel / 2, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new GroupedConvolutionLayer(countKernel / scale1x1, 1, 1, 0, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new GroupedConvolutionLayer(countKernel / scale3x3, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel / scale3x3, 3, step, 1, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new GroupedConvolutionLayer(countKernel, 1, 1, 0, countGroup))
@@ -390,15 +430,19 @@ public class ResNet {
         return this;
     }
 
-    public ResNet addDownsampleResBlock(int countKernel, int countGroup) {
+    public ResNet addDownsampleResBlock(int countKernel, int step, int countGroup) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, sizeKernel, step, sizeKernel/2, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                         )
                         .addResidualUnit(new ResidualUnit()
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, step, 1, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new GroupedConvolutionLayer(countKernel, 3, 1, 1, countGroup))
@@ -447,13 +491,17 @@ public class ResNet {
         return this;
     }
 
-    private ResNet addDownsampleBottleneckResBlockV2(int countKernel, int scale1x1, int scale3x3, int countGroup) {
+    private ResNet addDownsampleBottleneckResBlockV2(int countKernel, int step, int scale1x1, int scale3x3, int countGroup) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, sizeKernel, step, sizeKernel/2, countGroup))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
@@ -461,7 +509,7 @@ public class ResNet {
                                 .addLayer(new GroupedConvolutionLayer(countKernel / scale1x1, 1, 1, 0, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new GroupedConvolutionLayer(countKernel / scale3x3, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel / scale3x3, 3, step, 1, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new GroupedConvolutionLayer(countKernel, 1, 1, 0, countGroup))
@@ -471,18 +519,22 @@ public class ResNet {
         return this;
     }
 
-    public ResNet addDownsampleResBlockV2(int countKernel, int countGroup) {
+    public ResNet addDownsampleResBlockV2(int countKernel, int step, int countGroup) {
+        int sizeKernel = 1;
+        if(step != 1){
+            sizeKernel = 3;
+        }
         resnet.addLayer(
                 new ResidualBlock()
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, sizeKernel, step, sizeKernel/2, countGroup))
                         )
                         .addResidualUnit(new ResidualUnit()
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, 2, 1, countGroup))
+                                .addLayer(new GroupedConvolutionLayer(countKernel, 3, step, 1, countGroup))
                                 .addLayer(new BatchNormalizationLayer3D(0.9))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new GroupedConvolutionLayer(countKernel, 3, 1, 1, countGroup))

@@ -44,8 +44,8 @@ public class TinyImageNetLoader3D extends DataLoader3D {
 
     @SneakyThrows
     private void loadData(){
-        imageIndexTest = 0 * 300;
-        imageIndexTrain = 0 * 1500;
+        imageIndexTest = (int) (Math.random() * 10000);
+        imageIndexTrain = (int) (Math.random() * 100000);
 
         reloadTrainData();
         reloadTestData();

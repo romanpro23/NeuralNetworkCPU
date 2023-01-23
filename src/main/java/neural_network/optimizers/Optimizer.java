@@ -24,9 +24,9 @@ public abstract class Optimizer {
     public Optimizer() {
         optimizeData = new ArrayList<>();
     }
-    
+
     @SneakyThrows
-    public void save(FileWriter writer){
+    public void save(FileWriter writer) {
         writer.write(t + "\n");
         writer.write(clipValue + "\n");
         writer.write(countParam + "\n");
@@ -37,16 +37,18 @@ public abstract class Optimizer {
                 data.getAdditionParam()[j].save(writer);
             }
         }
+        writer.close();
     }
 
     @SneakyThrows
-    public Optimizer read(Scanner scanner){
+    public Optimizer read(Scanner scanner) {
         this.t = Integer.parseInt(scanner.nextLine());
         this.clipValue = Float.parseFloat(scanner.nextLine());
         this.countParam = Integer.parseInt(scanner.nextLine());
 
         for (DataOptimize data : optimizeData) {
             for (int j = 0; j < countParam; j++) {
+                data.getAdditionParam()[j] = null;
                 data.getAdditionParam()[j] = NNArray.read(scanner);
             }
         }
@@ -55,6 +57,9 @@ public abstract class Optimizer {
     }
 
     public void update() {
+        if (optimizeData.isEmpty()) {
+            return;
+        }
         ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
         for (int t = 0; t < optimizeData.size(); t++) {
             final int finalT = t;

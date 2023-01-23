@@ -1,6 +1,6 @@
 package neural_network.network.autoencoders;
 
-import neural_network.layers.dense.VariationalLayer;
+import neural_network.layers.layer_1d.VariationalLayer;
 import neural_network.network.NeuralNetwork;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;

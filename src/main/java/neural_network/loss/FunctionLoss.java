@@ -54,6 +54,30 @@ public interface FunctionLoss {
         }
     }
 
+    class Capsule implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.capsLoss(idealOutputs[i], outputs[i]));
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derCapsLoss(idealOutputs[i],outputs[i]);
+            }
+
+            return error;
+        }
+    }
+
     class MAE implements FunctionLoss {
 
         @Override
@@ -122,6 +146,29 @@ public interface FunctionLoss {
             for (int i = 0; i < error.length; i++) {
                 error[i] = NNArrays.derCrossEntropy(outputs[i], idealOutputs[i]);
                 error[i].div(error[i].size());
+            }
+
+            return error;
+        }
+    }
+
+    class CategoricalCrossEntropy implements FunctionLoss {
+        @Override
+        public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
+            float accuracy = 0;
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy -= NNArrays.sum(NNArrays.crossEntropy(idealOutputs[i], outputs[i]));
+            }
+
+            return accuracy;
+        }
+
+        @Override
+        public NNArray[] findDerivative(NNArray[] outputs, NNArray[] idealOutputs) {
+            NNArray[] error = new NNArray[outputs.length];
+
+            for (int i = 0; i < error.length; i++) {
+                error[i] = NNArrays.derCrossEntropy(outputs[i], idealOutputs[i]);
             }
 
             return error;

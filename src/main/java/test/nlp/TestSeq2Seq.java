@@ -2,7 +2,8 @@ package test.nlp;
 
 import data.network_train.NNData1D;
 import data.nlp.EnUaTranslateLoader;
-import neural_network.layers.convolution_2d.SoftmaxLayer2D;
+import neural_network.layers.layer_2d.DenseLayer2D;
+import neural_network.layers.layer_2d.SoftmaxLayer2D;
 import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.EmbeddingLayer;
 import neural_network.loss.FunctionLoss;
@@ -31,8 +32,8 @@ public class TestSeq2Seq {
                 .addInputLayer(100)
                 .addLayer(new EmbeddingLayer(10000, 64).setTrainable(true))
                 .addLayer(new LSTMBahdAttentionLayer(128, 128,0.2, true)
-                        .setPreLayer(gru))
-                .addLayer(new DenseTimeLayer(10000).setTrainable(true))
+                        .setEncoderLayer(gru))
+                .addLayer(new DenseLayer2D(10000).setTrainable(true))
                 .addLayer(new SoftmaxLayer2D())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
                 .setOptimizer(optDecoder = new AdamOptimizer())

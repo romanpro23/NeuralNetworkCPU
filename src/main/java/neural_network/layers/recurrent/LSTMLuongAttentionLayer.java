@@ -2,6 +2,7 @@ package neural_network.layers.recurrent;
 
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
+import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
@@ -17,6 +18,8 @@ import java.util.concurrent.Executors;
 
 public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
     private NNVector[][] hiddenSMemory;
+    protected NNVector[][] inputHidden;
+    protected NNVector[][] outputHidden;
 
     private NNVector[][] gateFInput;
     private NNVector[][] gateFOutput;
@@ -26,17 +29,6 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
     private NNVector[][] gateOOutput;
     private NNVector[][] gateCInput;
     private NNVector[][] gateCOutput;
-
-    private NNVector[] hiddenLongError;
-    private NNVector[] hiddenLongDelta;
-    private NNVector[] gateFDelta;
-    private NNVector[] gateFError;
-    private NNVector[] gateIDelta;
-    private NNVector[] gateIError;
-    private NNVector[] gateODelta;
-    private NNVector[] gateOError;
-    private NNVector[] gateCDelta;
-    private NNVector[] gateCError;
 
     private NNMatrix[] weightInput;
     private NNMatrix[] derWeightInput;
@@ -59,14 +51,14 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         this.copy(layer);
     }
 
-    public LSTMLuongAttentionLayer(int countNeuron, double recurrentDropout, LuongAttentionLayer.Attention attention) {
+    public LSTMLuongAttentionLayer(int countNeuron, double recurrentDropout, Attention attention) {
         super(countNeuron, recurrentDropout, attention);
 
         this.functionActivationTanh = new FunctionActivation.Tanh();
         this.functionActivationSigmoid = new FunctionActivation.Sigmoid();
     }
 
-    public LSTMLuongAttentionLayer(int countNeuron, double recurrentDropout, LuongAttentionLayer.Attention attention, boolean returnSequences) {
+    public LSTMLuongAttentionLayer(int countNeuron, double recurrentDropout, Attention attention, boolean returnSequences) {
         this(countNeuron, recurrentDropout, attention);
         setReturnSequences(returnSequences);
     }
@@ -77,9 +69,8 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         return this;
     }
 
-    public LSTMLuongAttentionLayer setPreLayer(RecurrentNeuralLayer layer) {
-        super.setPreLayer(layer);
-        layer.addNextLayer(this);
+    public LSTMLuongAttentionLayer setEncoderLayer(NeuralLayer layer) {
+        super.setEncoderLayer(layer);
 
         return this;
     }
@@ -151,7 +142,6 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         writer.write(countNeuron + "\n");
         writer.write(recurrentDropout + "\n");
         writer.write(returnSequences + "\n");
-        writer.write(returnState + "\n");
 
         for (int i = 0; i < 4; i++) {
             threshold[i].save(writer);
@@ -176,7 +166,7 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
     }
 
     @Override
-    public void generateOutput(NNArray[] inputs) {
+    public void generateOutput(NNArray[] inputs, NNArray[][] state) {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[inputs.length];
         this.inputHidden = new NNVector[inputs.length][];
@@ -191,22 +181,22 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         this.gateOOutput = new NNVector[inputs.length][];
         this.gateCInput = new NNVector[inputs.length][];
         this.gateCOutput = new NNVector[inputs.length][];
-        if (returnState) {
-            this.state = new NNVector[inputs.length][2];
-        }
+        this.inputState = new NNVector[input.length][];
+        this.state = new NNVector[input.length][2];
 
-        outputPreLayer = NNArrays.isMatrix(preLayer.getOutput());
+        outputPreLayer = NNArrays.isMatrix(encoderLayer.getOutput());
         initializeMemory(inputs.length);
 
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int cor = 0; cor < countC; cor++) {
-            final int firstIndex = cor * input.length / countC;
-            final int lastIndex = Math.min(input.length, (cor + 1) * input.length / countC);
+        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+        for (int cor = 0; cor < inputs.length; cor++) {
+            final int i = cor;
             executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    generateOutput(i);
+                if (state != null) {
+                    inputState[i] = NNArrays.isVector(state[i]);
+                } else {
+                    inputState[i] = null;
                 }
+                generateOutput(i, inputState[i]);
             });
         }
         executor.shutdown();
@@ -214,7 +204,7 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         }
     }
 
-    private void generateOutput(int i) {
+    private void generateOutput(int i, NNVector[] states) {
         int countRow = (returnSequences) ? input[i].getRow() : 1;
         output[i] = new NNMatrix(countRow, countNeuron * 2);
 
@@ -253,9 +243,9 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
             if (t > 0) {
                 hiddenS_t = hiddenSMemory[i][t - 1];
                 hiddenL_t = inputHidden[i][t - 1];
-            } else if (hasPreLayer()) {
-                hiddenS_t = getStatePreLayer(i)[0];
-                hiddenL_t = getStatePreLayer(i)[1];
+            } else if (states != null) {
+                hiddenS_t = states[0];
+                hiddenL_t = states[1];
             }
 
             //generate new hiddenSMemory state for update and reset gate
@@ -283,7 +273,7 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
 
             // find current long memory
             inputHidden[i][t].mulVectors(gateIOutput[i][t], gateCOutput[i][t]);
-            if(hiddenL_t != null){
+            if (hiddenL_t != null) {
                 inputHidden[i][t].addProduct(hiddenL_t, gateFOutput[i][t]);
             }
             functionActivationTanh.activation(inputHidden[i][t], outputHidden[i][t]);
@@ -302,41 +292,24 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
             }
         }
         //if layer return state,than save last hiddenSMemory state
-        if (returnState) {
-            state[i][0] = hiddenSMemory[i][input[i].getRow() - 1];
-            state[i][1] = inputHidden[i][input[i].getRow() - 1];
-        }
+        state[i][0] = hiddenSMemory[i][input[i].getRow() - 1];
+        state[i][1] = inputHidden[i][input[i].getRow() - 1];
     }
 
     @Override
-    public void generateError(NNArray[] errors) {
+    public void generateError(NNArray[] errors, NNArray[][] errorsState) {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[input.length];
-        this.hiddenError = new NNVector[input.length];
-        if (hasPreLayer()) {
-            this.errorState = new NNVector[input.length][2];
-        }
+        this.errorState = new NNVector[input.length][2];
 
-        gateFDelta = new NNVector[input.length];
-        gateFError = new NNVector[input.length];
-        gateIDelta = new NNVector[input.length];
-        gateIError = new NNVector[input.length];
-        gateODelta = new NNVector[input.length];
-        gateOError = new NNVector[input.length];
-        gateCDelta = new NNVector[input.length];
-        gateCError = new NNVector[input.length];
-        gateCError = new NNVector[input.length];
-        hiddenLongDelta = new NNVector[input.length];
-        hiddenLongError = new NNVector[input.length];
-
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int cor = 0; cor < countC; cor++) {
-            final int firstIndex = cor * input.length / countC;
-            final int lastIndex = Math.min(input.length, (cor + 1) * input.length / countC);
+        ExecutorService executor = Executors.newFixedThreadPool(errors.length);
+        for (int cor = 0; cor < errors.length; cor++) {
+            final int i = cor;
             executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    generateError(i);
+                if (errorsState != null) {
+                    generateError(i, NNArrays.isVector(errorsState[i]));
+                } else {
+                    generateError(i, null);
                 }
             });
         }
@@ -360,32 +333,32 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
         }
     }
 
-    private void generateError(int i) {
+    private void generateError(int i, NNVector[] errorState) {
         this.error[i] = new NNMatrix(input[i]);
         this.errorInput[i] = new NNMatrix(outputPreLayer[i]);
-        hiddenError[i] = new NNVector(countNeuron);
-        hiddenLongDelta[i] = new NNVector(countNeuron);
-        hiddenLongError[i] = new NNVector(countNeuron);
+        NNVector hiddenError;
+        NNVector hiddenLongDelta = new NNVector(countNeuron);
+        NNVector hiddenLongError = new NNVector(countNeuron);
 
-        gateFDelta[i] = new NNVector(countNeuron);
-        gateFError[i] = new NNVector(countNeuron);
-        gateIDelta[i] = new NNVector(countNeuron);
-        gateIError[i] = new NNVector(countNeuron);
-        gateODelta[i] = new NNVector(countNeuron);
-        gateOError[i] = new NNVector(countNeuron);
-        gateCDelta[i] = new NNVector(countNeuron);
-        gateCError[i] = new NNVector(countNeuron);
+        NNVector gateFDelta = new NNVector(countNeuron);
+        NNVector gateFError = new NNVector(countNeuron);
+        NNVector gateIDelta = new NNVector(countNeuron);
+        NNVector gateIError = new NNVector(countNeuron);
+        NNVector gateODelta = new NNVector(countNeuron);
+        NNVector gateOError = new NNVector(countNeuron);
+        NNVector gateCDelta = new NNVector(countNeuron);
+        NNVector gateCError = new NNVector(countNeuron);
 
         //copy error from next layer
         int tError = (returnSequences) ? hiddenSMemory[i].length - 1 : 0;
 
         NNVector[] hiddenErrors = errorNL[i].toVectors();
-        hiddenError[i] = hiddenErrors[tError].subVector(countNeuron, countNeuron);
-        if (returnState) {
-            hiddenError[i].add(getErrorStateNextLayer(i)[0]);
-            hiddenLongError[i].set(getErrorStateNextLayer(i)[1]);
+        hiddenError = hiddenErrors[tError].subVector(countNeuron, countNeuron);
+        if (errorState != null) {
+            hiddenError.add(errorState[0]);
+            hiddenLongError.set(errorState[1]);
         }
-        hiddenError[i].add(generateErrorAttention(hiddenErrors[tError].subVector(0, countNeuron), i, tError));
+        hiddenError.add(generateErrorAttention(hiddenErrors[tError].subVector(0, countNeuron), i, tError));
 
         //pass through time
         for (int t = input[i].getRow() - 1; t >= 0; t--) {
@@ -394,67 +367,64 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
             if (t > 0) {
                 hiddenS_t = hiddenSMemory[i][t - 1];
                 hiddenL_t = inputHidden[i][t - 1];
-            } else if (hasPreLayer()) {
-                hiddenS_t = getStatePreLayer(i)[0];
-                hiddenL_t = getStatePreLayer(i)[1];
+            } else if (inputState[i] != null) {
+                hiddenS_t = inputState[i][0];
+                hiddenL_t = inputState[i][1];
             }
             //dropout back for error
-            hiddenError[i].dropoutBack(hiddenSMemory[i][t], hiddenError[i], recurrentDropout);
+            hiddenError.dropoutBack(hiddenSMemory[i][t], hiddenError, recurrentDropout);
             //find error for long memory
-            functionActivationTanh.derivativeActivation(inputHidden[i][t], outputHidden[i][t], hiddenError[i], hiddenLongDelta[i]);
-            hiddenLongDelta[i].mul(gateOOutput[i][t]);
-            hiddenLongDelta[i].add(hiddenLongError[i]);
+            functionActivationTanh.derivativeActivation(inputHidden[i][t], outputHidden[i][t], hiddenError, hiddenLongDelta);
+            hiddenLongDelta.mul(gateOOutput[i][t]);
+            hiddenLongDelta.add(hiddenLongError);
 
-            gateOError[i].mulVectors(hiddenError[i], outputHidden[i][t]);
-            gateCError[i].mulVectors(hiddenLongDelta[i], gateIOutput[i][t]);
-            gateIError[i].mulVectors(hiddenLongDelta[i], gateCOutput[i][t]);
-            gateFDelta[i].clear();
-            if(hiddenL_t != null){
-                gateFError[i].mulVectors(hiddenLongDelta[i], hiddenL_t);
-                functionActivationSigmoid.derivativeActivation(gateFInput[i][t], gateFOutput[i][t], gateFError[i], gateFDelta[i]);
+            gateOError.mulVectors(hiddenError, outputHidden[i][t]);
+            gateCError.mulVectors(hiddenLongDelta, gateIOutput[i][t]);
+            gateIError.mulVectors(hiddenLongDelta, gateCOutput[i][t]);
+            gateFDelta.clear();
+            if (hiddenL_t != null) {
+                gateFError.mulVectors(hiddenLongDelta, hiddenL_t);
+                functionActivationSigmoid.derivativeActivation(gateFInput[i][t], gateFOutput[i][t], gateFError, gateFDelta);
             }
 
-            functionActivationSigmoid.derivativeActivation(gateIInput[i][t], gateIOutput[i][t], gateIError[i], gateIDelta[i]);
-            functionActivationSigmoid.derivativeActivation(gateOInput[i][t], gateOOutput[i][t], gateOError[i], gateODelta[i]);
-            functionActivationTanh.derivativeActivation(gateCInput[i][t], gateCOutput[i][t], gateCError[i], gateCDelta[i]);
+            functionActivationSigmoid.derivativeActivation(gateIInput[i][t], gateIOutput[i][t], gateIError, gateIDelta);
+            functionActivationSigmoid.derivativeActivation(gateOInput[i][t], gateOOutput[i][t], gateOError, gateODelta);
+            functionActivationTanh.derivativeActivation(gateCInput[i][t], gateCOutput[i][t], gateCError, gateCDelta);
 
             //find derivative for weightAttention
             if (trainable) {
-                derivativeWeight(t, i, hiddenS_t);
+                derivativeWeight(t, i, hiddenS_t, gateFDelta, gateIDelta, gateODelta, gateCDelta);
             }
 
             //find error for previous time step
-            hiddenLongError[i].mulVectors(hiddenLongDelta[i], gateFOutput[i][t]);
+            hiddenLongError.mulVectors(hiddenLongDelta, gateFOutput[i][t]);
             if (returnSequences && t > 0 && errorNL != null) {
-                hiddenError[i].add(hiddenErrors[t - 1].subVector(countNeuron, countNeuron));
-                hiddenError[i].add(generateErrorAttention(hiddenErrors[t - 1].subVector(0, countNeuron), i, t - 1));
+                hiddenError.add(hiddenErrors[t - 1].subVector(countNeuron, countNeuron));
+                hiddenError.add(generateErrorAttention(hiddenErrors[t - 1].subVector(0, countNeuron), i, t - 1));
             } else {
-                hiddenError[i].clear();
+                hiddenError.clear();
             }
-            hiddenError[i].addMulT(gateFDelta[i], weightHidden[0]);
-            hiddenError[i].addMulT(gateIDelta[i], weightHidden[1]);
-            hiddenError[i].addMulT(gateODelta[i], weightHidden[2]);
-            hiddenError[i].addMulT(gateCDelta[i], weightHidden[3]);
+            hiddenError.addMulT(gateFDelta, weightHidden[0]);
+            hiddenError.addMulT(gateIDelta, weightHidden[1]);
+            hiddenError.addMulT(gateODelta, weightHidden[2]);
+            hiddenError.addMulT(gateCDelta, weightHidden[3]);
 
             //find error for previous layer
-            error[i].addMulT(t, gateFDelta[i], weightInput[0]);
-            error[i].addMulT(t, gateIDelta[i], weightInput[1]);
-            error[i].addMulT(t, gateODelta[i], weightInput[2]);
-            error[i].addMulT(t, gateCDelta[i], weightInput[3]);
+            error[i].addMulT(t, gateFDelta, weightInput[0]);
+            error[i].addMulT(t, gateIDelta, weightInput[1]);
+            error[i].addMulT(t, gateODelta, weightInput[2]);
+            error[i].addMulT(t, gateCDelta, weightInput[3]);
         }
-        if (hasPreLayer()) {
-            errorState[i][0] = new NNVector(countNeuron);
-            errorState[i][1] = new NNVector(countNeuron);
-            errorState[i][0].set(this.hiddenError[i]);
-            errorState[i][1].set(this.hiddenLongError[i]);
-        }
+
+        this.errorState[i][0] = hiddenError;
+        this.errorState[i][1] = hiddenLongError;
     }
 
-    private void derivativeWeight(int t, int i, NNVector hidden_t) {
-        derThreshold[0].add(gateFDelta[i]);
-        derThreshold[1].add(gateIDelta[i]);
-        derThreshold[2].add(gateODelta[i]);
-        derThreshold[3].add(gateCDelta[i]);
+    private void derivativeWeight(int t, int i, NNVector hidden_t, NNVector gateFDelta, NNVector gateIDelta, NNVector gateODelta, NNVector gateCDelta) {
+        derThreshold[0].add(gateFDelta);
+        derThreshold[1].add(gateIDelta);
+        derThreshold[2].add(gateODelta);
+        derThreshold[3].add(gateCDelta);
         int indexHWeight = 0, indexIWeight = 0, indexInput;
 
         for (int k = 0; k < hiddenSMemory[i][t].size(); k++) {
@@ -463,18 +433,18 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
             if (hidden_t != null) {
                 //find derivative for hiddenSMemory weightAttention
                 for (int m = 0; m < countNeuron; m++, indexHWeight++) {
-                    derWeightHidden[0].getData()[indexHWeight] += gateFDelta[i].get(k) * hidden_t.get(m);
-                    derWeightHidden[1].getData()[indexHWeight] += gateIDelta[i].get(k) * hidden_t.get(m);
-                    derWeightHidden[2].getData()[indexHWeight] += gateODelta[i].get(k) * hidden_t.get(m);
-                    derWeightHidden[3].getData()[indexHWeight] += gateCDelta[i].get(k) * hidden_t.get(m);
+                    derWeightHidden[0].getData()[indexHWeight] += gateFDelta.get(k) * hidden_t.get(m);
+                    derWeightHidden[1].getData()[indexHWeight] += gateIDelta.get(k) * hidden_t.get(m);
+                    derWeightHidden[2].getData()[indexHWeight] += gateODelta.get(k) * hidden_t.get(m);
+                    derWeightHidden[3].getData()[indexHWeight] += gateCDelta.get(k) * hidden_t.get(m);
                 }
             }
             //find derivative for input's weightAttention
             for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
-                derWeightInput[0].getData()[indexIWeight] += gateFDelta[i].get(k) * input[i].getData()[indexInput];
-                derWeightInput[1].getData()[indexIWeight] += gateIDelta[i].get(k) * input[i].getData()[indexInput];
-                derWeightInput[2].getData()[indexIWeight] += gateODelta[i].get(k) * input[i].getData()[indexInput];
-                derWeightInput[3].getData()[indexIWeight] += gateCDelta[i].get(k) * input[i].getData()[indexInput];
+                derWeightInput[0].getData()[indexIWeight] += gateFDelta.get(k) * input[i].getData()[indexInput];
+                derWeightInput[1].getData()[indexIWeight] += gateIDelta.get(k) * input[i].getData()[indexInput];
+                derWeightInput[2].getData()[indexIWeight] += gateODelta.get(k) * input[i].getData()[indexInput];
+                derWeightInput[3].getData()[indexIWeight] += gateCDelta.get(k) * input[i].getData()[indexInput];
             }
         }
     }
@@ -515,8 +485,6 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
                 Double.parseDouble(scanner.nextLine()),
                 readAttention(scanner.nextLine()),
                 Boolean.parseBoolean(scanner.nextLine()));
-
-        recurrentLayer.returnState = Boolean.parseBoolean(scanner.nextLine());
 
         recurrentLayer.threshold = new NNVector[4];
         recurrentLayer.weightInput = new NNMatrix[4];

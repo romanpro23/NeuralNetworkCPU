@@ -1,5 +1,6 @@
 package neural_network.optimizers;
 
+import lombok.Setter;
 import nnarrays.NNArray;
 
 public class AdaBeliefOptimizer extends Optimizer {

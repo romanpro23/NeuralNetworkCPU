@@ -44,6 +44,32 @@ public class NNMatrix extends NNArray {
         this(matrix.row, matrix.column);
     }
 
+    public void fillUnderDiagonal(float val) {
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < i + 1; j++) {
+                set(i, j, val);
+            }
+        }
+    }
+
+    public void mask(NNMatrix mask, float val, float newVal) {
+        for (int i = 0; i < size; i++) {
+            if (mask.data[i] == val) {
+                data[i] = newVal;
+            }
+        }
+    }
+
+    public NNMatrix mask(NNVector mask) {
+        NNMatrix result = new NNMatrix(row, column);
+        for (int i = 0, index = 0; i < row; i++) {
+            for (int j = 0; j < column; j++, index++) {
+                result.data[index] = data[index] * mask.get(i);
+            }
+        }
+        return result;
+    }
+
     public NNVector[] toVectors() {
         NNVector[] vectors = new NNVector[row];
         for (int i = 0; i < row; i++) {
@@ -52,6 +78,30 @@ public class NNMatrix extends NNArray {
         }
 
         return vectors;
+    }
+
+    public void copy(NNMatrix matrix, int start) {
+        System.arraycopy(matrix.data, 0, data, start, matrix.size);
+    }
+
+    public void addCopy(NNMatrix matrix, int start) {
+        int indexIn, indexOut = 0;
+        for (int i = 0; i < row; i++) {
+            indexIn = rowIndex[i] + start * matrix.column;
+            for (int j = 0; j < matrix.column; j++, indexIn++, indexOut++) {
+                data[indexIn] = matrix.data[indexOut];
+            }
+        }
+    }
+
+    public void addBackCopy(NNMatrix matrix, int start) {
+        int indexIn = 0, indexOut;
+        for (int i = 0; i < row; i++) {
+            indexOut = matrix.rowIndex[i] + start * column;
+            for (int j = 0; j < column; j++, indexIn++, indexOut++) {
+                data[indexIn] = matrix.data[indexOut];
+            }
+        }
     }
 
     public void set(NNVector vector, int index_t) {
@@ -85,6 +135,71 @@ public class NNMatrix extends NNArray {
         for (int i = 0; i < size; i++) {
             data[i] += matrix.data[i];
         }
+    }
+
+    public void addScalarMul(NNTensor input, NNMatrix matrix) {
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < column; j++) {
+                for (int k = 0; k < input.getDepth(); k++) {
+                    add(i, j, input.get(i, j, k) * matrix.get(i, k));
+                }
+            }
+        }
+    }
+
+    public void squash(NNMatrix matrix) {
+        for (int i = 0; i < row; i++) {
+            float mod = 0;
+            for (int j = 0; j < column; j++) {
+                mod += Math.pow(matrix.get(i, j), 2);
+            }
+            float mod_sqrt = (float) Math.sqrt(mod + 0.0000001f);
+            float scale = mod / (1f + mod);
+
+            for (int j = 0; j < column; j++) {
+                set(i, j, scale * matrix.get(i, j) / mod_sqrt);
+            }
+        }
+    }
+
+    public void derSquash(NNMatrix matrix, NNMatrix error) {
+        for (int i = 0; i < row; i++) {
+            float mod = 0;
+            for (int j = 0; j < column; j++) {
+                mod += Math.pow(matrix.get(i, j), 2);
+            }
+            float mod_sqrt = (float) Math.sqrt(mod + 0.0000001f);
+            float mod2_4 = mod + mod * mod;
+            float s = mod_sqrt * (1 + mod) * (1 + mod);
+            float s_1 = 1f - mod;
+
+            for (int j = 0; j < column; j++) {
+                set(i, j, (matrix.get(i, j) * matrix.get(i, j) * s_1 + mod2_4) * error.get(i, j) / s);
+            }
+        }
+    }
+
+    public NNVector mod() {
+        NNVector result = new NNVector(row);
+        for (int i = 0; i < row; i++) {
+            float mod = 0;
+            for (int j = 0; j < column; j++) {
+                mod += Math.pow(get(i, j), 2);
+            }
+            result.set(i, (float) Math.sqrt(mod));
+        }
+        return result;
+    }
+
+    public NNMatrix backMod(NNVector output, NNVector error) {
+        NNMatrix result = new NNMatrix(row, column);
+        for (int i = 0; i < row; i++) {
+            float err = error.get(i) / (output.get(i) + 0.00000001f);
+            for (int j = 0; j < column; j++) {
+                result.set(i, j, get(i, j) * err);
+            }
+        }
+        return result;
     }
 
     public void add(int i, int j, float val) {
@@ -131,21 +246,38 @@ public class NNMatrix extends NNArray {
         return result;
     }
 
-    public NNMatrix dot(NNMatrix matrix) {
-        NNMatrix result = new NNMatrix(row, matrix.column);
-        float val;
+    public NNTensor capsuleAffineTransform(NNTensor4D weight) {
+        NNTensor result = new NNTensor(weight.getDepth(), row, weight.column());
 
-        for (int n = 0, indR = 0; n < row; n++) {
-            for (int i = 0; i < matrix.column; i++, indR++) {
-                val = 0;
-                for (int j = 0; j < column; j++) {
-                    val += get(n, j) * matrix.get(j, i);
+        for (int i = 0; i < weight.getDepth(); i++) {
+            for (int j = 0; j < row; j++) {
+                for (int k = 0; k < weight.column(); k++) {
+                    for (int l = 0; l < column; l++) {
+                        result.add(i, j, k, get(j, l) * weight.get(i, j, l, k));
+                    }
                 }
-                result.data[indR] = val;
             }
         }
-
         return result;
+    }
+
+    public NNMatrix derCapsuleAffineTransform(NNTensor4D weight, NNTensor error) {
+        NNMatrix result = new NNMatrix(row, column);
+
+        for (int i = 0; i < weight.getDepth(); i++) {
+            for (int j = 0; j < row; j++) {
+                for (int k = 0; k < weight.column(); k++) {
+                    for (int l = 0; l < column; l++) {
+                        result.add(j, l, error.get(i, j, k) * weight.get(i, j, l, k));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    public NNMatrix dot(NNMatrix matrix) {
+        return dotT(matrix.transpose());
     }
 
     public NNMatrix dot(NNVector vector) {

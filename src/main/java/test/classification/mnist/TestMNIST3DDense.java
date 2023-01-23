@@ -2,12 +2,12 @@ package test.classification.mnist;
 
 import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
-import neural_network.layers.convolution_3d.ActivationLayer3D;
-import neural_network.layers.convolution_3d.ConvolutionLayer;
-import neural_network.layers.convolution_3d.densely.DenseUnit;
-import neural_network.layers.convolution_3d.densely.DenseBlock;
-import neural_network.layers.dense.ActivationLayer;
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_3d.ActivationLayer3D;
+import neural_network.layers.layer_3d.ConvolutionLayer;
+import neural_network.layers.layer_3d.densely.DenseUnit;
+import neural_network.layers.layer_3d.densely.DenseBlock;
+import neural_network.layers.layer_1d.ActivationLayer;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.reshape.Flatten3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;

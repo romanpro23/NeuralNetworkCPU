@@ -1,10 +1,12 @@
 package neural_network.network.style_transfer;
 
+import data.ImageCreator;
 import lombok.NoArgsConstructor;
 import neural_network.layers.NeuralLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.Optimizer;
+import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNTensor;
@@ -18,11 +20,20 @@ public class StyleTransfer {
 
     private ArrayList<NeuralLayer> styleLayers;
     private ArrayList<NNMatrix> styleGrammar;
-    private NNTensor contentNetwork;
+
+    private ArrayList<NeuralLayer> contentLayers;
+    private ArrayList<NNTensor> contentImg;
 
     private NNTensor result;
     private NNTensor delta;
     private float accuracy;
+
+    private boolean variation;
+    private float variationLoss;
+
+    private NNTensor verticalSobel;
+    private NNTensor horizontalSobel;
+    private NNTensor content;
 
     private FunctionLoss loss;
     private Optimizer optimizer;
@@ -40,9 +51,17 @@ public class StyleTransfer {
     public StyleTransfer(NeuralNetwork network) {
         this.network = network;
         styleLayers = new ArrayList<>();
+        contentLayers = new ArrayList<>();
         styleGrammar = new ArrayList<>();
+        contentImg = new ArrayList<>();
 
-        this.loss = new FunctionLoss.MSE(8);
+        this.loss = new FunctionLoss.MSE();
+    }
+
+    public StyleTransfer addContentLayer(NeuralLayer... neuralLayers) {
+        Collections.addAll(this.contentLayers, neuralLayers);
+
+        return this;
     }
 
     public StyleTransfer addStyleLayer(NeuralLayer... neuralLayers) {
@@ -52,10 +71,31 @@ public class StyleTransfer {
     }
 
     public StyleTransfer setContent(NNTensor content) {
-        contentNetwork = NNArrays.isTensor(network.query(new NNTensor[]{content}))[0];
+        if (contentLayers.isEmpty()) {
+            contentLayers.add(network.getLastLayer());
+        }
+
+        network.query(new NNTensor[]{content});
+        for (NeuralLayer contentLayer : contentLayers) {
+            contentImg.add(NNArrays.isTensor(contentLayer.getOutput())[0]);
+        }
+
         result = new NNTensor(content.shape());
+        result.add(content);
         delta = new NNTensor(content.shape());
-        this.result.add(content);
+
+        return this;
+    }
+
+    public StyleTransfer setResult(NNTensor result) {
+        this.result = result;
+
+        return this;
+    }
+
+    public StyleTransfer addVariationLoss(double variationLoss) {
+        this.variationLoss = (float) variationLoss;
+        this.variation = true;
 
         return this;
     }
@@ -63,15 +103,11 @@ public class StyleTransfer {
     public StyleTransfer setStyle(NNTensor style) {
         network.query(new NNTensor[]{style});
 
-        int layerNumber = 0;
-        for (int i = 0; i < network.getLayers().size(); i++) {
-            if (layerNumber < styleLayers.size() && network.getLayers().get(i) == styleLayers.get(layerNumber)) {
-                int[] size = styleLayers.get(layerNumber).size();
-                NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], styleLayers.get(layerNumber).getOutput()[0].getData());
+        for (NeuralLayer styleLayer : styleLayers) {
+            int[] size = styleLayer.size();
+            NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], styleLayer.getOutput()[0].getData());
 
-                styleGrammar.add(grammarMatrix(style_result));
-                layerNumber++;
-            }
+            styleGrammar.add(grammarMatrix(style_result));
         }
 
         return this;
@@ -83,8 +119,11 @@ public class StyleTransfer {
         return this;
     }
 
-    public StyleTransfer create(){
+    public StyleTransfer create() {
         optimizer.addDataOptimize(result, delta);
+        if(variation){
+            horizontalSobel = ImageCreator.horizontalSobelEdge(content);
+        }
         return this;
     }
 
@@ -96,23 +135,37 @@ public class StyleTransfer {
         accuracy = 0;
         network.query(new NNTensor[]{result});
 
-        accuracy += loss.findAccuracy(network.getOutputs(), new NNTensor[]{contentNetwork}) * contentVal;
-        NNTensor errorContent = NNArrays.toTensor(loss.findDerivative(network.getOutputs(), new NNTensor[]{contentNetwork}), contentNetwork.shape())[0];
-        errorContent.mul((float) contentVal);
-
         ArrayList<NeuralLayer> layers = network.getLayers();
-        int numberLayer = styleLayers.size() - 1;
+        int numberLayerStyle = styleLayers.size() - 1;
+        int numberLayerContent = contentLayers.size() - 1;
 
-        if (layers.get(layers.size() - 1) == styleLayers.get(numberLayer)) {
-            errorContent.add(errorGrammar(styleLayers.get(numberLayer), styleGrammar.get(numberLayer), styleVal));
-            numberLayer--;
+        NNTensor error = new NNTensor(network.getOutputSize());
+        if (layers.get(layers.size() - 1) == styleLayers.get(numberLayerStyle)) {
+            error.add(errorStyle(styleLayers.get(numberLayerStyle),
+                    styleGrammar.get(numberLayerStyle),
+                    styleVal));
+            numberLayerStyle--;
         }
+        if (layers.get(layers.size() - 1) == contentLayers.get(numberLayerContent)) {
+            error.add(errorContent(contentLayers.get(numberLayerContent),
+                    contentImg.get(numberLayerContent),
+                    contentVal));
+            numberLayerContent--;
+        }
+        layers.get(layers.size() - 1).generateError(new NNTensor[]{error});
 
-        layers.get(layers.size() - 1).generateError(new NNTensor[]{errorContent});
         for (int i = layers.size() - 2; i >= 0; i--) {
-            if (numberLayer >= 0 && layers.get(i) == styleLayers.get(numberLayer)) {
-                layers.get(i + 1).getError()[0].add(errorGrammar(styleLayers.get(numberLayer), styleGrammar.get(numberLayer), styleVal));
-                numberLayer--;
+            if (numberLayerStyle >= 0 && layers.get(i) == styleLayers.get(numberLayerStyle)) {
+                layers.get(i + 1).getError()[0].add(errorStyle(styleLayers.get(numberLayerStyle),
+                        styleGrammar.get(numberLayerStyle),
+                        styleVal));
+                numberLayerStyle--;
+            }
+            if (numberLayerContent >= 0 && layers.get(i) == contentLayers.get(numberLayerContent)) {
+                layers.get(i + 1).getError()[0].add(errorContent(contentLayers.get(numberLayerContent),
+                        contentImg.get(numberLayerContent),
+                        contentVal));
+                numberLayerContent--;
             }
             layers.get(i).generateError(layers.get(i + 1).getError());
         }
@@ -122,7 +175,7 @@ public class StyleTransfer {
         return accuracy;
     }
 
-    private NNMatrix errorGrammar(NeuralLayer layer, NNMatrix grammar, double styleVal) {
+    private NNMatrix errorStyle(NeuralLayer layer, NNMatrix grammar, double styleVal) {
         float styleV = (float) (styleVal / styleLayers.size());
         int[] size = layer.size();
         NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], layer.getOutput()[0].getData());
@@ -134,5 +187,11 @@ public class StyleTransfer {
                 grammar_result.shape()[0], grammar_result.shape()[1])[0];
         errorGrammar.mul(styleV / style_result.size());
         return derGrammarMatrix(style_result, errorGrammar);
+    }
+
+    private NNArray errorContent(NeuralLayer layer, NNTensor content, double contentVal) {
+        float val = (float) (contentVal / contentLayers.size());
+        accuracy += loss.findAccuracy(layer.getOutput(), new NNTensor[]{content}) * val;
+        return loss.findDerivative(layer.getOutput(), new NNTensor[]{content})[0].mul(val);
     }
 }

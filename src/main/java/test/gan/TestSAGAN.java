@@ -3,11 +3,9 @@ package test.gan;
 import data.ImageCreator;
 import data.imageNet.ImageNetLoader3D;
 import data.loaders.TransformData;
-import data.svhn.SVHNLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
-import neural_network.layers.convolution_3d.*;
-import neural_network.layers.dense.DenseLayer;
+import neural_network.layers.layer_3d.*;
 import neural_network.layers.reshape.Reshape3DLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.GAN;
@@ -19,7 +17,6 @@ import nnarrays.NNVector;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Scanner;
 
 public class TestSAGAN {
     public static void main(String[] args) throws Exception {

@@ -2,6 +2,7 @@ package neural_network.layers.recurrent;
 
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
+import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
@@ -22,14 +23,8 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
     private NNVector[][] updateGateOutput;
     private NNVector[][] resetGateInput;
     private NNVector[][] resetGateOutput;
-
-    private NNVector[] resetDelta;
-    private NNVector[] resetError;
-    private NNVector[] hiddenHDelta;
-    private NNVector[] hiddenHError;
-    private NNVector[] updateDelta;
-    private NNVector[] updateError;
-    private NNVector[] resetHiddenError;
+    protected NNVector[][] inputHidden;
+    protected NNVector[][] outputHidden;
 
     private NNMatrix[] weightInput;
     private NNMatrix[] derWeightInput;
@@ -70,9 +65,10 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
         return this;
     }
 
-    public GRUBahdAttentionLayer setPreLayer(RecurrentNeuralLayer layer) {
-        super.setPreLayer(layer);
+    @Override
+    public GRUBahdAttentionLayer setEncoderLayer(NeuralLayer layer) {
         layer.addNextLayer(this);
+        this.encoderLayer = layer;
 
         return this;
     }
@@ -134,7 +130,6 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
         writer.write(sizeAttention + "\n");
         writer.write(recurrentDropout + "\n");
         writer.write(returnSequences + "\n");
-        writer.write(returnState + "\n");
 
         for (int i = 0; i < 3; i++) {
             threshold[i].save(writer);
@@ -156,7 +151,7 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
     }
 
     @Override
-    public void generateOutput(NNArray[] inputs) {
+    public void generateOutput(NNArray[] inputs, NNArray[][] state) {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[inputs.length];
         this.inputHidden = new NNVector[inputs.length][];
@@ -168,22 +163,22 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
         this.resetGateOutput = new NNVector[inputs.length][];
         this.updateGateInput = new NNVector[inputs.length][];
         this.updateGateOutput = new NNVector[inputs.length][];
-        if (returnState) {
-            this.state = new NNVector[inputs.length][1];
-        }
+        this.state = new NNVector[input.length][1];
+        this.inputState = new NNVector[input.length][];
 
-        outputPreLayer = NNArrays.isMatrix(preLayer.getOutput());
+        outputPreLayer = NNArrays.isMatrix(encoderLayer.getOutput());
         initializeMemory(inputs.length);
 
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int cor = 0; cor < countC; cor++) {
-            final int firstIndex = cor * input.length / countC;
-            final int lastIndex = Math.min(input.length, (cor + 1) * input.length / countC);
+        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+        for (int cor = 0; cor < inputs.length; cor++) {
+            final int i = cor;
             executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    generateOutput(i);
+                if (state != null) {
+                    inputState[i] = NNArrays.isVector(state[i]);
+                } else {
+                    inputState[i] = null;
                 }
+                generateOutput(i, inputState[i]);
             });
         }
         executor.shutdown();
@@ -191,7 +186,7 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
         }
     }
 
-    private void generateOutput(int i) {
+    private void generateOutput(int i, NNVector[] states) {
         int countRow = (returnSequences) ? input[i].getRow() : 1;
         output[i] = new NNMatrix(countRow, countNeuron);
 
@@ -225,8 +220,8 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
             NNVector hidden_t = null;
             if (t > 0) {
                 hidden_t = hidden[i][t - 1];
-            } else if (hasPreLayer()) {
-                hidden_t = getStatePreLayer(i)[0];
+            } else if (states != null) {
+                hidden_t = states[0];
             }
 
             inputVector[i][t] = generateAttention(t, i, hidden_t).concat(emdeddings[t]);
@@ -263,7 +258,7 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
             }
 
             //dropout hidden state
-            if (dropout) {
+            if (dropout && recurrentDropout != 0) {
                 hidden[i][t].dropout(hidden[i][t], recurrentDropout);
             }
             //if return sequence pass current hidden state to output
@@ -273,36 +268,23 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
             }
         }
         //if layer return state,than save last hidden state
-        if (returnState) {
-            state[i][0] = hidden[i][input[i].getRow() - 1];
-        }
+        state[i][0] = outputHidden[i][input[i].getRow() - 1];
     }
 
     @Override
-    public void generateError(NNArray[] errors) {
+    public void generateError(NNArray[] errors, NNArray[][] errorsState) {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[input.length];
-        this.hiddenError = new NNVector[input.length];
-        if (hasPreLayer()) {
-            this.errorState = new NNVector[input.length][1];
-        }
+        this.errorState = new NNVector[input.length][1];
 
-        resetDelta = new NNVector[input.length];
-        resetError = new NNVector[input.length];
-        hiddenHDelta = new NNVector[input.length];
-        hiddenHError = new NNVector[input.length];
-        updateDelta = new NNVector[input.length];
-        updateError = new NNVector[input.length];
-        resetHiddenError = new NNVector[input.length];
-
-        int countC = getCountCores();
-        ExecutorService executor = Executors.newFixedThreadPool(countC);
-        for (int cor = 0; cor < countC; cor++) {
-            final int firstIndex = cor * input.length / countC;
-            final int lastIndex = Math.min(input.length, (cor + 1) * input.length / countC);
+        ExecutorService executor = Executors.newFixedThreadPool(errors.length);
+        for (int cor = 0; cor < errors.length; cor++) {
+            final int i = cor;
             executor.execute(() -> {
-                for (int i = firstIndex; i < lastIndex; i++) {
-                    generateError(i);
+                if (errorsState != null) {
+                    generateError(i, NNArrays.isVector(errorsState[i]));
+                } else {
+                    generateError(i, null);
                 }
             });
         }
@@ -323,25 +305,25 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
         }
     }
 
-    private void generateError(int i) {
+    private void generateError(int i, NNVector[] errorState) {
         this.error[i] = new NNMatrix(input[i]);
         this.errorInput[i] = new NNMatrix(outputPreLayer[i]);
-        hiddenError[i] = new NNVector(countNeuron);
-        resetDelta[i] = new NNVector(countNeuron);
-        resetError[i] = new NNVector(countNeuron);
-        hiddenHDelta[i] = new NNVector(countNeuron);
-        hiddenHError[i] = new NNVector(countNeuron);
-        updateDelta[i] = new NNVector(countNeuron);
-        updateError[i] = new NNVector(countNeuron);
-        resetHiddenError[i] = new NNVector(countNeuron);
+        NNVector hiddenError = new NNVector(countNeuron);
+        NNVector resetDelta = new NNVector(countNeuron);
+        NNVector resetError = new NNVector(countNeuron);
+        NNVector hiddenHDelta = new NNVector(countNeuron);
+        NNVector hiddenHError = new NNVector(countNeuron);
+        NNVector updateDelta = new NNVector(countNeuron);
+        NNVector updateError = new NNVector(countNeuron);
+        NNVector resetHiddenError = new NNVector(countNeuron);
 
         //copy error from next layer
         int tError = (returnSequences) ? hidden[i].length - 1 : 0;
         if (errorNL != null) {
-            hiddenError[i].setRowFromMatrix(errorNL[i], tError);
+            hiddenError.setRowFromMatrix(errorNL[i], tError);
         }
-        if (returnState) {
-            hiddenError[i].add(getErrorStateNextLayer(i)[0]);
+        if (errorState != null) {
+            hiddenError.add(errorState[0]);
         }
 
         //pass through time
@@ -349,82 +331,82 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
             NNVector hidden_t = null;
             if (t > 0) {
                 hidden_t = hidden[i][t - 1];
-            } else if (hasPreLayer()) {
-                hidden_t = getStatePreLayer(i)[0];
+            } else if (inputState[i] != null) {
+                hidden_t = inputState[i][0];
             }
             //dropout back for error
-            hiddenError[i].dropoutBack(hidden[i][t], hiddenError[i], recurrentDropout);
-            //find error for update and reset gate
-            updateError[i].mulNegativeVectors(hiddenError[i], outputHidden[i][t]);
-            if (hidden_t != null) {
-                updateError[i].addProduct(hiddenError[i], hidden_t);
+            if (recurrentDropout != 0) {
+                hiddenError.dropoutBack(hidden[i][t], hiddenError, recurrentDropout);
             }
-            hiddenHError[i].setMulUpdateVectors(updateGateOutput[i][t], hiddenError[i]);
+            //find error for update and reset gate
+            updateError.mulNegativeVectors(hiddenError, outputHidden[i][t]);
+            if (hidden_t != null) {
+                updateError.addProduct(hiddenError, hidden_t);
+            }
+            hiddenHError.setMulUpdateVectors(updateGateOutput[i][t], hiddenError);
 
             //derivative activation for current time step
-            functionActivationSigmoid.derivativeActivation(updateGateInput[i][t], updateGateOutput[i][t], updateError[i], updateDelta[i]);
-            functionActivationTanh.derivativeActivation(inputHidden[i][t], outputHidden[i][t], hiddenHError[i], hiddenHDelta[i]);
+            functionActivationSigmoid.derivativeActivation(updateGateInput[i][t], updateGateOutput[i][t], updateError, updateDelta);
+            functionActivationTanh.derivativeActivation(inputHidden[i][t], outputHidden[i][t], hiddenHError, hiddenHDelta);
 
             //find error for reset gate
-            resetDelta[i].clear();
-            resetHiddenError[i].clear();
-            resetHiddenError[i].addMulT(hiddenHDelta[i], weightHidden[2]);
+            resetDelta.clear();
+            resetHiddenError.clear();
+            resetHiddenError.addMulT(hiddenHDelta, weightHidden[2]);
             if (hidden_t != null) {
-                resetError[i].mulVectors(resetHiddenError[i], hidden_t);
-                functionActivationSigmoid.derivativeActivation(resetGateInput[i][t], resetGateOutput[i][t], resetError[i], resetDelta[i]);
+                resetError.mulVectors(resetHiddenError, hidden_t);
+                functionActivationSigmoid.derivativeActivation(resetGateInput[i][t], resetGateOutput[i][t], resetError, resetDelta);
             }
 
             //find derivative for weightAttention
             if (trainable) {
-                derivativeWeight(t, i, hidden_t);
+                derivativeWeight(t, i, hidden_t, updateDelta, resetDelta, hiddenHDelta);
             }
 
             //find error for previous time step
-            hiddenError[i].mul(updateGateOutput[i][t]);
+            hiddenError.mul(updateGateOutput[i][t]);
             if (returnSequences && t > 0 && errorNL != null) {
-                hiddenError[i].addRowFromMatrix(errorNL[i], t - 1);
+                hiddenError.addRowFromMatrix(errorNL[i], t - 1);
             }
-            hiddenError[i].addProduct(resetHiddenError[i], resetGateOutput[i][t]);
-            hiddenError[i].addMulT(updateDelta[i], weightHidden[0]);
-            hiddenError[i].addMulT(resetDelta[i], weightHidden[1]);
+            hiddenError.addProduct(resetHiddenError, resetGateOutput[i][t]);
+            hiddenError.addMulT(updateDelta, weightHidden[0]);
+            hiddenError.addMulT(resetDelta, weightHidden[1]);
 
             NNVector errorInput = new NNVector(depth);
 
             //find error for previous layer
-            errorInput.addMulT(updateDelta[i], weightInput[0]);
-            errorInput.addMulT(resetDelta[i], weightInput[1]);
-            errorInput.addMulT(hiddenHDelta[i], weightInput[2]);
+            errorInput.addMulT(updateDelta, weightInput[0]);
+            errorInput.addMulT(resetDelta, weightInput[1]);
+            errorInput.addMulT(hiddenHDelta, weightInput[2]);
 
-            hiddenError[i].add(generateErrorAttention(errorInput.subVector(0, countNeuron), i, t));
+            hiddenError.add(generateErrorAttention(errorInput.subVector(0, countNeuron), i, t));
             error[i].set(errorInput.subVector(countNeuron, input[i].getColumn()), t);
-
-            if (t == 0 && hasPreLayer()) {
-                errorState[i][0] = new NNVector(countNeuron);
-                errorState[i][0].add(this.hiddenError[i]);
-            }
         }
+        this.errorState[i][0] = hiddenError;
     }
 
-    private void derivativeWeight(int t, int i, NNVector hidden_t) {
-        derThreshold[0].add(updateDelta[i]);
-        derThreshold[1].add(resetDelta[i]);
-        derThreshold[2].add(hiddenHDelta[i]);
-        int indexHWeight = 0, indexIWeight = 0;
+    private void derivativeWeight(int t, int i, NNVector hidden_t, NNVector updateDelta, NNVector resetDelta, NNVector hiddenHDelta) {
+        derThreshold[0].add(updateDelta);
+        derThreshold[1].add(resetDelta);
+        derThreshold[2].add(hiddenHDelta);
+        int indexHWeight = 0, indexIWeight = 0, indexInput;
 
         for (int k = 0; k < hidden[i][t].size(); k++) {
+            indexInput = input[i].getRowIndex()[t];
+
             if (hidden_t != null) {
                 //find derivative for hidden weightAttention
                 for (int m = 0; m < countNeuron; m++, indexHWeight++) {
-                    derWeightHidden[0].getData()[indexHWeight] += updateDelta[i].get(k) * hidden_t.get(m);
-                    derWeightHidden[1].getData()[indexHWeight] += resetDelta[i].get(k) * hidden_t.get(m);
-                    derWeightHidden[2].getData()[indexHWeight] += hiddenHDelta[i].get(k) * resetHidden[i][t].get(m);
+                    derWeightHidden[0].getData()[indexHWeight] += updateDelta.get(k) * hidden_t.get(m);
+                    derWeightHidden[1].getData()[indexHWeight] += resetDelta.get(k) * hidden_t.get(m);
+                    derWeightHidden[2].getData()[indexHWeight] += hiddenHDelta.get(k) * resetHidden[i][t].get(m);
                 }
             }
             //find derivative for input's weightAttention
-            for (int m = 0; m < inputVector[i][t].size(); m++, indexIWeight++) {
-                derWeightInput[0].getData()[indexIWeight] += updateDelta[i].get(k) * inputVector[i][t].get(m);
-                derWeightInput[1].getData()[indexIWeight] += resetDelta[i].get(k) * inputVector[i][t].get(m);
-                derWeightInput[2].getData()[indexIWeight] += hiddenHDelta[i].get(k) * inputVector[i][t].get(m);
+            for (int m = 0; m < input[i].getColumn(); m++, indexIWeight++, indexInput++) {
+                derWeightInput[0].getData()[indexIWeight] += updateDelta.get(k) * input[i].getData()[indexInput];
+                derWeightInput[1].getData()[indexIWeight] += resetDelta.get(k) * input[i].getData()[indexInput];
+                derWeightInput[2].getData()[indexIWeight] += hiddenHDelta.get(k) * input[i].getData()[indexInput];
             }
         }
     }
@@ -465,8 +447,6 @@ public class GRUBahdAttentionLayer extends BahdanauAttentionLayer {
                 Integer.parseInt(scanner.nextLine()),
                 Double.parseDouble(scanner.nextLine()),
                 Boolean.parseBoolean(scanner.nextLine()));
-
-        recurrentLayer.returnState = Boolean.parseBoolean(scanner.nextLine());
 
         recurrentLayer.threshold = new NNVector[3];
         recurrentLayer.weightInput = new NNMatrix[3];

@@ -1,15 +1,17 @@
 package neural_network.layers.recurrent;
 
 import lombok.SneakyThrows;
+import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
 
 import java.io.Writer;
-import java.util.Arrays;
 
 public abstract class LuongAttentionLayer extends RecurrentNeuralLayer {
+    protected NeuralLayer encoderLayer;
+
     protected NNMatrix weightAttention;
     protected NNMatrix derWeightAttention;
 
@@ -198,5 +200,12 @@ public abstract class LuongAttentionLayer extends RecurrentNeuralLayer {
     @Override
     public NNArray[] getErrorNL() {
         return errorInput;
+    }
+
+    public LuongAttentionLayer setEncoderLayer(NeuralLayer layer){
+        layer.addNextLayer(this);
+        this.encoderLayer = layer;
+
+        return this;
     }
 }

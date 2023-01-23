@@ -18,11 +18,11 @@ public final class NNArrays {
         return arr;
     }
 
-    public static NNArray[] empty(){
+    public static NNArray[] empty() {
         return null;
     }
 
-    public static NNMatrix[] empty(NNMatrix[] out){
+    public static NNMatrix[] empty(NNMatrix[] out) {
         NNMatrix[] res = new NNMatrix[out.length];
 
         for (int i = 0; i < res.length; i++) {
@@ -31,14 +31,22 @@ public final class NNArrays {
         return res;
     }
 
-    public static NNMatrix[] toHotVectorNLP(NNArray[] batch, int sizeVoc) {
+    public static NNVector[] subVectors(NNVector[] input, int start, int size) {
+        NNVector[] output = new NNVector[input.length];
+        for (int i = 0; i < input.length; i++) {
+            output[i] = input[i].subVector(start, size);
+        }
+
+        return output;
+    }
+
+    public static NNMatrix[] toHotVector(NNArray[] batch, int sizeVoc) {
         NNMatrix[] arr = new NNMatrix[batch.length];
         for (int i = 0; i < arr.length; i++) {
             arr[i] = new NNMatrix(batch[i].size, sizeVoc);
-            for (int j = 0; j < batch[i].size - 1; j++) {
-                arr[i].set(j, (int) batch[i].data[j + 1], 1);
+            for (int j = 0; j < batch[i].size; j++) {
+                arr[i].set(j, (int) batch[i].data[j], 1);
             }
-            arr[i].set(batch[i].size - 1, 1,1);
         }
 
         return arr;
@@ -170,8 +178,8 @@ public final class NNArrays {
                 }
             }
 
-            int depth = first[i].shape()[0];
-            result[i] = new NNMatrix(depth, column, data);
+            int row = first[i].shape()[0];
+            result[i] = new NNMatrix(row, column, data);
         }
         return result;
     }
@@ -279,6 +287,12 @@ public final class NNArrays {
         return result;
     }
 
+    public static void mul(NNArray[] arrays, float lambda){
+        for (NNArray array : arrays) {
+            array.mul(lambda);
+        }
+    }
+
     public static NNMatrix mul(NNVector[] first, NNVector[] second) {
         NNMatrix result = new NNMatrix(first[0].size, second[0].size);
 
@@ -322,6 +336,34 @@ public final class NNArrays {
         NNArray result = new NNArray(first.size);
         for (int i = 0; i < result.size; i++) {
             result.data[i] = first.data[i] - second.data[i];
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray capsLoss(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = (float) (first.data[i] * Math.pow(Math.max(0, 0.9f - second.data[i]), 2) +
+                    0.5f * (1f - first.data[i]) * Math.pow(Math.max(0, second.data[i] - 0.1f), 2));
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray derCapsLoss(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+        for (int i = 0; i < result.size; i++) {
+            result.data[i] = first.data[i] * -2 * Math.max(0, 0.9f - second.data[i])
+                    + (1f - first.data[i]) * Math.max(0, second.data[i] - 0.1f);
         }
 
         return result;

@@ -19,18 +19,28 @@ public class DataTrainer {
     }
 
     public float train(NeuralNetwork network, int sizeBatch, int countEpoch, DataMetric dataMetric) {
-        this.sizeBatch =  sizeBatch;
+        return train(network, sizeBatch, countEpoch, 1, dataMetric);
+    }
+
+    public float train(NeuralNetwork network, int sizeBatch, int countEpoch, int countUpdate, DataMetric dataMetric) {
+        this.sizeBatch = sizeBatch;
         int counter = 0;
         for (int i = 0; i < countEpoch; i++) {
             counter = 0;
             double accuracy = 0;
             int max = sizeTrainEpoch / sizeBatch;
+            int cu = 0;
             System.out.print(" [");
             for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
 
-                accuracy += network.train(data.getInput(), data.getOutput());
+                accuracy += network.train(data.getInput(), data.getOutput(), false);
                 counter += dataMetric.quality(data.getOutput(), network.getOutputs());
+                cu++;
+                if(cu == countUpdate){
+                    network.update();
+                    cu = 0;
+                }
 
                 if(j % Math.max(1, (max / 26)) == 0) {
                     System.out.print("=");
