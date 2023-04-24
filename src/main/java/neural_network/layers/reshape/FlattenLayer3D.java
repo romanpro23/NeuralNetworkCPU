@@ -11,7 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class Flatten3DLayer extends NeuralLayer {
+public class FlattenLayer3D extends NeuralLayer {
     protected int depth, height, width;
     protected int countNeuron;
     protected NNTensor[] input;
@@ -100,7 +100,7 @@ public class Flatten3DLayer extends NeuralLayer {
         return error;
     }
 
-    public static Flatten3DLayer read(Scanner scanner){
-        return new Flatten3DLayer();
+    public static FlattenLayer3D read(Scanner scanner){
+        return new FlattenLayer3D();
     }
 }

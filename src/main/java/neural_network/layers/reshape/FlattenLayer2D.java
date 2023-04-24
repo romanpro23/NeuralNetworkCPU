@@ -8,7 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class Flatten2DLayer extends NeuralLayer {
+public class FlattenLayer2D extends NeuralLayer {
     protected int depth, width;
     protected int countNeuron;
     protected NNMatrix[] input;
@@ -96,7 +96,7 @@ public class Flatten2DLayer extends NeuralLayer {
         return error;
     }
 
-    public static Flatten2DLayer read(Scanner scanner){
-        return new Flatten2DLayer();
+    public static FlattenLayer2D read(Scanner scanner){
+        return new FlattenLayer2D();
     }
 }

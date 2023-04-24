@@ -11,7 +11,7 @@ import neural_network.layers.layer_2d.DenseLayer2D;
 import neural_network.layers.layer_2d.MultiHeadAttentionLayer;
 import neural_network.layers.layer_2d.PositionalEmbeddingLayer;
 import neural_network.layers.reshape.EmbeddingLayer;
-import neural_network.layers.reshape.Flatten2DLayer;
+import neural_network.layers.reshape.FlattenLayer2D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -46,7 +46,7 @@ public class TestIMDBTransformer {
                         .addLayer(new DropoutLayer2D(0.2))
                 )
                 .addLayer(new NormalizationLayer2D())
-                .addLayer(new Flatten2DLayer())
+                .addLayer(new FlattenLayer2D())
                 .addLayer(new DenseLayer(1).setTrainable(true))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())

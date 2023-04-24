@@ -9,8 +9,8 @@ import neural_network.layers.layer_3d.residual.ResidualUnit;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_1d.DropoutLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.GlobalAveragePoolingLayer3D;
 import neural_network.network.NeuralNetwork;
 
 public class MobileNet {
@@ -53,7 +53,7 @@ public class MobileNet {
 
     public MobileNet addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
         if (mobilenet.getOutputSize().length != 1) {
-            mobilenet.addLayer(new Flatten3DLayer());
+            mobilenet.addLayer(new FlattenLayer3D());
         }
         mobilenet.addLayer(new DenseLayer(countNeuron)
                 .setInitializer(new Initializer.XavierNormal()));
@@ -69,7 +69,7 @@ public class MobileNet {
     }
 
     public MobileNet addGlobalAveragePoolingLayer() {
-        mobilenet.addLayer(new GlobalAveragePooling3DLayer());
+        mobilenet.addLayer(new GlobalAveragePoolingLayer3D());
 
         return this;
     }

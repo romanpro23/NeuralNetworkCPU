@@ -1,6 +1,6 @@
 package neural_network.layers.capsule;
 
-import neural_network.layers.reshape.Flatten2DLayer;
+import neural_network.layers.reshape.FlattenLayer2D;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
@@ -10,7 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class DigitCapsuleLayer extends Flatten2DLayer {
+public class DigitCapsuleLayer extends FlattenLayer2D {
 
     public void initialize(int[] size) {
         if (size.length != 2) {

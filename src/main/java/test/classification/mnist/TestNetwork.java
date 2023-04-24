@@ -6,7 +6,7 @@ import neural_network.layers.layer_3d.ActivationLayer3D;
 import neural_network.layers.layer_3d.ConvolutionTransposeLayer;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
+import neural_network.layers.reshape.ReshapeLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -19,7 +19,7 @@ public class TestNetwork {
                 .addInputLayer(32)
                 .addLayer(new DenseLayer(14 * 14 * 4).setTrainable(true))
                 .addLayer(new ActivationLayer(new FunctionActivation.ReLU()))
-                .addLayer(new Reshape3DLayer(7, 7, 16))
+                .addLayer(new ReshapeLayer3D(7, 7, 16))
                 .addLayer(new ConvolutionTransposeLayer(8, 4, 2, 1).setTrainable(false))
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new ConvolutionTransposeLayer(3, 4, 2, 1).setTrainable(false))

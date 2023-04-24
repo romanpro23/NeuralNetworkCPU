@@ -140,11 +140,26 @@ public class NNMatrix extends NNArray {
     public void addScalarMul(NNTensor input, NNMatrix matrix) {
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
+                float scalarDot = 0;
                 for (int k = 0; k < input.getDepth(); k++) {
-                    add(i, j, input.get(i, j, k) * matrix.get(i, k));
+                    scalarDot += input.get(i, j, k) * matrix.get(i, k);
+                }
+                add(i, j, scalarDot);
+            }
+        }
+    }
+
+    public NNMatrix derScalarMul(NNTensor input, NNMatrix error) {
+        NNMatrix result = new NNMatrix(row, column);
+        for (int i = 0; i < row; i++) {
+            for (int j = 0; j < column; j++) {
+                for (int k = 0; k < input.getDepth(); k++) {
+                    result.add(i, k, input.get(i, j, k) * error.get(i, j));
                 }
             }
         }
+
+        return result;
     }
 
     public void squash(NNMatrix matrix) {
@@ -153,28 +168,29 @@ public class NNMatrix extends NNArray {
             for (int j = 0; j < column; j++) {
                 mod += Math.pow(matrix.get(i, j), 2);
             }
-            float mod_sqrt = (float) Math.sqrt(mod + 0.0000001f);
-            float scale = mod / (1f + mod);
+            float scale = (float) ((mod / (1f + mod)) / Math.sqrt(mod + 0.0000001f));
 
             for (int j = 0; j < column; j++) {
-                set(i, j, scale * matrix.get(i, j) / mod_sqrt);
+                set(i, j, scale * matrix.get(i, j));
             }
         }
     }
 
     public void derSquash(NNMatrix matrix, NNMatrix error) {
         for (int i = 0; i < row; i++) {
-            float mod = 0;
+            float mod_2 = 0;
             for (int j = 0; j < column; j++) {
-                mod += Math.pow(matrix.get(i, j), 2);
+                mod_2 += Math.pow(matrix.get(i, j), 2);
             }
-            float mod_sqrt = (float) Math.sqrt(mod + 0.0000001f);
-            float mod2_4 = mod + mod * mod;
-            float s = mod_sqrt * (1 + mod) * (1 + mod);
-            float s_1 = 1f - mod;
+            float mod = (float) Math.sqrt(mod_2) + 0.00000001f;
+            float _mod_2 = 2 * mod;
+            float mod_2_one = mod_2 + 1;
+            float mod_2_one_2 = mod_2_one * mod_2_one;
 
             for (int j = 0; j < column; j++) {
-                set(i, j, (matrix.get(i, j) * matrix.get(i, j) * s_1 + mod2_4) * error.get(i, j) / s);
+                float x = matrix.get(i, j);
+                float x_2 = x * x;
+                set(i, j, ((mod_2_one * (mod + x_2 / mod) - x_2 * _mod_2) / (mod_2_one_2)) * error.get(i, j));
             }
         }
     }
@@ -186,7 +202,7 @@ public class NNMatrix extends NNArray {
             for (int j = 0; j < column; j++) {
                 mod += Math.pow(get(i, j), 2);
             }
-            result.set(i, (float) Math.sqrt(mod));
+            result.set(i, (float) Math.sqrt(mod) + 0.00000001f);
         }
         return result;
     }
@@ -246,14 +262,53 @@ public class NNMatrix extends NNArray {
         return result;
     }
 
-    public NNTensor capsuleAffineTransform(NNTensor4D weight) {
-        NNTensor result = new NNTensor(weight.getDepth(), row, weight.column());
+    public NNMatrix dot(NNTensor tensor) {
+        NNMatrix result = new NNMatrix(tensor.getRows(), tensor.getDepth());
 
-        for (int i = 0; i < weight.getDepth(); i++) {
-            for (int j = 0; j < row; j++) {
-                for (int k = 0; k < weight.column(); k++) {
-                    for (int l = 0; l < column; l++) {
-                        result.add(i, j, k, get(j, l) * weight.get(i, j, l, k));
+        for (int i = 0; i < tensor.getRows(); i++) {
+            for (int l = 0; l < tensor.getDepth(); l++) {
+                for (int j = 0; j < tensor.getColumns(); j++) {
+                    result.add(i, l, get(i, j) * tensor.get(i, j, l));
+                }
+            }
+        }
+        return result;
+    }
+
+    public NNMatrix dotT(NNTensor tensor) {
+        NNMatrix result = new NNMatrix(tensor.getRows(), tensor.getColumns());
+
+        for (int i = 0; i < tensor.getRows(); i++) {
+            for (int j = 0; j < tensor.getColumns(); j++) {
+                for (int l = 0; l < tensor.getDepth(); l++) {
+                    result.add(i, j, get(i, l) * tensor.get(i, j, l));
+                }
+            }
+        }
+        return result;
+    }
+
+    public NNTensor dotR(NNMatrix matrix) {
+        NNTensor result = new NNTensor(row, column, matrix.column);
+
+        for (int i = 0; i < row; i++) {
+            for (int l = 0; l < matrix.column; l++) {
+                for (int j = 0; j < column; j++) {
+                    result.add(i, j, l, get(i, j) * matrix.get(i, l));
+                }
+            }
+        }
+        return result;
+    }
+
+    public NNTensor dot(NNTensor4D weight) {
+        NNTensor result = new NNTensor(weight.depth(), weight.length(), weight.row());
+
+        for (int i = 0; i < weight.depth(); i++) {
+            for (int j = 0; j < weight.length(); j++) {
+                for (int l = 0; l < weight.row(); l++) {
+                    for (int k = 0; k < weight.column(); k++) {
+                        result.add(i, j, l, get(j, k) * weight.get(i, j, l, k));
                     }
                 }
             }
@@ -264,11 +319,11 @@ public class NNMatrix extends NNArray {
     public NNMatrix derCapsuleAffineTransform(NNTensor4D weight, NNTensor error) {
         NNMatrix result = new NNMatrix(row, column);
 
-        for (int i = 0; i < weight.getDepth(); i++) {
-            for (int j = 0; j < row; j++) {
+        for (int i = 0; i < weight.depth(); i++) {
+            for (int j = 0; j < weight.length(); j++) {
                 for (int k = 0; k < weight.column(); k++) {
-                    for (int l = 0; l < column; l++) {
-                        result.add(j, l, error.get(i, j, k) * weight.get(i, j, l, k));
+                    for (int l = 0; l < weight.row(); l++) {
+                        result.add(j, k, error.get(i, j, l) * weight.get(i, j, l, k));
                     }
                 }
             }
@@ -511,8 +566,8 @@ public class NNMatrix extends NNArray {
     @Override
     public String toString() {
         return "NNMatrix [" +
-                "size: (" + column +
-                ", " + row +
+                "size: (" + row +
+                ", " + column +
                 "), data: " + Arrays.toString(data) +
                 ']';
     }

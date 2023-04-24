@@ -5,8 +5,7 @@ import neural_network.activation.FunctionActivation;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_2d.*;
-import neural_network.layers.reshape.Flatten2DLayer;
-import neural_network.layers.reshape.GlobalAveragePooling2DLayer;
+import neural_network.layers.reshape.FlattenLayer2D;
 import neural_network.layers.reshape.ImagePatchesLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
@@ -14,6 +13,7 @@ import neural_network.optimizers.AdamOptimizer;
 import trainer.DataMetric;
 import trainer.DataTrainer;
 
+import java.io.FileWriter;
 import java.io.IOException;
 
 public class TestVIT {
@@ -21,14 +21,14 @@ public class TestVIT {
         NeuralNetwork network = new NeuralNetwork()
                 .addInputLayer(28, 28, 1)
                 .addLayer(new ImagePatchesLayer(4, 64))
-                .addLayer(new PositionalEmbeddingLayer())
+                .addLayer(new VITPositionalEmbeddingLayer())
                 .addLayer(new AdditionBlock()
                         .addLayer(new MultiHeadAttentionLayer(4, 64).setMask())
                 )
                 .addLayer(new NormalizationLayer2D())
                 .addLayer(new AdditionBlock()
                         .addLayer(new DenseLayer2D(128))
-                        .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+                        .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
                         .addLayer(new DenseLayer2D(64))
                         .addLayer(new DropoutLayer2D(0.2))
                 )
@@ -39,7 +39,7 @@ public class TestVIT {
                 .addLayer(new NormalizationLayer2D())
                 .addLayer(new AdditionBlock()
                         .addLayer(new DenseLayer2D(128))
-                        .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+                        .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
                         .addLayer(new DenseLayer2D(64))
                         .addLayer(new DropoutLayer2D(0.2))
                 )
@@ -50,12 +50,12 @@ public class TestVIT {
                 .addLayer(new NormalizationLayer2D())
                 .addLayer(new AdditionBlock()
                         .addLayer(new DenseLayer2D(128))
-                        .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+                        .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
                         .addLayer(new DenseLayer2D(64))
                         .addLayer(new DropoutLayer2D(0.2))
                 )
                 .addLayer(new NormalizationLayer2D())
-                .addLayer(new Flatten2DLayer())
+                .addLayer(new FlattenLayer2D())
                 .addLayer(new DenseLayer(10))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(new AdamOptimizer())
@@ -72,7 +72,7 @@ public class TestVIT {
             long start = System.nanoTime();
             trainer.train(network, 64, 1, new DataMetric.Top1());
             trainer.score(network, new DataMetric.Top1());
-//            network.save(new FileWriter("capsnet.txt"));
+            network.save(new FileWriter("vit_gelu.txt"));
             System.out.println((System.nanoTime() - start) / 1000000);
         }
     }

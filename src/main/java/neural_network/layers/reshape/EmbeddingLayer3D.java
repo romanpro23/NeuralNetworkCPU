@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class Embedding3DLayer extends NeuralLayer {
+public class EmbeddingLayer3D extends NeuralLayer {
     //trainable parts
     private Regularization regularization;
     private Initializer initializer;
@@ -31,7 +31,7 @@ public class Embedding3DLayer extends NeuralLayer {
     private NNMatrix weight;
     private NNMatrix derWeight;
 
-    public Embedding3DLayer(int width, int height, int depth) {
+    public EmbeddingLayer3D(int width, int height, int depth) {
         this.width = width;
         this.height = height;
         this.depth = depth;
@@ -132,9 +132,9 @@ public class Embedding3DLayer extends NeuralLayer {
         return errorNL;
     }
 
-    public static Embedding3DLayer read(Scanner scanner) {
+    public static EmbeddingLayer3D read(Scanner scanner) {
         int[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        Embedding3DLayer layer = new Embedding3DLayer(arr[0], arr[1], arr[2]);
+        EmbeddingLayer3D layer = new EmbeddingLayer3D(arr[0], arr[1], arr[2]);
         layer.weight = NNMatrix.read(scanner);
         layer.setRegularization(Regularization.read(scanner));
         layer.setTrainable(Boolean.parseBoolean(scanner.nextLine()));
@@ -142,17 +142,17 @@ public class Embedding3DLayer extends NeuralLayer {
         return layer;
     }
 
-    public Embedding3DLayer setRegularization(Regularization regularization) {
+    public EmbeddingLayer3D setRegularization(Regularization regularization) {
         this.regularization = regularization;
         return this;
     }
 
-    public Embedding3DLayer setTrainable(boolean trainable) {
+    public EmbeddingLayer3D setTrainable(boolean trainable) {
         this.trainable = trainable;
         return this;
     }
 
-    public Embedding3DLayer setInitializer(Initializer initializer) {
+    public EmbeddingLayer3D setInitializer(Initializer initializer) {
         this.initializer = initializer;
         return this;
     }

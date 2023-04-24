@@ -2,9 +2,18 @@ package test.utilitas;
 
 import neural_network.initialization.Initializer;
 import nnarrays.NNMatrix;
+import nnarrays.NNVector;
 
 public class TestMath {
     public static void main(String[] args) {
+        NNVector vector = new NNVector(16);
+        new Initializer.RandomUniform().initialize(vector);
+        System.out.println(vector.mod());
+        NNVector v1 = vector.squash();
+        System.out.println(v1.mod());
+        NNVector v2 = v1.squash();
+        System.out.println(v2.mod());
+
         NNMatrix a = new NNMatrix(4, 6);
         NNMatrix b = new NNMatrix(6, 6);
         new Initializer.RandomUniform().initialize(a);

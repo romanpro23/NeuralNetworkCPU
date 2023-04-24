@@ -3,10 +3,9 @@ package test.classification.mnist;
 import data.mnist.MNISTLoader3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.layer_3d.*;
-import neural_network.layers.layer_3d.attention.SpatialAttentionModule;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -26,10 +25,13 @@ public class TestMNIST3D {
                 .addLayer(new ConvolutionLayer(16, 3, 1, 1).setTrainable(trainable))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                 .addLayer(new MaxPoolingLayer(2))
-                .addLayer(new Flatten3DLayer())
-                .addLayer(new DenseLayer(256).setTrainable(trainable))
-                .addLayer(new ActivationLayer(new FunctionActivation.ReLU()))
-                .addLayer(new DenseLayer(10).setTrainable(trainable))
+                .addLayer(new ConvolutionLayer(32, 3, 1, 1).setTrainable(trainable))
+                .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
+                .addLayer(new MaxPoolingLayer(2))
+                .addLayer(new FlattenLayer3D())
+//                .addLayer(new DenseLayer(256).setTrainable(false))
+//                .addLayer(new ActivationLayer(new FunctionActivation.ReLU()))
+                .addLayer(new DenseLayer(10).setTrainable(false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy())

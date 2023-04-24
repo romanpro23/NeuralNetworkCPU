@@ -15,6 +15,7 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -172,6 +173,10 @@ public class NeuralNetwork {
         return this;
     }
 
+    public void save(String path) throws IOException {
+        save(new FileWriter(path));
+    }
+
     public void save(FileWriter fileWriter) throws IOException {
         fileWriter.write("Neural network\n");
         for (int j : inputSize) {
@@ -187,6 +192,10 @@ public class NeuralNetwork {
         fileWriter.flush();
         fileWriter.close();
 
+    }
+
+    public static NeuralNetwork read(String path) throws Exception {
+        return read(new Scanner(new File(path)));
     }
 
     public static NeuralNetwork read(Scanner scanner) throws Exception {

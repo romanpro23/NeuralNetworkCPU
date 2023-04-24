@@ -447,39 +447,32 @@ public class NNTensor extends NNArray {
         return result;
     }
 
-    public NNMatrix weightSum(NNMatrix score) {
+    public NNMatrix softmaxSum(NNMatrix softmax) {
         NNMatrix result = new NNMatrix(rows, depth);
 
+        int index = 0, indexOut;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                for (int k = 0; k < depth; k++) {
-                    result.add(i, k, get(i, j, k) * score.get(i, j));
+                float c = softmax.get(i, j);
+                indexOut = result.getRowIndex()[i];
+                for (int k = 0; k < depth; k++, index++, indexOut++) {
+                    result.data[indexOut] += data[index] * c;
                 }
             }
         }
         return result;
     }
 
-    public NNMatrix derWeightSum(NNMatrix score, NNMatrix error) {
-        NNMatrix result = new NNMatrix(score.getRow(), score.getColumn());
-
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < columns; j++) {
-                for (int k = 0; k < depth; k++) {
-                    result.add(i, j, get(i, j, k) * error.get(i, k));
-                }
-            }
-        }
-        return result;
-    }
-
-    public NNTensor backWeightSum(NNMatrix score, NNMatrix error) {
+    public NNTensor backSoftmaxSum(NNMatrix softmax, NNMatrix error) {
         NNTensor result = new NNTensor(rows, columns, depth);
 
+        int index = 0, indexOut;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                for (int k = 0; k < depth; k++) {
-                    result.add(i, j, k, score.get(i, j) * error.get(i, k));
+                float c = softmax.get(i, j);
+                indexOut = error.getRowIndex()[i];
+                for (int k = 0; k < depth; k++, index++, indexOut++) {
+                    result.data[index] += error.data[indexOut] * c;
                 }
             }
         }
@@ -1122,6 +1115,16 @@ public class NNTensor extends NNArray {
                 inputIndex = rowsIndex[i] + columnsIndex[j];
                 for (int k = 0; k < depth; k++, inputIndex++) {
                     data[inputIndex] += vector.data[k];
+                }
+            }
+        }
+    }
+
+    public void addDerScalarMul(NNMatrix matrix, NNMatrix error) {
+        for (int i = 0; i < error.getRow(); i++) {
+            for (int j = 0; j < error.getColumn(); j++) {
+                for (int k = 0; k < matrix.getColumn(); k++) {
+                    add(i, j, k, error.get(i, j) * matrix.get(i, k));
                 }
             }
         }

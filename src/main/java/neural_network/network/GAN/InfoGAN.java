@@ -1,31 +1,30 @@
 package neural_network.network.GAN;
 
-import data.gan.GANGeneratorData;
-import data.network_train.NNData;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
 import neural_network.network.NeuralNetwork;
-import nnarrays.*;
+import nnarrays.NNArray;
+import nnarrays.NNMatrix;
+import nnarrays.NNTensor;
+import nnarrays.NNVector;
 
-import java.util.Arrays;
-
-public class GAN {
+public class InfoGAN {
     @Getter
-    protected final NeuralNetwork generator;
-    protected final NeuralNetwork discriminator;
+    protected final ConditionalGenerator generator;
+    protected final ClassifierDiscriminator discriminator;
 
     private Initializer initializer;
 
-    public GAN(NeuralNetwork generator, NeuralNetwork discriminator) {
+    public InfoGAN(ConditionalGenerator generator, ClassifierDiscriminator discriminator) {
         this.generator = generator;
         this.discriminator = discriminator;
 
         initializer = new Initializer.RandomNormal();
     }
 
-    public NNArray[] query(NNArray[] input) {
-        return generator.query(input);
+    public NNArray[] query(NNArray[] noise, NNArray[] labels) {
+        return generator.query(noise, labels);
     }
 
     @SneakyThrows
@@ -91,13 +90,17 @@ public class GAN {
         throw new Exception("Error dimension generator!");
     }
 
-    public final float[] train(NNArray[] input) {
+    public final float train(NNArray[] input, NNArray[] labels) {
+        return train(input, labels, 1);
+    }
+
+    public final float train(NNArray[] input, NNArray[] labels, float lambda) {
         //generate input data for discriminator
         NNArray[] random = randomDataGenerator(input.length);
 
         //trainA discriminator
-        float accuracyD = discriminator.train(generator.queryTrain(random), getFakeLabel(input.length), false);
-        accuracyD += discriminator.train(input, getRealLabel(input.length), false);
+        float accuracyD = discriminator.train(generator.queryTrain(random, labels), labels, getFakeLabel(input.length), false, lambda);
+        accuracyD += discriminator.train(input, labels, getRealLabel(input.length), false, lambda);
         discriminator.update();
 
         //generate data for generator
@@ -105,16 +108,16 @@ public class GAN {
 
         //trainA generator
         discriminator.setTrainable(false);
-        generator.queryTrain(random);
+        generator.queryTrain(random, labels);
         //accuracy generator
-        float accuracyG = discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
+        float accuracyG = discriminator.train(generator.getOutputs(), labels, getRealLabel(input.length), false, lambda);
         generator.train(discriminator.getError());
         discriminator.setTrainable(true);
 
-        return new float[]{accuracyD, accuracyG};
+        return accuracyD + accuracyG;
     }
 
-    public GAN setInitializer(Initializer initializer) {
+    public InfoGAN setInitializer(Initializer initializer) {
         this.initializer = initializer;
 
         return this;

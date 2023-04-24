@@ -13,7 +13,7 @@ import java.util.Scanner;
 public class LayersBlock extends NeuralLayer {
     @Getter
     protected ArrayList<NeuralLayer> layers;
-
+    @Getter
     protected int[] inputSize;
 
     public LayersBlock() {
@@ -106,6 +106,7 @@ public class LayersBlock extends NeuralLayer {
 
     @Override
     public void initialize(int[] size) {
+        this.inputSize = size;
         layers.get(0).initialize(size);
         for (int i = 1; i < layers.size(); i++) {
             layers.get(i).initialize(layers.get(i - 1).size());

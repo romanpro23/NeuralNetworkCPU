@@ -1,5 +1,6 @@
 package neural_network.network.GAN;
 
+import lombok.NoArgsConstructor;
 import neural_network.layers.LayersBlock;
 import neural_network.layers.NeuralLayer;
 import neural_network.loss.FunctionLoss;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
 
+@NoArgsConstructor
 public class ConditionalGenerator {
     private NeuralNetwork generator;
     private LayersBlock noiseLayers;
@@ -20,8 +22,8 @@ public class ConditionalGenerator {
 
     private Optimizer optimizer;
 
-    public ConditionalGenerator(){
-
+    public ConditionalGenerator(NeuralNetwork network){
+        this.generator = network;
     }
 
     public ConditionalGenerator setLabelLayers(LayersBlock labelLayers) {
@@ -125,6 +127,7 @@ public class ConditionalGenerator {
             NeuralNetwork network = new NeuralNetwork()
                     .addInputLayer(Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray());
             NeuralLayer.read(scanner, network.getLayers());
+            generator.generator = network;
 
             return generator;
         }
@@ -147,34 +150,6 @@ public class ConditionalGenerator {
         return getOutputs();
     }
 
-//    public float train(NNArray[] input, NNArray[] idealOutput) {
-//        return train(input, idealOutput, true);
-//    }
-//
-//    public float train(NNArray[] input, NNArray[] idealOutput, float lambda) {
-//        return train(input, idealOutput, true, lambda);
-//    }
-//
-//    public float train(NNArray[] input, NNArray[] idealOutput, boolean update) {
-//        return train(input, idealOutput, update, 1);
-//    }
-//
-//    public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
-//        queryTrain(input);
-//        backpropagation(findDerivative(idealOutput, lambda));
-//        if (update) {
-//            update();
-//        }
-//        return lambda * functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
-//    }
-//
-//    public float forwardBackpropagation(NNArray[] input, NNArray[] idealOutput) {
-//        query(input);
-//        backpropagation(findDerivative(idealOutput));
-//
-//        return functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
-//    }
-
     public void train(NNArray[] error) {
         train(error, true);
     }
@@ -182,7 +157,7 @@ public class ConditionalGenerator {
     public void train(NNArray[] error, boolean update) {
         generator.train(error, false);
         labelLayers.generateError(NNArrays.subArray(generator.getError(), labelLayers.getOutput(), noiseLayers.getOutput()[0].size()));
-        labelLayers.generateError(NNArrays.subArray(generator.getError(), noiseLayers.getOutput()));
+        noiseLayers.generateError(NNArrays.subArray(generator.getError(), noiseLayers.getOutput()));
         if (update) {
             update();
         }
@@ -190,6 +165,10 @@ public class ConditionalGenerator {
 
     public int[] getOutputSize() {
         return generator.getOutputSize();
+    }
+
+    public int[] getInputSize() {
+        return noiseLayers.getInputSize();
     }
 
     public int size(){

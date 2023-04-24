@@ -6,7 +6,7 @@ import data.loaders.TransformData;
 import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.layer_3d.*;
-import neural_network.layers.reshape.Reshape3DLayer;
+import neural_network.layers.reshape.ReshapeLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.GAN;
 import neural_network.network.NeuralNetwork;
@@ -40,7 +40,7 @@ public class TestSAGAN {
 
         NeuralNetwork generator = new NeuralNetwork()
                 .addInputLayer(100)
-                .addLayer(new Reshape3DLayer(1, 1, 100))
+                .addLayer(new ReshapeLayer3D(1, 1, 100))
                 .addLayer(new SNConvolutionTransposeLayer(256, 4))
                 .addLayer(new BatchNormalizationLayer3D(0.9))
                 .addActivationLayer(new FunctionActivation.ReLU())

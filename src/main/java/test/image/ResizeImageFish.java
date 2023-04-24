@@ -10,7 +10,7 @@ import java.io.IOException;
 
 public class ResizeImageFish {
     public static void main(String[] args) throws IOException {
-        File dir = new File("D:/StyleNew/"); //path указывает на директорию
+        File dir = new File("D:/Fishing/OldStyle/"); //path указывает на директорию
         for (File file : dir.listFiles()) {
             BufferedImage img = ImageIO.read(file); // load image
             BufferedImage scaledImg = Scalr.resize(img, Scalr.Method.ULTRA_QUALITY, 256, 256);
@@ -35,7 +35,7 @@ public class ResizeImageFish {
                 }
             }
             try {
-                ImageIO.write(result, "png", new File("D:/FishNew/" + file.getName()));
+                ImageIO.write(result, "png", new File("D:/Fishing/Old/" + file.getName()));
             } catch (IOException e) {
                 e.printStackTrace();
             }

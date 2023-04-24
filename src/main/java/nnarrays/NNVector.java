@@ -162,6 +162,25 @@ public class NNVector extends NNArray {
         return result;
     }
 
+    public float mod(){
+        float sum = 0;
+        for (int i = 0; i < size; i++) {
+            sum += get(i);
+        }
+        return (float) Math.sqrt(sum);
+    }
+
+    public NNVector squash(){
+        NNVector result = new NNVector(size);
+        float mod = mod();
+        float scale = (mod * mod / (1f + mod * mod)) / (mod + 0.00000001f);
+        for (int i = 0; i < size; i++) {
+            result.set(i, get(i) * scale);
+        }
+
+        return result;
+    }
+
     public void addMulT(NNVector vector, NNMatrix matrix) {
         for (int i = 0, index = 0; i < matrix.getRow(); i++) {
             for (int j = 0; j < matrix.getColumn(); j++, index++) {

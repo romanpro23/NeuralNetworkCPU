@@ -55,6 +55,12 @@ public class Ciraf10Loader3D extends DataLoader3D {
         }
     }
 
+    public Ciraf10Loader3D useReverse(){
+        this.useReverse = true;
+
+        return this;
+    }
+
     private void loadTrainData() throws IOException {
         int n = 1;
         for (int i = 0; i < 50000; i++) {

@@ -14,17 +14,17 @@ import java.util.Scanner;
 
 public class StyleTransferVGG {
 
-    static int sizeImage = 64;
+    static int sizeImage = 64;//152
     public static void main(String[] args) throws Exception {
         NeuralNetwork vgg = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/Imagenet/vgg16.txt")))
+                .read(new Scanner(new File("D:/NetworkTest/ciraf/vgg16.txt")))
                 .addInputLayer(sizeImage, sizeImage, 3)
 //                .removeLastLayers(9)
                 .setTrainable(false)
                 .create();
 
         vgg.info();
-        NNTensor content = ImageCreator.loadImage("D:/NetworkTest/Photo/cat.jpg", sizeImage);
+        NNTensor content = ImageCreator.loadImage("D:/NetworkTest/Photo/cat2.jpg", sizeImage);
         NNTensor style = ImageCreator.loadImage("D:/NetworkTest/Photo/style.jpg", sizeImage);
 
         ImageCreator.drawColorImage(content, sizeImage, sizeImage, "_content", "D:/NetworkTest/ST", true);
@@ -62,7 +62,7 @@ public class StyleTransferVGG {
                 size = contentVGG.getRows();
                 depth = Math.min(contentVGG.getDepth(), 64);
                 for (int i = 0; i < depth; i++) {
-                    ImageCreator.drawImage(contentVGG, size, size, j + "_" + i + "_vgg_", "D:/NetworkTest/ST", i);
+                    ImageCreator.drawImage(contentVGG, size, size, j + "_" + i + "_vgg_owl", "D:/NetworkTest/ST", i);
                 }
             }
         }

@@ -19,14 +19,14 @@ public class StyleTransferAlexNet {
     static int sizeImage = 64;
     public static void main(String[] args) throws Exception {
         NeuralNetwork alexnet = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/Imagenet/alexnet.txt")))
+                .read(new Scanner(new File("D:/NetworkTest/Imagenet/alexnet_norm.txt")))
                 .addInputLayer(sizeImage, sizeImage, 3)
 //                .removeLastLayers(12)
                 .setTrainable(false)
                 .create();
 
         alexnet.info();
-        NNTensor content = ImageCreator.loadImage("D:/NetworkTest/Photo/cat.jpg", sizeImage);
+        NNTensor content = ImageCreator.loadImage("D:/NetworkTest/Photo/labrador.jpg", sizeImage);
         NNTensor style = ImageCreator.loadImage("D:/NetworkTest/Photo/style.jpg", sizeImage);
 
         ImageCreator.drawColorImage(content, sizeImage, sizeImage, "_content", "D:/NetworkTest/ST", true);
@@ -60,7 +60,7 @@ public class StyleTransferAlexNet {
                 size = contentVGG.getRows();
                 depth = Math.min(contentVGG.getDepth(), 64);
                 for (int i = 0; i < depth; i++) {
-                    ImageCreator.drawImage(contentVGG, size, size, j + "_" + i + "_alexnet_", "D:/NetworkTest/ST", i);
+                    ImageCreator.drawImage(contentVGG, size, size, j + "_" + i + "_alexnet", "D:/NetworkTest/ST", i);
                 }
             }
         }

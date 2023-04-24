@@ -10,8 +10,9 @@ import neural_network.layers.layer_3d.MaxPoolingLayer;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_1d.DropoutLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.network.NeuralNetwork;
+import neural_network.regularization.Regularization;
 
 public class VGG {
     private final NeuralNetwork vgg;
@@ -55,10 +56,9 @@ public class VGG {
 
     public VGG addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
         if (vgg.getOutputSize().length != 1) {
-            vgg.addLayer(new Flatten3DLayer());
+            vgg.addLayer(new FlattenLayer3D());
         }
-        vgg.addLayer(new DenseLayer(countNeuron)
-                .setInitializer(new Initializer.XavierNormal()));
+        vgg.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
         vgg.addLayer(new ActivationLayer(functionActivation));
 
         return this;

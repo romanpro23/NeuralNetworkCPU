@@ -1,7 +1,5 @@
 package neural_network.layers.reshape;
 
-import neural_network.layers.NeuralLayer;
-import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
@@ -11,17 +9,17 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class GlobalMaxPooling3DLayer extends Flatten3DLayer {
+public class GlobalAveragePoolingLayer3D extends FlattenLayer3D {
 
     @Override
     public int info() {
-        System.out.println("Global max  |  " + height + ",\t" + width + ",\t" + depth + "\t|  " + countNeuron + "\t\t\t|");
+        System.out.println("Global averg|  " + height + ",\t" + width + ",\t" + depth + "\t|  " + countNeuron + "\t\t\t|");
         return 0;
     }
 
     @Override
     public void save(FileWriter writer) throws IOException {
-        writer.write("Global max pooling 3D\n");
+        writer.write("Global average pooling 3D\n");
         writer.flush();
     }
 
@@ -43,7 +41,7 @@ public class GlobalMaxPooling3DLayer extends Flatten3DLayer {
 
         for (int i = 0; i < output.length; i++) {
             output[i] = new NNVector(countNeuron);
-            output[i].globalMaxPool(input[i]);
+            output[i].globalAveragePool(input[i]);
         }
     }
 
@@ -54,11 +52,11 @@ public class GlobalMaxPooling3DLayer extends Flatten3DLayer {
 
         for (int i = 0; i < errors.length; i++) {
             error[i] = new NNTensor(height, width, depth);
-            error[i].backGlobalMaxPool(input[i], output[i], errorNL[i]);
+            error[i].backGlobalAveragePool(errorNL[i]);
         }
     }
 
-    public static GlobalMaxPooling3DLayer read(Scanner scanner){
-        return new GlobalMaxPooling3DLayer();
+    public static GlobalAveragePoolingLayer3D read(Scanner scanner){
+        return new GlobalAveragePoolingLayer3D();
     }
 }

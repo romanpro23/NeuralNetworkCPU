@@ -6,7 +6,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
-public class GlobalMaxPooling2DLayer extends Flatten2DLayer {
+public class GlobalMaxPooling2DLayer extends FlattenLayer2D {
 
     @Override
     public int info() {

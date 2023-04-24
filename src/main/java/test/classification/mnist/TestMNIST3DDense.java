@@ -8,7 +8,7 @@ import neural_network.layers.layer_3d.densely.DenseUnit;
 import neural_network.layers.layer_3d.densely.DenseBlock;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -48,7 +48,7 @@ public class TestMNIST3DDense {
                 )
                 .addLayer(new ConvolutionLayer(16, 3, 2, 1))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addLayer(new DenseLayer(128).setTrainable(true))
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(10).setTrainable(true))

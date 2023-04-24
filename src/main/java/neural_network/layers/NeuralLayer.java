@@ -69,13 +69,13 @@ public abstract class NeuralLayer {
                 case "Dropout layer 2D" -> layers.add(DropoutLayer2D.read(scanner));
                 case "Max pooling layer 3D" -> layers.add(MaxPoolingLayer.read(scanner));
                 case "Up sampling layer" -> layers.add(UpSamplingLayer.read(scanner));
-                case "Flatten layer 3D" -> layers.add(Flatten3DLayer.read(scanner));
-                case "Flatten layer 2D" -> layers.add(Flatten2DLayer.read(scanner));
-                case "Global max pooling 3D" -> layers.add(GlobalMaxPooling3DLayer.read(scanner));
+                case "Flatten layer 3D" -> layers.add(FlattenLayer3D.read(scanner));
+                case "Flatten layer 2D" -> layers.add(FlattenLayer2D.read(scanner));
+                case "Global max pooling 3D" -> layers.add(GlobalMaxPoolingLayer3D.read(scanner));
                 case "Global max pooling 2D" -> layers.add(GlobalMaxPooling2DLayer.read(scanner));
-                case "Global average pooling 3D" -> layers.add(GlobalAveragePooling3DLayer.read(scanner));
+                case "Global average pooling 3D" -> layers.add(GlobalAveragePoolingLayer3D.read(scanner));
                 case "Global average pooling 2D" -> layers.add(GlobalAveragePooling2DLayer.read(scanner));
-                case "Reshape layer 3D" -> layers.add(Reshape3DLayer.read(scanner));
+                case "Reshape layer 3D" -> layers.add(ReshapeLayer3D.read(scanner));
                 case "Pixel shuffler layer 3D" -> layers.add(PixelShufflerLayer.read(scanner));
                 case "Inception block" -> layers.add(InceptionBlock.read(scanner));
                 case "SE block" -> layers.add(SEBlock.read(scanner));
@@ -107,7 +107,7 @@ public abstract class NeuralLayer {
                 case "Normalization layer 2D" -> layers.add(NormalizationLayer2D.read(scanner));
                 case "Additional block" -> layers.add(AdditionBlock.read(scanner));
                 case "Multi head attention layer" -> layers.add(MultiHeadAttentionLayer.read(scanner));
-                case "Embedding layer 3D" -> layers.add(Embedding3DLayer.read(scanner));
+                case "Embedding layer 3D" -> layers.add(EmbeddingLayer3D.read(scanner));
                 case "Deformable convolution layer 3D" -> layers.add(DeformableConvolutionLayer.read(scanner));
                 case "Modulated deformable convolution layer 3D" -> layers.add(DeformableV2ConvolutionLayer.read(scanner));
             }

@@ -11,7 +11,7 @@ import neural_network.layers.layer_3d.ConvolutionLayer;
 import neural_network.layers.layer_3d.ConvolutionTransposeLayer;
 import neural_network.layers.layer_3d.InstanceNormalizationLayer3D;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.CycleGAN;
 import neural_network.network.NeuralNetwork;
@@ -34,7 +34,7 @@ public class TestCGAN {
                 .addLayer(new ConvolutionLayer(128, 4, 2, 1).setInitializer(new Initializer.RandomNormal(0.02)))
                 .addLayer(new InstanceNormalizationLayer3D())
                 .addActivationLayer(new FunctionActivation.LeakyReLU(0.2))
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addLayer(new DenseLayer(1).setInitializer(new Initializer.RandomNormal(0.02)))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0002))
@@ -51,7 +51,7 @@ public class TestCGAN {
                 .addLayer(new ConvolutionLayer(128, 4, 2, 1).setInitializer(new Initializer.RandomNormal(0.02)))
                 .addLayer(new InstanceNormalizationLayer3D())
                 .addActivationLayer(new FunctionActivation.LeakyReLU(0.2))
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addLayer(new DenseLayer(1).setInitializer(new Initializer.RandomNormal(0.02)))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0002))

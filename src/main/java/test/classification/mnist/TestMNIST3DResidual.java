@@ -10,8 +10,8 @@ import neural_network.layers.layer_3d.residual.ResidualBlock;
 import neural_network.layers.layer_3d.attention.SEBlock;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalMaxPooling3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.GlobalMaxPoolingLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -34,13 +34,13 @@ public class TestMNIST3DResidual {
                                 .addLayer(new ConvolutionLayer(8, 3, 1, 1).setTrainable(false))
                                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                                 .addLayer(new SEBlock()
-                                        .addGlobalPoolingLayer(new GlobalMaxPooling3DLayer())
+                                        .addGlobalPoolingLayer(new GlobalMaxPoolingLayer3D())
                                         .addDenseLayer(12, new FunctionActivation.ReLU())
                                         .addDenseLayer(8, new FunctionActivation.Sigmoid())
                                 )
                         )
                 )
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addLayer(new DenseLayer(128).setTrainable(false))
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(10).setTrainable(false))

@@ -8,8 +8,8 @@ import neural_network.layers.layer_3d.densely.DenseBlock;
 import neural_network.layers.layer_3d.densely.DenseUnit;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.GlobalAveragePoolingLayer3D;
 import neural_network.network.NeuralNetwork;
 
 public class DenseNet {
@@ -51,13 +51,13 @@ public class DenseNet {
 
     public DenseNet addGlobalAveragePoolingLayer() {
         densenet.addLayer(new BatchNormalizationLayer3D())
-                .addLayer(new GlobalAveragePooling3DLayer());
+                .addLayer(new GlobalAveragePoolingLayer3D());
         return this;
     }
 
     public DenseNet addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
         if (densenet.getOutputSize().length != 1) {
-            densenet.addLayer(new Flatten3DLayer());
+            densenet.addLayer(new FlattenLayer3D());
         }
         densenet.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
         densenet.addLayer(new ActivationLayer(functionActivation));

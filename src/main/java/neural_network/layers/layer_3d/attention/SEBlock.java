@@ -4,7 +4,7 @@ import neural_network.activation.FunctionActivation;
 import neural_network.layers.LayersBlock;
 import neural_network.layers.NeuralLayer;
 import neural_network.layers.layer_1d.*;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
@@ -117,7 +117,7 @@ public class SEBlock extends LayersBlock {
         return error;
     }
 
-    public SEBlock addGlobalPoolingLayer(Flatten3DLayer layer) {
+    public SEBlock addGlobalPoolingLayer(FlattenLayer3D layer) {
         layers.add(layer);
 
         return this;

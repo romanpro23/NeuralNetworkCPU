@@ -3,10 +3,13 @@ package test.classification.imagenet;
 import data.imageNet.ImageNet250Loader3D;
 import data.loaders.TransformData;
 import neural_network.activation.FunctionActivation;
+import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.classification.VGG;
 import neural_network.optimizers.AdaBeliefOptimizer;
+import neural_network.optimizers.MomentumOptimizer;
+import neural_network.optimizers.Optimizer;
 import trainer.DataMetric;
 import trainer.DataTrainer;
 
@@ -16,7 +19,7 @@ import java.util.Scanner;
 
 public class TestVGG16 {
     public static void main(String[] args) throws Exception {
-        AdaBeliefOptimizer optimizer = new AdaBeliefOptimizer(0.0001);
+        Optimizer optimizer = new MomentumOptimizer(0.01, 0.9);
 //        AdaBeliefOptimizer optimizerConv = new AdaBeliefOptimizer(0.0001);
 
         NeuralNetwork vgg16 = new VGG()
@@ -46,21 +49,31 @@ public class TestVGG16 {
                 .addDenseLayer(250, new FunctionActivation.Softmax())
                 .createVGG()
                 .setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy())
+//                .setStopGradient(30)
                 .setOptimizer(optimizer)
 //                .addOptimizer(optimizerConv, 0, 30)
                 .create();
 
-//        NeuralNetwork vgg16 = NeuralNetwork.read(new Scanner(new File("D:/NetworkTest/Imagenet/_vgg16.txt")))
+//        NeuralNetwork vgg16 = NeuralNetwork.read(new Scanner(new File("D:/NetworkTest/Imagenet/vgg16_conv.txt")))
 //                .setTrainable(true)
-//                .setOptimizer(optimizerDense)
+//                .setStopGradient(30)
+//                .addOptimizer(optimizer, 30)
+////                .addOptimizer(optimizer, 0, 30)
 //                .setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy())
 //                .create();
 
+//        for (int i = 0; i < vgg16.getLayers().size(); i++) {
+//            if(vgg16.getLayers().get(i) instanceof DenseLayer){
+//                ((DenseLayer) vgg16.getLayers().get(i)).setTrainable(false);
+//            }
+//        }
+
         vgg16.info();
-//        optimizerDense.read(new Scanner(new File("D:/NetworkTest/Imagenet/_vgg16_optimizer.txt")));
+//        optimizer.read(new Scanner(new File("D:/NetworkTest/Imagenet/vgg16_dense_optimizer.txt")));
+//        optimizer.read(new Scanner(new File("D:/NetworkTest/Imagenet/vgg16_conv_optimizer.txt")));
 
         ImageNet250Loader3D loader = new ImageNet250Loader3D(new TransformData.Tanh()).useReverse().useCrop();
-        DataTrainer trainer = new DataTrainer(5120 / 4, 512 / 4, loader);
+        DataTrainer trainer = new DataTrainer(5120/4, 512/4, loader);
 
         for (int i = 0; i < 100; i++) {
             long start = System.nanoTime();

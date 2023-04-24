@@ -17,7 +17,6 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
     private Regularization regularization;
     @Setter
     private boolean loadWeight;
-    private boolean queryTrain;
 
     private final float momentum;
     private final float epsilon;
@@ -114,7 +113,6 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
     public void generateTrainOutput(NNArray[] input) {
         this.input = NNArrays.isTensor(input);
         this.output = new NNTensor[input.length];
-        this.queryTrain = true;
 
         findMean();
         findVariance();
@@ -167,18 +165,10 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
             }
         }
 
-        if(queryTrain) {
-            NNVector errorVariance = derVar(errorNorm, mean, var);
-            NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
+        NNVector errorVariance = derVar(errorNorm, mean, var);
+        NNVector errorMean = derMean(errorNorm, errorVariance, mean, var);
 
-            derNorm(errorNorm, errorMean, errorVariance, mean, var);
-            queryTrain = false;
-        } else {
-            NNVector errorVariance = derVar(errorNorm, movingMean, movingVar);
-            NNVector errorMean = derMean(errorNorm, errorVariance, movingMean, movingVar);
-
-            derNorm(errorNorm, errorMean, errorVariance, movingMean, movingVar);
-        }
+        derNorm(errorNorm, errorMean, errorVariance, mean, var);
 
         if (trainable) {
             movingMean.momentum(mean, momentum);
@@ -259,7 +249,7 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
             for (int j = 0; j < size; j++) {
                 for (int k = 0; k < depth; k++, index++) {
                     derBetta.getData()[k] += error[i].getData()[index];
-                    derGamma.getData()[k] += error[i].getData()[index] * ((output[i].getData()[index] - betta.get(k)) / gamma.get(k)) ;
+                    derGamma.getData()[k] += error[i].getData()[index] * ((output[i].getData()[index] - betta.get(k)) / gamma.get(k));
                 }
             }
         }

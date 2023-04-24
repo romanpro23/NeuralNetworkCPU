@@ -39,6 +39,7 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
     private int outDepthConv, outWidthConv, outHeightConv;
 
     private NNTensor[] input;
+    private NNMatrix[] inputSquash;
     private NNMatrix[] output;
     private NNTensor[] error;
     private NNMatrix[] errorNL;
@@ -105,6 +106,7 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
     public void generateOutput(NNArray[] inputs) {
         this.input = NNArrays.isTensor(inputs);
         output = new NNMatrix[inputs.length];
+        inputSquash = new NNMatrix[inputs.length];
 
         ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
         for (int t = 0; t < inputs.length; t++) {
@@ -112,7 +114,9 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
             executor.execute(() -> {
                 NNTensor outputConv = new NNTensor(outHeightConv, outWidthConv, outDepthConv);
                 outputConv.convolution(input[i], weight, step, paddingY, paddingX);
-                output[i] = new NNMatrix(outWidth, outDepth, outputConv.getData());
+                inputSquash[i] = new NNMatrix(outWidth, outDepth, outputConv.getData());
+                output[i] = new NNMatrix(outWidth, outDepth);
+                output[i].squash(inputSquash[i]);
             });
         }
         executor.shutdown();
@@ -135,7 +139,9 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
             final int i = t;
             executor.execute(() -> {
                 error[i] = new NNTensor(height, width, depth);
-                NNTensor errNL = new NNTensor(outHeightConv, outWidthConv, outDepthConv, errorNL[i].getData());
+                NNMatrix errSquash = new NNMatrix(outWidth, outDepth);
+                errSquash.derSquash(inputSquash[i], errorNL[i]);
+                NNTensor errNL = new NNTensor(outHeightConv, outWidthConv, outDepthConv, errSquash.getData());
                 error[i].transposeConvolution(errNL.stride(step), weight, step, paddingY, paddingX);
 
                 if (trainable) {

@@ -2,31 +2,36 @@ package neural_network.layers.reshape;
 
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
-import nnarrays.*;
+import nnarrays.NNArray;
+import nnarrays.NNArrays;
+import nnarrays.NNTensor;
+import nnarrays.NNVector;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class Reshape2DLayer extends NeuralLayer {
+public class ReshapeLayer3D extends NeuralLayer {
     private final int depth;
+    private final int height;
     private final int width;
     protected int countNeuron;
 
-    protected NNMatrix[] output;
+    protected NNTensor[] output;
     protected NNVector[] input;
-    protected NNMatrix[] errorNL;
+    protected NNTensor[] errorNL;
     protected NNVector[] error;
 
-    public Reshape2DLayer(int width, int depth) {
+    public ReshapeLayer3D(int height, int width, int depth) {
         this.depth = depth;
+        this.height = height;
         this.width = width;
     }
 
     @Override
     public int[] size() {
-        return new int[]{width, depth};
+        return new int[]{height, width, depth};
     }
 
     @Override
@@ -36,14 +41,14 @@ public class Reshape2DLayer extends NeuralLayer {
 
     @Override
     public int info() {
-        System.out.println("Reshape\t\t|  " + countNeuron + "\t\t\t|  " + width + ",\t" + depth + "\t\t|");
+        System.out.println("Reshape\t\t|  " + countNeuron + "\t\t\t|  " + height + ",\t" + width + ",\t" + depth + "\t|");
         return 0;
     }
 
     @Override
     public void save(FileWriter writer) throws IOException {
-        writer.write("Reshape layer 2D\n");
-        writer.write(width + " " + depth + "\n");
+        writer.write("Reshape layer 3D\n");
+        writer.write(height + " " + width + " " + depth + "\n");
         writer.flush();
     }
 
@@ -58,10 +63,10 @@ public class Reshape2DLayer extends NeuralLayer {
     @Override
     public void generateOutput(NNArray[] inputs) {
         input = NNArrays.isVector(inputs);
-        output = new NNMatrix[inputs.length];
+        output = new NNTensor[inputs.length];
 
         for (int i = 0; i < output.length; i++) {
-            output[i] = new NNMatrix(width, depth, input[i].getData());
+            output[i] = new NNTensor(height, width, depth, input[i].getData());
         }
     }
 
@@ -80,8 +85,8 @@ public class Reshape2DLayer extends NeuralLayer {
         }
     }
 
-    public NNMatrix[] getErrorNextLayer(NNArray[] error) {
-        NNMatrix[] errorNL = NNArrays.isMatrix(error);
+    public NNTensor[] getErrorNextLayer(NNArray[] error) {
+        NNTensor[] errorNL = NNArrays.isTensor(error);
 
         if (!nextLayers.isEmpty()) {
             for (int i = 0; i < errorNL.length; i++) {
@@ -103,8 +108,8 @@ public class Reshape2DLayer extends NeuralLayer {
         return error;
     }
 
-    public static Reshape2DLayer read(Scanner scanner) {
+    public static ReshapeLayer3D read(Scanner scanner) {
         int[] param = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        return new Reshape2DLayer(param[0], param[1]);
+        return new ReshapeLayer3D(param[0], param[1], param[2]);
     }
 }

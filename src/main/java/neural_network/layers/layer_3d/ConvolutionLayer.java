@@ -56,7 +56,7 @@ public class ConvolutionLayer extends NeuralLayer3D {
         this.widthKernel = widthKernel;
         trainable = true;
 
-        initializer = new Initializer.XavierUniform();
+        initializer = new Initializer.HeNormal();
     }
 
     @Override
@@ -115,16 +115,23 @@ public class ConvolutionLayer extends NeuralLayer3D {
         for (int t = 0; t < input.length; t++) {
             final int i = t;
             executor.execute(() -> {
-                NNMatrix inputImg = output[i].img2col(input[i], weight, step, paddingY, paddingX);
-                NNMatrix weightM = new NNMatrix(weight.depth(), weight.size() / weight.depth(), weight.getData());
-                NNMatrix errorM = new NNMatrix(outHeight*outWidth ,outDepth, errorNL[i].getData());
-                NNMatrix errorInput = errorM.dot(weightM);
-                error[i] = output[i].deImg2col(input[i], errorInput, weight, step, paddingY, paddingX);
+                error[i] = new NNTensor(height, width, depth);
+                error[i].transposeConvolution(errorNL[i].stride(step), weight, step, paddingY, paddingX);
 
                 if (trainable) {
-                    derWeight.add(inputImg.transpose().dot(errorM).transpose());
-                    derThreshold.add(errorNL[i]);
+                    derWeight.convolution(input[i], errorNL[i], step, paddingY, paddingX);
+                        derThreshold.add(errorNL[i]);
                 }
+//                NNMatrix inputImg = output[i].img2col(input[i], weight, step, paddingY, paddingX);
+//                NNMatrix weightM = new NNMatrix(weight.depth(), weight.size() / weight.depth(), weight.getData());
+//                NNMatrix errorM = new NNMatrix(outHeight*outWidth ,outDepth, errorNL[i].getData());
+//                NNMatrix errorInput = errorM.dot(weightM);
+//                error[i] = output[i].deImg2col(input[i], errorInput, weight, step, paddingY, paddingX);
+//
+//                if (trainable) {
+//                    derWeight.add(inputImg.transpose().dot(errorM).transpose());
+//                    derThreshold.add(errorNL[i]);
+//                }
             });
         }
         executor.shutdown();

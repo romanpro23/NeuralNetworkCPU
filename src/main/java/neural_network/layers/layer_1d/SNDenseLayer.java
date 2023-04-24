@@ -161,7 +161,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
     private void backSpectralNorm() {
         NNMatrix dW = u.dot(v);
         dW.oneSub();
-        dW.dotT(weight);
+        dW.dot(weight);
         dW.div(sigma);
 
         derWeight.mul(dW);

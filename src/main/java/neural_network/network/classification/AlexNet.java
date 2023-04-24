@@ -7,7 +7,7 @@ import neural_network.layers.layer_3d.*;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_1d.DropoutLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.network.NeuralNetwork;
 import neural_network.regularization.Regularization;
 
@@ -32,7 +32,8 @@ public class AlexNet {
 
     public AlexNet addConvolutionLayer(int countKernel, int sizeKernel, int step, int padding, int countGroup) {
         alexnet.addLayer(new GroupedConvolutionLayer(countKernel, sizeKernel, step, padding, countGroup)
-                .setInitializer(new Initializer.HeNormal()))
+                .setInitializer(new Initializer.HeNormal())
+                .setRegularization(new Regularization.L2(0.0005)))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()));
 
         return this;
@@ -40,8 +41,21 @@ public class AlexNet {
 
     public AlexNet addConvolutionLayer(int countKernel, int sizeKernel, int step, int padding) {
         alexnet.addLayer(new ConvolutionLayer(countKernel, sizeKernel, step, padding)
-                .setInitializer(new Initializer.HeNormal()))
+                .setInitializer(new Initializer.HeNormal())
+                .setRegularization(new Regularization.L2(0.0005)))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()));
+
+        return this;
+    }
+
+    public AlexNet addConvolutionLayer(int countKernel, int sizeKernel, int step, int padding, boolean batchnorm) {
+        alexnet.addLayer(new ConvolutionLayer(countKernel, sizeKernel, step, padding)
+                .setInitializer(new Initializer.HeNormal())
+                .setRegularization(new Regularization.L2(0.0005)));
+        if (batchnorm) {
+            alexnet.addLayer(new BatchNormalizationLayer3D(0.9));
+        }
+        alexnet.addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()));
 
         return this;
     }
@@ -60,7 +74,7 @@ public class AlexNet {
 
     public AlexNet addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
         if (alexnet.getOutputSize().length != 1) {
-            alexnet.addLayer(new Flatten3DLayer());
+            alexnet.addLayer(new FlattenLayer3D());
         }
         alexnet.addLayer(new DenseLayer(countNeuron));
         alexnet.addLayer(new ActivationLayer(functionActivation));

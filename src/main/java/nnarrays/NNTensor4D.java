@@ -120,16 +120,32 @@ public class NNTensor4D extends NNArray {
         }
     }
 
-    public void derCapsuleAffineTransform(NNMatrix input, NNTensor error) {
+    public void
+    addMatrixDot(NNMatrix input, NNTensor error) {
         for (int i = 0; i < depth; i++) {
-            for (int j = 0; j < input.getRow(); j++) {
-                for (int k = 0; k < column; k++) {
-                    for (int l = 0; l < input.getColumn(); l++) {
-                        add(i, j, l, k, input.get(j, l) * error.get(i, j, k));
+            for (int j = 0; j < length; j++) {
+                for (int l = 0; l < row; l++) {
+                    for (int k = 0; k < column; k++) {
+                        add(i, j, l, k, input.get(j, k) * error.get(i, j, l));
                     }
                 }
             }
         }
+    }
+
+    public NNMatrix dot(NNTensor error) {
+        NNMatrix result = new NNMatrix(length, column);
+
+        for (int i = 0; i < depth; i++) {
+            for (int j = 0; j < length; j++) {
+                for (int k = 0; k < column; k++) {
+                    for (int l = 0; l < row; l++) {
+                        result.add(j, k, error.get(i, j, l) * get(i, j, l, k));
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     public void dilatedConvolution(NNTensor input, NNTensor error, int step, int padY, int padX, int dilatationY, int dilatationX) {

@@ -8,8 +8,8 @@ import neural_network.layers.layer_3d.BatchNormalizationLayer3D;
 import neural_network.layers.layer_3d.ConvolutionLayer;
 import neural_network.layers.layer_3d.ConvolutionTransposeLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.ReshapeLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.autoencoders.Autoencoder;
@@ -31,7 +31,7 @@ public class TestConvAutoencoders {
                 .addLayer(new ConvolutionLayer(32, 3, 2, 1))
                 .addLayer(new BatchNormalizationLayer3D(0.9))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addDenseLayer(256)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(32))
@@ -44,7 +44,7 @@ public class TestConvAutoencoders {
                 .addDenseLayer(128)
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(7*7*32)
-                .addLayer(new Reshape3DLayer(7, 7, 32))
+                .addLayer(new ReshapeLayer3D(7, 7, 32))
                 .addLayer(new ConvolutionTransposeLayer(32, 3, 2, 1))
                 .addLayer(new BatchNormalizationLayer3D(0.9))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))

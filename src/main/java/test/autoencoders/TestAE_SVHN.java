@@ -28,7 +28,7 @@ public class TestAE_SVHN {
 //                .addLayer(new ConvolutionLayer(128, 4, 2, 1))
 //                .addLayer(new BatchNormalizationLayer3D(0.9))
 //                .addActivationLayer(new FunctionActivation.LeakyReLU(0.2))
-//                .addLayer(new Flatten3DLayer())
+//                .addLayer(new FlattenLayer3D())
 //                .addLayer(new VariationalLayer(100))
 //                .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0002))
 //                .create();
@@ -36,7 +36,7 @@ public class TestAE_SVHN {
 //        NeuralNetwork decoder = new NeuralNetwork()
 //                .addInputLayer(100)
 //                .addLayer(new DenseLayer(2048).setInitializer(new Initializer.RandomNormal(0.02)))
-//                .addLayer(new Reshape3DLayer(4, 4, 128))
+//                .addLayer(new ReshapeLayer3D(4, 4, 128))
 //                .addLayer(new ConvolutionTransposeLayer(64, 4, 2, 1).setInitializer(new Initializer.RandomNormal(0.02)))
 //                .addLayer(new BatchNormalizationLayer3D(0.9))
 //                .addActivationLayer(new FunctionActivation.ReLU())

@@ -2,6 +2,8 @@ package nnarrays;
 
 import lombok.SneakyThrows;
 
+import java.util.Arrays;
+
 import static java.lang.Math.log;
 
 public final class NNArrays {

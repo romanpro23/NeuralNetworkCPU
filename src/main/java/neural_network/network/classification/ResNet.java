@@ -8,8 +8,8 @@ import neural_network.layers.layer_3d.residual.ResidualBlock;
 import neural_network.layers.layer_3d.residual.ResidualUnit;
 import neural_network.layers.layer_1d.ActivationLayer;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.GlobalAveragePooling3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.GlobalAveragePoolingLayer3D;
 import neural_network.network.NeuralNetwork;
 
 public class ResNet {
@@ -50,13 +50,13 @@ public class ResNet {
     }
 
     public ResNet addGlobalAveragePoolingLayer() {
-        resnet.addLayer(new GlobalAveragePooling3DLayer());
+        resnet.addLayer(new GlobalAveragePoolingLayer3D());
         return this;
     }
 
     public ResNet addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
         if (resnet.getOutputSize().length != 1) {
-            resnet.addLayer(new Flatten3DLayer());
+            resnet.addLayer(new FlattenLayer3D());
         }
         resnet.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
         resnet.addLayer(new ActivationLayer(functionActivation));

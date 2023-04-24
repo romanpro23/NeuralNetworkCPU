@@ -1,26 +1,21 @@
 package test.classification.ciraf;
 
 import data.ciraf.Ciraf100Loader3D;
+import data.ciraf.Ciraf10Loader3D;
 import data.loaders.TransformData;
 import neural_network.activation.FunctionActivation;
-import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.layer_3d.ConvolutionLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.network.classification.VGG;
 import neural_network.optimizers.AdaBeliefOptimizer;
 import neural_network.optimizers.Optimizer;
-import neural_network.regularization.Regularization;
 import trainer.DataMetric;
 import trainer.DataTrainer;
 
-import java.io.File;
 import java.io.FileWriter;
-import java.util.Scanner;
 
-public class TestVGG {
+public class TestVGG16 {
     public static void main(String[] args) throws Exception {
-        Optimizer optimizerConv = new AdaBeliefOptimizer(0.0001);
         Optimizer optimizer = new AdaBeliefOptimizer(0.0001);
         NeuralNetwork vgg16 = new VGG()
                 .addInputLayer(32, 32, 3)
@@ -45,12 +40,12 @@ public class TestVGG {
                 .addDropoutLayer(0.25)
                 .addDenseLayer(512, new FunctionActivation.ReLU())
                 .addDropoutLayer(0.25)
-                .addDenseLayer(100, new FunctionActivation.Softmax())
+                .addDenseLayer(10, new FunctionActivation.Softmax())
                 .createVGG()
                 .setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy())
-//                .setOptimizer(optimizer)
-                .setStopGradient(30)
-                .addOptimizer(optimizer, 30)
+                .setOptimizer(optimizer)
+//                .setStopGradient(30)
+//                .addOptimizer(optimizer, 30)
 //                .addOptimizer(optimizerConv, 0, 30)
                 .create();
 
@@ -66,15 +61,15 @@ public class TestVGG {
 
         vgg16.info();
 
-        Ciraf100Loader3D loader = new Ciraf100Loader3D(new TransformData.Tanh()).useReverse();
+        Ciraf10Loader3D loader = new Ciraf10Loader3D(new TransformData.Tanh()).useReverse();
 
-        DataTrainer trainer = new DataTrainer(5120, 512, loader);
+        DataTrainer trainer = new DataTrainer(5120/4, 512/4, loader);
 
         for (int i = 0; i < 100; i++) {
             long start = System.nanoTime();
 
-            vgg16.save(new FileWriter("D:/NetworkTest/ciraf/_vgg16.txt"));
-            optimizer.save(new FileWriter("D:/NetworkTest/ciraf/_vgg16_dense_optimizer.txt"));
+            vgg16.save(new FileWriter("D:/NetworkTest/ciraf/vgg16.txt"));
+            optimizer.save(new FileWriter("D:/NetworkTest/ciraf/vgg16_optimizer.txt"));
 //            optimizerConv.save(new FileWriter("D:/NetworkTest/ciraf/vgg16_conv_optimizer.txt"));
 
             trainer.train(vgg16, 64, 1, 1, new DataMetric.Top1());

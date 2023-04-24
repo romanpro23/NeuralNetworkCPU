@@ -10,7 +10,7 @@ import neural_network.layers.layer_3d.ConvolutionLayer;
 import neural_network.layers.layer_3d.ParametricReLULayer3D;
 import neural_network.layers.layer_3d.residual.ResidualUnit;
 import neural_network.layers.layer_3d.residual.ResidualBlock;
-import neural_network.layers.reshape.Flatten3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
 import neural_network.layers.layer_3d.PixelShufflerLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.SRGAN;
@@ -77,7 +77,7 @@ public class TestSRGAN {
                 .addLayer(new ConvolutionLayer(256, 3, 2, 1))
                 .addLayer(new BatchNormalizationLayer3D(0.8))
                 .addLayer(new ActivationLayer3D(new FunctionActivation.LeakyReLU(0.2)))
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addDenseLayer(256, new FunctionActivation.LeakyReLU(0.2))
                 .addDenseLayer(1, new FunctionActivation.Sigmoid())
                 .setFunctionLoss(new FunctionLoss.BinaryCrossEntropy())

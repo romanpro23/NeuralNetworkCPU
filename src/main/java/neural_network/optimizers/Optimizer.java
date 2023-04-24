@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import nnarrays.NNArray;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +27,11 @@ public abstract class Optimizer {
     }
 
     @SneakyThrows
+    public void save(String path) {
+        save(new FileWriter(path));
+    }
+
+    @SneakyThrows
     public void save(FileWriter writer) {
         writer.write(t + "\n");
         writer.write(clipValue + "\n");
@@ -41,6 +47,10 @@ public abstract class Optimizer {
     }
 
     @SneakyThrows
+    public Optimizer read(String path) {
+        return read(new Scanner(new File(path)));
+    }
+
     public Optimizer read(Scanner scanner) {
         this.t = Integer.parseInt(scanner.nextLine());
         this.clipValue = Float.parseFloat(scanner.nextLine());

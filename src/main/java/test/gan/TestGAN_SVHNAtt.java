@@ -7,8 +7,8 @@ import neural_network.activation.FunctionActivation;
 import neural_network.initialization.Initializer;
 import neural_network.layers.layer_3d.*;
 import neural_network.layers.layer_1d.DenseLayer;
-import neural_network.layers.reshape.Flatten3DLayer;
-import neural_network.layers.reshape.Reshape3DLayer;
+import neural_network.layers.reshape.FlattenLayer3D;
+import neural_network.layers.reshape.ReshapeLayer3D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.GAN.GAN;
 import neural_network.network.NeuralNetwork;
@@ -37,7 +37,7 @@ public class TestGAN_SVHNAtt {
                 .addLayer(new BatchNormalizationLayer3D(0.9))
                 .addActivationLayer(new FunctionActivation.LeakyReLU(0.1))
                 .addLayer(new SelfAttentionLayer())
-                .addLayer(new Flatten3DLayer())
+                .addLayer(new FlattenLayer3D())
                 .addLayer(new DenseLayer(1))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0002))
@@ -47,7 +47,7 @@ public class TestGAN_SVHNAtt {
         NeuralNetwork generator = new NeuralNetwork()
                 .addInputLayer(100)
                 .addLayer(new DenseLayer(1024))
-                .addLayer(new Reshape3DLayer(2, 2, 256))
+                .addLayer(new ReshapeLayer3D(2, 2, 256))
                 .addLayer(new SNConvolutionTransposeLayer(128, 4, 2, 1))
                 .addLayer(new BatchNormalizationLayer3D(0.9))
                 .addActivationLayer(new FunctionActivation.ReLU())

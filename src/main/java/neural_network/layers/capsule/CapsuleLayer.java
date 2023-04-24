@@ -26,14 +26,14 @@ public class CapsuleLayer extends NeuralLayer2D {
     private NNTensor4D weight;
     private NNTensor4D derWeight;
 
-    private NNMatrix[] c;
-
     private final int countRouting;
     private final int sizeVector;
     private final int countCapsule;
 
     private NNTensor[] transformInput;
-    private NNMatrix[] inputSquash;
+    private NNMatrix[][] inputSquash;
+    private NNMatrix[][] outputSquash;
+    private NNMatrix[][] c;
 
     public CapsuleLayer(int countCapsule, int sizeVector) {
         this(countCapsule, sizeVector, 3);
@@ -45,7 +45,7 @@ public class CapsuleLayer extends NeuralLayer2D {
         this.sizeVector = sizeVector;
         trainable = true;
 
-        initializer = new Initializer.HeNormal();
+        initializer = new Initializer.RandomNormal();
     }
 
     @Override
@@ -59,9 +59,9 @@ public class CapsuleLayer extends NeuralLayer2D {
         outWidth = countCapsule;
         outDepth = sizeVector;
 
-        derWeight = new NNTensor4D(countCapsule, width, depth, sizeVector);
+        derWeight = new NNTensor4D(countCapsule, width, sizeVector, depth);
         if (!loadWeight) {
-            weight = new NNTensor4D(countCapsule, width, depth, sizeVector);
+            weight = new NNTensor4D(countCapsule, width, sizeVector, depth);
             initializer.initialize(weight);
         }
     }
@@ -76,23 +76,30 @@ public class CapsuleLayer extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         output = new NNMatrix[inputs.length];
         transformInput = new NNTensor[inputs.length];
-        inputSquash = new NNMatrix[inputs.length];
-        c = new NNMatrix[inputs.length];
+        inputSquash = new NNMatrix[inputs.length][countRouting];
+        outputSquash = new NNMatrix[inputs.length][countRouting];
+        c = new NNMatrix[inputs.length][countRouting];
 
         ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
         for (int t = 0; t < inputs.length; t++) {
             final int i = t;
             executor.execute(() -> {
                 output[i] = new NNMatrix(outWidth, outDepth);
-                transformInput[i] = input[i].capsuleAffineTransform(weight);
-                NNMatrix bias = new NNMatrix(countCapsule, width);
-                c[i] = new NNMatrix(countCapsule, width);
+                transformInput[i] = input[i].dot(weight);
+                NNMatrix b = new NNMatrix(countCapsule, width);
+
                 for (int j = 0; j < countRouting; j++) {
-                    c[i].softmax(bias);
-                    inputSquash[i] = transformInput[i].weightSum(c[i]);
-                    output[i].squash(inputSquash[i]);
-                    if (j != countRouting - 1) {
-                        bias.addScalarMul(transformInput[i], output[i]);
+                    c[i][j] = new NNMatrix(countCapsule, width);
+                    outputSquash[i][j] = new NNMatrix(countCapsule, sizeVector);
+                    c[i][j].softmax(b);
+
+                    inputSquash[i][j] = c[i][j].dot(transformInput[i]);
+                    outputSquash[i][j].squash(inputSquash[i][j]);
+
+                    if (j < countRouting - 1) {
+                        b.addScalarMul(transformInput[i], outputSquash[i][j]);
+                    } else {
+                        output[i] = outputSquash[i][j];
                     }
                 }
             });
@@ -112,12 +119,31 @@ public class CapsuleLayer extends NeuralLayer2D {
             final int i = t;
             executor.execute(() -> {
                 NNMatrix errorSquash = new NNMatrix(outWidth, outDepth);
-                errorSquash.derSquash(inputSquash[i], errorNL[i]);
-                NNTensor errorTransformInput = transformInput[i].backWeightSum(c[i], errorSquash);
-                error[i] = input[i].derCapsuleAffineTransform(weight, errorTransformInput);
+                errorSquash.derSquash(inputSquash[i][countRouting - 1], errorNL[i]);
 
+                NNTensor errorTransformInput = c[i][countRouting - 1].dotR(errorSquash);
+                NNMatrix errorC = errorSquash.dotT(transformInput[i]);
+                NNMatrix errorB = new NNMatrix(countCapsule, width);
+                errorB.derSoftmax(c[i][countRouting - 1], errorC);
+
+                for (int j = countRouting - 2; j >= 0; j--) {
+                    errorTransformInput.addDerScalarMul(outputSquash[i][j], errorB);
+
+                    NNMatrix deltaSquash = c[i][j].derScalarMul(transformInput[i], errorB);
+                    errorSquash.derSquash(inputSquash[i][j], deltaSquash);
+                    errorTransformInput.add(c[i][j].dotR(errorSquash));
+
+                    if(j > 0) {
+                        errorC = errorSquash.dotT(transformInput[i]);
+                        NNMatrix deltaB = new NNMatrix(countCapsule, width);
+                        deltaB.derSoftmax(c[i][j], errorC);
+                        errorB.add(deltaB);
+                    }
+                }
+
+                error[i] = weight.dot(errorTransformInput);
                 if (trainable) {
-                    derWeight.derCapsuleAffineTransform(input[i], errorTransformInput);
+                    derWeight.addMatrixDot(input[i], errorTransformInput);
                 }
             });
         }

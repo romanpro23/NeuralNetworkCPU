@@ -7,7 +7,7 @@ import neural_network.layers.layer_2d.NormalizationLayer2D;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_2d.PositionalEmbeddingLayer;
 import neural_network.layers.reshape.EmbeddingLayer;
-import neural_network.layers.reshape.Flatten2DLayer;
+import neural_network.layers.reshape.FlattenLayer2D;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -22,7 +22,7 @@ public class TestIMDBDeep {
                 .addLayer(new PositionalEmbeddingLayer())
                 .addLayer(new MultiHeadAttentionLayer(1, 64).setTrainable(true).setMask())
                 .addLayer(new NormalizationLayer2D().setTrainable(false))
-                .addLayer(new Flatten2DLayer())
+                .addLayer(new FlattenLayer2D())
                 .addLayer(new DenseLayer(1).setTrainable(false))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
                 .setOptimizer(new AdamOptimizer())
