@@ -10,8 +10,5 @@
         <module name="NeuralNetworkCPU" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="NeuralNetworkCPU" target="17" />
-    </bytecodeTargetLevel>
   </component>
 </project>
