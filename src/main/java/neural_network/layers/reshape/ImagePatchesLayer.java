@@ -139,7 +139,8 @@ public class ImagePatchesLayer extends NeuralLayer {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Image patches layer\n");
-        writer.write(sizeKernel + " " + lengthVector + "\n");
+        writer.write( sizeKernel + " " +  sizeKernel + " " + lengthVector + "\n");
+        writer.write(this.returnGradient + "\n");
         weight.save(writer);
         if (regularization != null) {
             regularization.write(writer);
@@ -162,7 +163,7 @@ public class ImagePatchesLayer extends NeuralLayer {
 
     public static ImagePatchesLayer read(Scanner scanner) {
         int[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        ImagePatchesLayer layer = new ImagePatchesLayer(arr[0], arr[1]);
+        ImagePatchesLayer layer = new ImagePatchesLayer(arr[0], arr[2]);
         layer.setReturnGradient(Boolean.parseBoolean(scanner.nextLine()));
         layer.weight = NNMatrix.read(scanner);
         layer.setRegularization(Regularization.read(scanner));
