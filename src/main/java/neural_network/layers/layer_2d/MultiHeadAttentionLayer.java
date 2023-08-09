@@ -176,7 +176,9 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         writer.write(sizeAttention + "\n");
         writer.write(dropout + "\n");
         writer.write(useMask + "\n");
-        if(useMask) {
+        if(useMask)
+        {
+            writer.write(mask.getRow() + "\n"); //Daylight
             mask.save(writer);
         }
         weight.save(writer);
@@ -358,7 +360,23 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 Double.parseDouble(scanner.nextLine()));
 
         layer.useMask = Boolean.parseBoolean(scanner.nextLine());
-        if(layer.useMask){
+
+        //daylight
+        ////////////////////////////////////////////////
+        int[] size = new int[2];
+
+        if(layer.useMask)
+        {
+            size[0] = Integer.parseInt(scanner.nextLine());
+        }
+
+        size[1] = layer.sizeAttention;
+
+        layer.initialize(size);
+        ///////////////////////////////////////////////
+
+        if(layer.useMask)
+        {
             layer.mask = NNMatrix.read(scanner);
         }
 
