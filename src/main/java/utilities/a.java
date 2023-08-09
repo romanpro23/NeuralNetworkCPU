@@ -1,4 +1,4 @@
-package tberg.murphy.arrays;
+package utilities;
 
 import java.util.ArrayList;
 import java.util.Arrays;
