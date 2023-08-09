@@ -1,5 +1,6 @@
 package neural_network.network;
 
+import utilities.CublasUtil;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
@@ -38,6 +39,8 @@ public class NeuralNetwork {
         optimizers = new ArrayList<>();
         initializeOptimizers = new ArrayList<>();
         stopGradient = 0;
+
+        CublasUtil.startup(0);
     }
 
     public NeuralNetwork copy() {

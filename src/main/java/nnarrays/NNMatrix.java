@@ -2,6 +2,7 @@ package nnarrays;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -14,7 +15,9 @@ public class NNMatrix extends NNArray {
     @Getter
     private final int row;
     @Getter
-    private final int[] rowIndex;
+    public final int[] rowIndex;
+
+    public boolean UseGPU = true;
 
     public NNMatrix(int row, int column) {
         super(column * row);
@@ -223,15 +226,21 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix transpose() {
-        NNMatrix nnMatrix = new NNMatrix(this.column, this.row);
-        int index;
-        for (int i = 0; i < row; i++) {
-            index = rowIndex[i];
-            for (int j = 0; j < column; j++, index++) {
-                nnMatrix.data[i + nnMatrix.rowIndex[j]] = data[index];
+        if (UseGPU == false) {
+            NNMatrix nnMatrix = new NNMatrix(this.column, this.row);
+            int index;
+            for (int i = 0; i < row; i++) {
+                index = rowIndex[i];
+                for (int j = 0; j < column; j++, index++) {
+                    nnMatrix.data[i + nnMatrix.rowIndex[j]] = data[index];
+                }
             }
+            return nnMatrix;
         }
-        return nnMatrix;
+        else {
+            CublasUtil.Matrix _data = CublasUtil.Matrix.build(row, column, data);
+            return new NNMatrix(column, row, _data.transpose().toArray());
+        }
     }
 
     public void save(FileWriter writer) throws IOException {
@@ -249,17 +258,25 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix dotT(NNMatrix matrix) {
-        NNMatrix result = new NNMatrix(row, matrix.getRow());
+        if (UseGPU == false) {
+            NNMatrix result = new NNMatrix(row, matrix.getRow());
 
-        for (int n = 0, indR = 0; n < row; n++) {
-            for (int i = 0, index = 0; i < matrix.getRow(); i++, indR++) {
-                for (int j = 0, indI = rowIndex[n]; j < matrix.getColumn(); j++, index++, indI++) {
-                    result.data[indR] += data[indI] * matrix.data[index];
+            for (int n = 0, indR = 0; n < row; n++) {
+                for (int i = 0, index = 0; i < matrix.getRow(); i++, indR++) {
+                    for (int j = 0, indI = rowIndex[n]; j < matrix.getColumn(); j++, index++, indI++) {
+                        result.data[indR] += data[indI] * matrix.data[index];
+                    }
                 }
             }
+            return result;
         }
+        else {
+            CublasUtil.Matrix A_data = CublasUtil.Matrix.build(column, row, data);
+            CublasUtil.Matrix B_matrix = CublasUtil.Matrix.build(matrix.getColumn(), matrix.getRow(), matrix.getData()).transpose();
+            CublasUtil.Matrix C_matrix = B_matrix.mmul(A_data);
 
-        return result;
+            return new NNMatrix(row, matrix.getRow(), C_matrix.toArray());
+        }
     }
 
     public NNMatrix dot(NNTensor tensor) {
@@ -332,7 +349,17 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix dot(NNMatrix matrix) {
-        return dotT(matrix.transpose());
+        if (UseGPU == false) {
+            return dotT(matrix.transpose());
+        }
+        else
+        {
+            CublasUtil.Matrix A_data = CublasUtil.Matrix.build(column, row, data);
+            CublasUtil.Matrix B_matrix = CublasUtil.Matrix.build(matrix.getColumn(), matrix.getRow(), matrix.getData());
+            CublasUtil.Matrix C_matrix = B_matrix.mmul(A_data);
+
+            return new NNMatrix(row, matrix.column, C_matrix.toArray());
+        }
     }
 
     public NNMatrix dot(NNVector vector) {
@@ -530,8 +557,21 @@ public class NNMatrix extends NNArray {
             }
             index = k * column;
             for (int i = 0; i < column; i++, index++) {
-                data[index] = (float) (Math.pow(Math.E, input.data[index] - max));
-                sum += data[index];
+                double val = (Math.pow(Math.E, input.data[index] - max));
+                if (val > Float.MAX_VALUE) {
+                    data[index] = Float.MAX_VALUE;
+                }
+                else
+                {
+                    data[index] = (float) val;
+                }
+
+                if (sum + data[index] > Float.MAX_VALUE) {
+                    sum = Float.MAX_VALUE;
+                }
+                else {
+                    sum += data[index];
+                }
             }
             sum += 0.00000001f;
 
