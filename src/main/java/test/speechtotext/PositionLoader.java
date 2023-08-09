@@ -27,8 +27,6 @@ public class PositionLoader extends DataLoader3D {
 
         try {
             Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_chars.txt"), StandardCharsets.UTF_8);
-            //uaChars.put(NLP.UNK, NLP._UNK_CHAR);
-            //codeUaChars.put(NLP._UNK_CHAR, NLP.UNK);
             uaChars.put(NLP.PAD, ' ');
             codeUaChars.put(' ', NLP.PAD);
 
@@ -160,70 +158,6 @@ public class PositionLoader extends DataLoader3D {
             }
         }
         return string.toString();
-    }
-
-    public double cosineSimilarity(float[] vectorA, float[] vectorB) {
-        double dotProduct = 0.0;
-        double normA = 0.0;
-        double normB = 0.0;
-        for (int i = 0; i < vectorA.length; i++) {
-            dotProduct += vectorA[i] * vectorB[i];
-            normA += Math.pow(vectorA[i], 2);
-            normB += Math.pow(vectorB[i], 2);
-        }
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-    }
-
-    public static String[][] ClockWiseRotation(String[] data, int StartPos, int column, int row) {
-        int ColumnLeng = (data.length - StartPos) / row;
-        String[][] a = new String[ColumnLeng][row];
-        int dd = StartPos;
-        for (int v = 0; v < ColumnLeng; v++) {
-            for (int j = 0; j < row; j++) {
-                a[v][j] = data[dd];
-                dd++;
-            }
-        }
-
-        return resize(rotateMatrixBy90DegreeClockwise(a), column, row);
-    }
-
-    static String[][] resize(String[][] matrix, int w, int h) {
-        String[][] temp = new String[h][w];
-        for (int i = 0; i < temp.length; i++) {
-            for (int j = 0; j < temp[0].length; j++) {
-                temp[i][j] = "0.1";
-            }
-        }
-
-        h = Math.min(h, matrix.length);
-        w = Math.min(w, matrix[0].length);
-        for (int i = 0; i < h; i++)
-            System.arraycopy(matrix[i], 0, temp[i], 0, w);
-        return temp;
-    }
-
-    private static String[][] rotateMatrixBy90DegreeClockwise(String[][] matrix) {
-        int totalRowsOfRotatedMatrix = matrix[0].length; //Total columns of Original Matrix
-        int totalColsOfRotatedMatrix = matrix.length; //Total rows of Original Matrix
-
-        String[][] rotatedMatrix = new String[totalRowsOfRotatedMatrix][totalColsOfRotatedMatrix];
-
-        for (int i = 0; i < matrix.length; i++) {
-            for (int j = 0; j < matrix[0].length; j++) {
-                rotatedMatrix[j][(totalColsOfRotatedMatrix - 1) - i] = matrix[i][j];
-            }
-        }
-        return rotatedMatrix;
-    }
-
-    private static Double convertToDouble(String item) {
-        double value = 0;
-        try {
-            value = Double.parseDouble(item);
-        } catch (NumberFormatException numberFormatException) {
-        }
-        return value;
     }
 
     public static ArrayList<String[]> tsvr(File test2) {
