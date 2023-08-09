@@ -14,7 +14,6 @@ import utilities.CudaUtil;
 import org.jblas.FloatMatrix;
 import org.jblas.Solve;
 
-import tberg.murphy.arrays.a;
 import jcuda.Pointer;
 import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
