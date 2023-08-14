@@ -21,10 +21,6 @@ import java.util.Scanner;
 public class speechtotext {
     static NeuralNetwork network;
 
-    static {
-        System.load("C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v8.0\\bin\\cublas64_80.dll");
-    }
-
     public static void main(String[] args) throws Exception {
         PositionLoader loader = new PositionLoader(45);
         loader.setUseReverse(true);
