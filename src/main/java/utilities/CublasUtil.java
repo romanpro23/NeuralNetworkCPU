@@ -1,7 +1,8 @@
 package utilities;
 
-import static jcuda.driver.JCudaDriver.cuLaunchKernel;
-import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.driver.JCudaDriver.*;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,7 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-import utilities.CudaUtil;
+import nnarrays.NNMatrix;
 import org.jblas.FloatMatrix;
 import org.jblas.Solve;
 
@@ -20,15 +21,12 @@ import jcuda.driver.CUfunction;
 import jcuda.driver.CUmodule;
 import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
-import jcuda.jcublas.cublasDiagType;
-import jcuda.jcublas.cublasFillMode;
 import jcuda.jcublas.cublasHandle;
 import jcuda.jcublas.cublasOperation;
 import jcuda.jcublas.cublasAtomicsMode;
 import jcuda.jcublas.cublasPointerMode;
 import jcuda.jcublas.cublasSideMode;
 import jcuda.runtime.JCuda;
-import jcuda.runtime.cudaMemcpyKind;
 
 public class CublasUtil {
 
@@ -38,11 +36,11 @@ public class CublasUtil {
     public static cublasHandle cublasHandle;
     public static CUmodule helperModule;
 
-    public static void startup(int deviceId) {
-        CudaUtil.startup(deviceId);
+    public static void startup() {
+        JCudaHelper.init();
         cublasHandle = new cublasHandle();
         JCublas2.cublasCreate(cublasHandle);
-        helperModule = CudaUtil.compileAndLoad("la_helper_funs", Matrix.kernels, true);
+        helperModule = JCudaHelper.compile("la_helper_funs", Matrix.kernels);
         allocated = new LinkedList<Matrix>();
         JCublas2.cublasSetAtomicsMode(cublasHandle, cublasAtomicsMode.CUBLAS_ATOMICS_ALLOWED);
         JCublas2.cublasSetPointerMode(cublasHandle, cublasPointerMode.CUBLAS_POINTER_MODE_HOST);
@@ -52,7 +50,7 @@ public class CublasUtil {
         if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         freeAll(true);
         JCublas2.cublasDestroy(cublasHandle);
-        CudaUtil.shutdown();
+        //CudaUtil.shutdown();
     }
 
     public static void freeAll() {
@@ -105,7 +103,7 @@ public class CublasUtil {
             this.rows = rows;
             this.cols = cols;
             this.data_d = new Pointer();
-            JCuda.cudaMalloc(data_d, rows*cols * Sizeof.FLOAT);
+            cudaMalloc(data_d, rows*cols * Sizeof.FLOAT);
             CublasUtil.allocated.add(this);
         }
 
@@ -143,7 +141,11 @@ public class CublasUtil {
 
         public static Matrix build(int rows, int cols, float[] data_h) {
             Matrix result = new Matrix(rows, cols);
-            JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, Pointer.to(data_h), result.rows, result.data_d, result.rows);
+
+            cudaMalloc(result.data_d, Sizeof.FLOAT * rows * cols);
+            cudaMemcpy(result.data_d, Pointer.to(data_h), Sizeof.FLOAT * rows * cols, cudaMemcpyHostToDevice);
+
+            //JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, Pointer.to(data_h), result.rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
@@ -248,8 +250,8 @@ public class CublasUtil {
 
         public float[] toArray() {
             float[] data_h = new float[rows*cols];
-//			JCublas2.cublasGetVector(data_h.length, Sizeof.FLOAT, data_d, 1, Pointer.to(data_h), 1);
-            JCublas2.cublasGetMatrix(rows, cols, Sizeof.FLOAT, data_d, rows, Pointer.to(data_h), rows);
+			JCublas2.cublasGetVector(data_h.length, Sizeof.FLOAT, data_d, 1, Pointer.to(data_h), 1);
+  //          JCublas2.cublasGetMatrix(rows, cols, Sizeof.FLOAT, data_d, rows, Pointer.to(data_h), rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return data_h;
         }
@@ -375,12 +377,12 @@ public class CublasUtil {
 
         public Matrix rowSum() {
             Matrix ones = Matrix.ones(1, this.rows);
-            return ones.mmul(this);
+            return this.dot(ones);
         }
 
         public Matrix colSum() {
             Matrix ones = Matrix.ones(this.cols, 1);
-            return this.mmul(ones);
+            return ones.dot(this);
         }
 
         public Matrix sub(Matrix that) {
@@ -436,17 +438,27 @@ public class CublasUtil {
             return this;
         }
 
-        public Matrix mmul(Matrix that) {
+        public Matrix dot(Matrix that) {
             Matrix result = new Matrix(this.rows, that.cols);
-            gemm(1.0f, this, that, 0.0f, result);
+            dot(this, that, result);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
 
-        public Matrix mmuli(Matrix that) {
+        public Matrix dotT(Matrix that) {
+            Matrix result = new Matrix(this.rows, that.cols);
+            CublasUtil.Matrix transpose = that.transpose();
+            dot(this, transpose, result);
+            //gemm(1.0f,  that, this, 0.0f, result);
+            transpose.free();
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            return result;
+        }
+
+        /*public Matrix mmuli(Matrix that) {
             replaceRef(mmul(that), this);
             return this;
-        }
+        }*/
 
         public Matrix add(float alpha) {
             Matrix result = new Matrix(rows, cols);
@@ -537,6 +549,35 @@ public class CublasUtil {
             return result;
         }
 
+        public void mask(float val, float newVal, Matrix that) {
+            mask(that, val, newVal, this);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        public Matrix Softmax(Matrix that) {
+            Matrix result = new Matrix(rows, cols);
+            softmax_sum(that, this.rows, this.cols, result);
+            softmax_probability(result, this.rows, this.cols, this);
+            result.free();
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            return result;
+        }
+
+        public void addCopy(Matrix that, int start) {
+            addCopy(that, this, this.rows, this.cols, start);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        public void addBackCopy(Matrix that, int start) {
+            addBackCopy(that, this, this.rows, this.cols, start);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        public void div(float that) {
+            div(this, that);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
         public Matrix divi(Matrix that) {
             replaceRef(div(that), this);
             return this;
@@ -595,6 +636,24 @@ public class CublasUtil {
             sqrt(this, result);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
+        }
+
+        public void softmax(Matrix matrix) {
+            Matrix auxE = new Matrix(cols, rows);
+            auxE.set(0);
+            softmax(matrix, auxE, cols, this);
+            auxE.free();
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        public void derSoftmax(Matrix matrix, Matrix error) {
+            derSoftmax(matrix, error, this);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        public void dropout(float random, float chanceDrop) {
+            dropout(this, random, chanceDrop);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
         public Matrix sqrti() {
@@ -705,7 +764,7 @@ public class CublasUtil {
             B.data_d = A.data_d;
         }
 
-        private static final int BLOCK_SIZE = 512;
+        private static final int BLOCK_SIZE = 1024;
 
         // batched inverse
         private static void getrfGetriBatched(List<Matrix> A, List<Matrix> B) {
@@ -716,15 +775,15 @@ public class CublasUtil {
                 Bpointers[i] = B.get(i).data_d;
             }
             Pointer Apointers_d = new Pointer();
-            JCuda.cudaMalloc(Apointers_d, A.size() * Sizeof.POINTER);
-            JCuda.cudaMemcpy(Apointers_d, Pointer.to(Apointers), A.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+            cudaMalloc(Apointers_d, A.size() * Sizeof.POINTER);
+            cudaMemcpy(Apointers_d, Pointer.to(Apointers), A.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             Pointer Bpointers_d = new Pointer();
-            JCuda.cudaMalloc(Bpointers_d, B.size() * Sizeof.POINTER);
-            JCuda.cudaMemcpy(Bpointers_d, Pointer.to(Bpointers), B.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+            cudaMalloc(Bpointers_d, B.size() * Sizeof.POINTER);
+            cudaMemcpy(Bpointers_d, Pointer.to(Bpointers), B.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             Pointer info_d = new Pointer();
-            JCuda.cudaMalloc(info_d, A.size() * Sizeof.INT);
+            cudaMalloc(info_d, A.size() * Sizeof.INT);
             Pointer pivots_d = new Pointer();
-            JCuda.cudaMalloc(pivots_d, A.get(0).rows * A.size() * Sizeof.INT);
+            cudaMalloc(pivots_d, A.get(0).rows * A.size() * Sizeof.INT);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             JCublas2.cublasSgetrfBatched(cublasHandle, A.get(0).rows, Apointers_d, A.get(0).rows, pivots_d, info_d, A.size());
@@ -751,14 +810,14 @@ public class CublasUtil {
                 Cpointers[i] = C.get(i).data_d;
             }
             Pointer Apointers_d = new Pointer();
-            JCuda.cudaMalloc(Apointers_d, A.size() * Sizeof.POINTER);
-            JCuda.cudaMemcpy(Apointers_d, Pointer.to(Apointers), A.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+            cudaMalloc(Apointers_d, A.size() * Sizeof.POINTER);
+            cudaMemcpy(Apointers_d, Pointer.to(Apointers), A.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             Pointer Bpointers_d = new Pointer();
-            JCuda.cudaMalloc(Bpointers_d, B.size() * Sizeof.POINTER);
-            JCuda.cudaMemcpy(Bpointers_d, Pointer.to(Bpointers), B.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+            cudaMalloc(Bpointers_d, B.size() * Sizeof.POINTER);
+            cudaMemcpy(Bpointers_d, Pointer.to(Bpointers), B.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             Pointer Cpointers_d = new Pointer();
-            JCuda.cudaMalloc(Cpointers_d, C.size() * Sizeof.POINTER);
-            JCuda.cudaMemcpy(Cpointers_d, Pointer.to(Cpointers), C.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+            cudaMalloc(Cpointers_d, C.size() * Sizeof.POINTER);
+            cudaMemcpy(Cpointers_d, Pointer.to(Cpointers), C.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             JCublas2.cublasSgemmBatched(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, C.get(0).rows, C.get(0).cols, B.get(0).rows, Pointer.to(new float[] {alpha}), Apointers_d, A.get(0).rows, Bpointers_d, B.get(0).rows, Pointer.to(new float[] {beta}), Cpointers_d, C.get(0).rows, A.size());
@@ -907,12 +966,156 @@ public class CublasUtil {
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
+        private static void matrixMultiplyShared(Matrix A, Matrix B, Matrix C) {
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "matrixMultiplyShared");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new float[] {A.rows}), Pointer.to(new int[] {A.cols}), Pointer.to(new int[] {B.rows}), Pointer.to(new int[] {B.cols}), Pointer.to(new int[] {C.rows}), Pointer.to(new int[] {C.cols}));
+                    cuLaunchKernel(function,
+                    (C.cols-1)/32+1,  (C.rows-1)/32+1, 1,      // Grid dimension
+                    32, 32, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        // A = A ./ B
+        private static void div(Matrix A, float B) {
+            int n = A.rows*A.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "matrixDiv");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {B}), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void dot(Matrix A, Matrix B, Matrix C) {
+            int n = A.rows*A.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "dot");
+            int blockSize = Math.min(n, BLOCK_SIZE) / Math.min(n, BLOCK_SIZE);
+            int grid_rows = (int) Math.ceil((double)C.cols / blockSize);
+            int grid_cols =  (int) Math.ceil((double)C.rows / blockSize);
+
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols}), Pointer.to(new int[] {C.rows}), Pointer.to(new int[] {C.cols}), Pointer.to(new int[] {(int) Math.ceil( (double) A.cols / blockSize)}));
+            cuLaunchKernel(function,
+                    grid_rows, grid_cols, 1,      // Grid dimension
+                    blockSize, blockSize, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void mask(Matrix A, float val, float newVal, Matrix C) {
+            int n = C.rows*C.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "mask");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {val}), Pointer.to(new float[] {newVal}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void softmax_sum(Matrix A, int row, int col, Matrix sum) {
+            int n = A.rows*A.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "softmax_sum");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new int[] {row}), Pointer.to(new int[] {col}), Pointer.to(sum.data_d));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void softmax_probability(Matrix sum, int row, int col, Matrix C) {
+            int n = row * col;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "softmax_probability");
+            Pointer kernelParameters = Pointer.to(Pointer.to(sum.data_d), Pointer.to(new int[] {row}), Pointer.to(new int[] {col}), Pointer.to(C.data_d));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void addCopy(Matrix A, Matrix C, int row, int col, int start) {
+            int n = row;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "addCopy");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols()}), Pointer.to(new int[] {C.cols()}), Pointer.to(new int[] {start}), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void addBackCopy(Matrix A, Matrix C, int row, int col, int start) {
+            int n = row;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "addBackCopy");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols()}), Pointer.to(new int[] {C.cols()}), Pointer.to(new int[] {start}), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
         // C = A .* B
         private static void mul(Matrix A, Matrix B, Matrix C) {
             int n = A.rows*A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorMul");
             Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void dropout(Matrix A, float random, float chanceDrop) {
+            int n = A.rows*A.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "dropout");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {random}), Pointer.to(new float[] {chanceDrop}), Pointer.to(new int[] {n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1009,15 +1212,80 @@ public class CublasUtil {
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
-        public static final String kernels =
+        private static void softmax(Matrix A, Matrix auxE, int sample_dim, Matrix C) {
+            int n = A.rows;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "Softmax");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[] {sample_dim}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
 
-                "extern \"C\"\n"+
+        private static void derSoftmax(Matrix A, Matrix auxE, Matrix C) {
+            int n = A.rows;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "derSoftmax");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[] {A.cols}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static int Dim(int L_row, int L_col, int R_row, int R_col) {
+            int sqr_dim_X, sqr_dim_Y, size;
+
+            sqr_dim_X = R_row;
+            if (L_row > R_row) {
+                sqr_dim_X = L_row;
+            }
+
+            sqr_dim_Y = R_col;
+            if (L_col > R_col) {
+                sqr_dim_Y = L_col;
+            }
+
+            size = sqr_dim_Y;
+            if (sqr_dim_X > sqr_dim_Y) {
+                size = sqr_dim_X;
+            }
+
+            int temp = size / BLOCK_SIZE + (size % BLOCK_SIZE == 0 ? 0 : 1);
+            size = temp * BLOCK_SIZE;
+            return size;
+        }
+
+        public static final String kernels =
+                        "extern \"C\"\n"+
                         "__global__ void vectorScalarSet(float* A, float alpha, int numElements)\n"+
                         "{\n"+
                         "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
                         "    if (i < numElements)\n"+
                         "    {\n"+
                         "        A[i] = alpha;\n"+
+                        "    }\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void matrixDiv(float* A, float B, int numElements)\n"+
+                        "{\n"+
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                        "    if (i < numElements)\n"+
+                        "    {\n"+
+                        "        A[i] /= B;\n"+
                         "    }\n"+
                         "}\n"+
 
@@ -1141,15 +1409,929 @@ public class CublasUtil {
                         "    {\n"+
                         "        B[i] = sqrt(A[i]);\n"+
                         "    }\n"+
-                        "}\n"
+                        "}\n" +
+
+                        "extern \"C\"\n"+
+                        "__global__ void mask(const float* __restrict__ A, float val, float newVal, float* C, int numElements)\n"+
+                        "{\n"+
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                        "    if (i < numElements)\n"+
+                        "    {\n"+
+                        "       if (A[i] == val)\n"+
+                        "       {\n"+
+                        "           C[i] = newVal;\n"+
+                        "       }\n"+
+                        "    }\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void dropout(float* A, float random, float chanceDrop, int numElements)\n"+
+                        "{\n"+
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                        "    float drop = 1.0f / (1.0f - chanceDrop);\n"+
+                        "    if (i < numElements)\n"+
+                        "    {\n"+
+                        "       if (random > chanceDrop)\n"+
+                        "       {\n"+
+                        "           A[i] = A[i] * drop;\n"+
+                        "       }\n"+
+                        "    }\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error,int column, float* C, int numElements)\n"+
+                        "{\n"+
+                        "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                        "    if (k < numElements)\n"+
+                        "    {\n"+
+                        "       int index, indexI, indexJ;\n"+
+                        "       float value;\n"+
+                        "       index = k * column;\n"+
+                        "       indexI = index;\n"+
+                        "       for (int i = 0; i < column; i++, indexI++)\n"+
+                        "       {\n"+
+                        "           C[indexI] = 0;\n"+
+                        "           indexJ = index;\n"+
+                        "           for (int j = 0; j < column; j++, indexJ++) \n"+
+                        "           {\n"+
+                        "               if (i != j) \n"+
+                        "               {\n"+
+                        "                   value = output[indexI] * -output[indexJ];\n"+
+                        "               } \n"+
+                        "               else \n"+
+                        "               {\n"+
+                        "                   value = output[indexI] * (1 - output[indexI]);\n"+
+                        "               }\n"+
+                        "               C[indexI] += error[indexJ] * value;\n"+
+                        "           }\n"+
+                        "       }\n"+
+                        "   }\n"+
+                        "}\n"+
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void softmax(const float* __restrict__ A, int n_row_x, int n_col_x, float* C, int numElements)\n"+
+                        "{\n"+
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                        "    if (i < numElements)\n"+
+                        "    {\n"+
+                        "        float row_exp_sum = 0;\n" +
+                        "        for (int j = 0; j < n_col_x; j++) {\n" +
+                        "            row_exp_sum += expf(A[i * n_col_x + j]);\n" +
+                        "        }\n" +
+                        "        for (int j = 0; j < n_col_x; j++) {\n" +
+                        "            C[i * n_col_x + j] = expf(A[i * n_col_x + j]) / row_exp_sum;\n" +
+                        "        }\n" +
+                        "    }\n"+
+                        "}\n"+*/
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void  softmax(const float* __restrict__ input, int row, int column, float* C, int numElements) \n" +
+                        "{\n" +
+                            "int index = 0;\n" +
+                            "double E = 2.718281828459045;\n" +
+                            "int k = threadIdx.x + blockIdx.x * blockDim.x;\n"+
+                            "{\n" +
+                                "float sum = 0;\n" +
+                                "index = k * column;\n" +
+                                "float max = input[index];\n" +
+                                "for (int i = 1; i < column; i++, index++) \n" +
+                                "{\n" +
+                                    "if (max < input[index])\n" +
+                                        "max = input[index];\n" +
+                                "}\n" +
+                                "#pragma omp parallel for\n"+
+                                "index = k * column;\n" +
+                                "for (int i = 0; i < column; i++, index++) \n" +
+                                "{\n" +
+                                    "float val = (float)(pow(E, (double)input[index] - max));\n" +
+                                    //"if (val > Float.MAX_VALUE) {\n" +
+                                        //"C[index] = Float.MAX_VALUE;\n" +
+                                    //"}\n" +
+                                    //"else\n" +
+                                    //"{\n" +
+                                        "C[index] = val;\n" +
+                                    //"}\n" +
+
+                                    //"if (sum + C[index] > Float.MAX_VALUE) {\n" +
+                                        //"sum = Float.MAX_VALUE;\n" +
+                                    //"}\n" +
+                                    //"else {\n" +
+                                        "sum += C[index];\n" +
+                                    //"}\n" +
+                                "}\n" +
+                                "#pragma omp parallel for\n"+
+                                "sum += 0.00000001f;\n" +
+                                "index = k * column;\n" +
+                                "for (int i = 0; i < column; i++, index++) \n" +
+                                "{\n" +
+                                    "C[index] /= sum;\n" +
+                                "}\n" +
+                            "}\n" +
+                        "}\n" +*/
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void softmax(const float* __restrict__ A, int n_row_x, int n_col_x, float* C, int numElements) {\n" +
+                            //"    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_row_x; i += blockDim.x * gridDim.x) \n" +
+                            "int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                            "{\n" +
+                            "    if (i < numElements)\n"+
+                            "    {\n"+
+                            "        float row_exp_sum = 0;\n" +
+                            "        for (int j = 0; j < n_col_x; j++) {\n" +
+                            "            row_exp_sum += expf(A[i * n_col_x + j]);\n" +
+                            "        }\n" +
+                            "        for (int j = 0; j < n_col_x; j++) {\n" +
+                            "            C[i * n_col_x + j] = expf(A[i * n_col_x + j]) / row_exp_sum;\n" +
+                            "        }\n" +
+                            "    }\n" +
+                        "    }\n" +
+                        "}\n" +*/
+
+                        "extern \"C\"\n"+
+                        "__global__ void softmax_sum(const float* __restrict__ c, int row, int col, float *sum)\n" +
+                        "{\n" +
+                            "int X = blockIdx.x*blockDim.x + threadIdx.x;\n" +
+                            "int Y = blockIdx.y*blockDim.y + threadIdx.y;\n" +
+                            "if (X < row && Y < col)\n" +
+                            "{\n" +
+                                "if(Y == 0)\n" +
+                                "{\n" +
+                                    "float local_sum = 0;\n" +
+                                    "for(int i = 0; i < col ; i++)\n" +
+                                    "{\n" +
+                                        "local_sum += exp(c[X*col + i]);\n" +
+                                    "}\n" +
+                                    "sum[X] = local_sum;\n" +
+                                "}\n" +
+                            "}\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n"+
+                        "__global__ void softmax_probability(const float* __restrict__ sum, int row, int col, float* c){\n"+
+                            "int X = blockIdx.x*blockDim.x + threadIdx.x;\n"+
+                            "int Y = blockIdx.y*blockDim.y + threadIdx.y;\n"+
+                            "if (X < row && Y < col){\n"+
+                                "c[X*col + Y] = exp(c[X*col + Y]) / sum[X];\n"+
+                            "}\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void softmax_kernel(const float* __restrict__ input_data, int nrow, int ncol, float* output_data)\n" +
+                        "{\n" +
+                            "int y = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;\n" +
+                            "if (y >= nrow) {\n" +
+                                "return;\n" +
+                            "}\n" +
+
+                            "input_data += y * ncol;\n" +
+                            "output_data += y * ncol;\n" +
+                            "float maxval = *input_data;\n" +
+
+                            "for (int x = 1; x < ncol; ++x) {\n" +
+                                "maxval = max(maxval, input_data[x]);\n" +
+                            "}\n" +
+
+
+                            "float sum = 0;\n" +
+                            "for (int x = 0; x < ncol; ++x) {\n" +
+                                "sum += exp(input_data[x] - maxval);\n" +
+                            "}\n" +
+                            "for (int x = 0; x < ncol; ++x) {\n" +
+                                    "output_data[x] = exp(input_data[x] - maxval) / sum;\n" +
+                            "}\n" +
+                        "}\n" +
+
+                        /*__global__ void softmax_activation(int n, double *A, double *C, double exp_sum) {
+                            int index = threadIdx.x + (blockIdx.x * blockDim.x);
+                            if (index >= n)
+                                return;
+                            C[index] = exp(A[index]) / exp_sum;
+                        }*/
+
+                        "extern \"C\"\n"+
+                        "__global__ void set_value(float* A, float value, long int total_ops)\n"+
+                        "{\n"+
+                            "int thread_id_x = threadIdx.x +blockIdx.x*blockDim.x;\n"+
+
+                            "if (thread_id_x < total_ops)\n"+
+                                "A[thread_id_x]=value;\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void addCopy(float* A, float* C, int A_col, int C_col, int start, int n) \n"+
+                        "{\n"+
+                            "int index = threadIdx.x + (blockIdx.x * blockDim.x);\n"+
+                            "if (index >= n)\n"+
+                            "   return;\n"+
+                            "int indexOut = 0;\n"+
+                            "int indexIn = index * C_col + start * A_col;\n"+
+                            "for (int j = 0; j < A_col; j++, indexIn++, indexOut++) \n"+
+                            "{\n"+
+                            "    C[indexIn] = A[indexOut];\n"+
+                            "}\n"+
+                        "}\n"+
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c) \n"+
+                        "{ \n"+
+                        "    int id = threadIdx.x + blockIdx.x * blockDim.x; \n"+
+                        "    if(row < M)\n"+
+                        "    {\n"+
+                                "    for(int i=0; i<N; i++)\n"+
+                                "    {\n"+
+                                "       c[row] = c[row] + a[row*N + i] * x[i];\n"+
+                                "    }\n"+
+                        "    }\n"+
+                        "}\n"+*/
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int rows, int n, int cols)\n"+
+                        "{\n"+
+                        "    int i = blockIdx.x * blockDim.x + threadIdx.x;\n"+
+                        "    int j = blockIdx.y * blockDim.y + threadIdx.y;\n"+
+                        "    if(i < rows && j < cols)\n"+
+                        "    {\n"+
+                        "        float sum = 0;\n"+
+                        "        for(int k = 0; k < n; k++)\n"+
+                        "        {\n"+
+                        "            sum += a[i * n + k] * b[k * cols + j];\n"+
+                        "        }\n"+
+                        "        c[i * cols + j] = sum;\n"+
+                        "    }\n"+
+                        "}\n"+*/
+
+                        "extern \"C\"\n"+
+                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int a_ncolumns, int c_nlines, int c_ncolumns, int nBlocks)\n"+
+                        "{\n"+
+                        "    int i, z; \n"+
+                        "    float sum = 0;\n"+
+                        "    const int NTHREADS_X = 32;\n"+
+                        "    const int NTHREADS_Y = 32;\n"+
+                        "    int nMultiplications = a_ncolumns;\n"+
+                        "    int multiplicationsInBlock = NTHREADS_Y;\n"+
+                        "    int column = blockIdx.x * blockDim.x + threadIdx.x;\n"+
+                        "    int line =  blockIdx.y * blockDim.y + threadIdx.y;\n"+
+
+                        "    __shared__ float s_a[NTHREADS_Y][NTHREADS_X];\n"+
+                        "    __shared__ float s_b[NTHREADS_Y][NTHREADS_X];\n"+
+
+                        "    int a_tLine, a_tColumn, b_tLine, b_tColumn;\n"+
+
+                        "    for (z = 0; z < nBlocks; z++)\n"+
+                        "    {\n"+
+
+                        // Load Matrix A
+                        "        a_tLine = (blockIdx.y * NTHREADS_Y + threadIdx.y);\n"+
+                        "        a_tColumn = (z * NTHREADS_X + threadIdx.x);\n"+
+                        "        if (a_tLine < c_nlines && a_tColumn < a_ncolumns)\n"+
+                        "        {\n"+
+                        "            s_a[threadIdx.y][threadIdx.x] = a[ (a_ncolumns * a_tLine) + a_tColumn];\n"+
+                        "        }\n"+
+
+                        // Load Matrix B
+                        "        b_tLine = (z * NTHREADS_Y + threadIdx.y);\n"+
+                        "        b_tColumn = (blockIdx.x * NTHREADS_X + threadIdx.x);\n"+
+                        "        if (b_tLine < a_ncolumns && b_tColumn < c_ncolumns)\n"+
+                        "        {\n"+
+                        "            s_b[threadIdx.y][threadIdx.x] = b[ (c_ncolumns * b_tLine) + b_tColumn ];\n"+
+                        "        }\n"+
+
+                        "        __syncthreads();\n"+
+
+                        "        if (column < c_ncolumns && line < c_nlines)\n"+
+                        "        {\n"+
+                        "            if (nMultiplications < NTHREADS_Y)\n"+
+                        "            {\n"+
+                        "                multiplicationsInBlock = nMultiplications;\n"+
+                        "            }\n"+
+
+                        "            for (i = 0; i < multiplicationsInBlock; i++)\n"+
+                        "            {\n"+
+                        "                sum += s_a[threadIdx.y][i] * s_b[i][threadIdx.x];\n"+
+                        "            }\n"+
+
+                        "            nMultiplications -= NTHREADS_Y;\n"+
+                        "        }\n"+
+
+                        "        __syncthreads();\n"+
+                        "    }\n"+
+
+                        "    if (column < c_ncolumns && line < c_nlines)\n"+
+                        "    {\n"+
+                        "        c[line * c_ncolumns + column] = sum;\n"+
+                        "    }\n"+
+                        "}\n"+
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int N) \n"+
+                        "{\n"+
+                        "    const int threadsPerBlock = 32;\n"+
+                        "    __shared__ float cache[threadsPerBlock];\n"+
+                        "    int tid = threadIdx.x + blockIdx.x * blockDim.x;\n"+
+                        "    int cacheIndex = threadIdx.x;\n"+
+                        "    float temp = 0;\n"+
+                        "    while (tid < N)\n"+
+                        "    {\n"+
+                        "        temp += a[tid] * b[tid];\n"+
+                        "        tid += blockDim.x * gridDim.x;\n"+
+                        "    }\n"+
+                        "    cache[cacheIndex] = temp;\n"+
+                        "    __syncthreads();\n"+
+                        "    int i = blockDim.x/2;\n"+
+                        "    while (i != 0) \n"+
+                        "    {\n"+
+                        "        if (cacheIndex < i)\n"+
+                        "            cache[cacheIndex] += cache[cacheIndex + i];\n"+
+                        "        __syncthreads();\n"+
+                        "        i /= 2;\n"+
+                        "    }\n"+
+
+                        "    if (cacheIndex == 0)\n"+
+                        "        c[blockIdx.x] = cache[0];\n"+
+                        "}\n"+*/
+
+                        "extern \"C\"\n"+
+                        "__global__ void addBackCopy(float* A, float* C, int A_col, int C_col, int start, int n) \n"+
+                        "{\n"+
+                        "   int index = threadIdx.x + (blockIdx.x * blockDim.x);\n"+
+                        "   if (index >= n)\n"+
+                        "       return;\n"+
+                        "   int indexOut = 0;\n"+
+                        "   int indexIn = index * A_col + start * C_col;\n"+
+                        "   for (int j = 0; j < C_col; j++, indexIn++, indexOut++) \n"+
+                        "   {\n"+
+                        "       C[indexIn] = A[indexOut];\n"+
+                        "   }\n"+
+                        "}\n"+
+
+                        /*"extern \"C\"\n"+
+                        "__global__ void matrixMultiplyShared(float * A, float * B, float * C, int numARows, int numAColumns, int numBRows, int numBColumns, int numCRows, int numCColumns) \n"+
+                        "{\n"+
+                            //@@ Insert code to implement matrix multiplication here
+                            //@@ You have to use shared memory for this MP
+                            "const int TILE_WIDTH = 32;\n"+
+                            "__shared__ float sharedA[TILE_WIDTH][TILE_WIDTH];\n"+
+                            "__shared__ float sharedB[TILE_WIDTH][TILE_WIDTH];\n"+
+                            "int bx = blockIdx.x;\n"+
+                            "int by = blockIdx.y;\n"+
+                            "int tx = threadIdx.x;\n"+
+                            "int ty = threadIdx.y;\n"+
+                            "int Row = by*TILE_WIDTH + ty;\n"+
+                            "int Col = bx*TILE_WIDTH + tx;\n"+
+                            "float Cvalue = 0.0;\n"+
+                            "if (numAColumns != numBRows) return ;\n"+
+                            "for (int i = 0; i < (int)(ceil((float)numAColumns/TILE_WIDTH)); i++)\n"+
+                            "{\n"+
+                            "if (i*TILE_WIDTH + tx < numAColumns && Row < numARows){\n"+
+                            "    sharedA[ty][tx] = A[Row*numAColumns + i*TILE_WIDTH + tx];\n"+
+                            "}else{\n"+
+                            "    sharedA[ty][tx] = 0.0;\n"+
+                            "}\n"+
+                            "if (i*TILE_WIDTH + ty < numBRows && Col < numBColumns){\n"+
+                            "    sharedB[ty][tx] = B[(i*TILE_WIDTH + ty)*numBColumns + Col];\n"+
+                            "}else{\n"+
+                            "    sharedB[ty][tx] = 0.0;\n"+
+                            "}\n"+
+                            "__syncthreads();\n"+
+                            "if(Row < numARows && Col < numBColumns){\n"+
+                            "    for(int j = 0; j < TILE_WIDTH; j++)\n"+
+                            "        Cvalue += sharedA[ty][j] * sharedB[j][tx];\n"+
+                            "}\n"+
+                            "__syncthreads();\n"+
+                            "}\n"+
+                            "if (Row < numCRows && Col < numCColumns)\n"+
+                            "    C[Row*numCColumns + Col] = Cvalue;\n"+
+                        "}\n"+*/
+
+                            "extern \"C\"\n"+
+                            "__global__ void matrixMultiplyShared(float * A, float * B, float * C, int numARows, int numAColumns, int numBRows, int numBColumns, int numCRows, int numCColumns) {\n"+
+                            "const int TILE_WIDTH = 32;\n"+
+                            "__shared__ float sA[TILE_WIDTH][TILE_WIDTH];\n"+   // Tile size of 32x32
+                            "__shared__ float sB[TILE_WIDTH][TILE_WIDTH];\n"+
+
+                            "int Row = blockDim.y * blockIdx.y + threadIdx.y;\n"+
+                            "int Col = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                            "float Cvalue = 0.0;\n"+
+                            "sA[threadIdx.y][threadIdx.x] = 0.0;\n"+
+                            "sB[threadIdx.y][threadIdx.x] = 0.0;\n"+
+
+                            "for (int ph = 0; ph < (((numAColumns - 1) / TILE_WIDTH) + 1); ph++) {\n"+
+                            "    if ((Row < numARows) && (threadIdx.x + (ph * TILE_WIDTH)) < numAColumns) {\n"+
+                            "        sA[threadIdx.y][threadIdx.x] = A[(Row * numAColumns) + threadIdx.x + (ph * TILE_WIDTH)];\n"+
+                            "    } else {\n"+
+                            "        sA[threadIdx.y][threadIdx.x] = 0.0;\n"+
+                            "    }\n"+
+                            "    if (Col < numBColumns && (threadIdx.y + ph * TILE_WIDTH) < numBRows) {\n"+
+                            "        sB[threadIdx.y][threadIdx.x] = B[(threadIdx.y + ph * TILE_WIDTH) * numBColumns + Col];\n"+
+                            "    } else {\n"+
+                            "        sB[threadIdx.y][threadIdx.x] = 0.0;\n"+
+                            "    }\n"+
+                            "    __syncthreads();\n"+
+
+                            "    for (int j = 0; j < TILE_WIDTH; ++j) {\n"+
+                            "        Cvalue += sA[threadIdx.y][j] * sB[j][threadIdx.x];\n"+
+                            "    }\n"+
+                            "}\n"+
+                            "if (Row < numCRows && Col < numCColumns) {\n"+
+                            "    C[Row * numCColumns + Col] = Cvalue;\n"+
+                            "}\n"+
+                        "}\n"+
+
+                        "extern \"C\"\n"+
+                        "__global__ void Softmax(const float* __restrict__ A, float* auxE, int sample_dim, float* N, int numElements)\n"+
+                        "{\n"+
+                            //This way of programing allow no warp syncronization as we only need kernel optimization.
+                            //Maybe use thrust library but could be tricky. Should study if it fit well with this problem. Think is not, we would need one thrust vector per row.
+                            //On the other hand possibly implement reduction as in http://www.cuvilib.com/Reduction.pdf. Will need to call another function. This could be complecated also as we need to see which thread id implements softmax and which one computes maximum. For now simple approximation.
+                            "float C_value = 0;\n"+
+                            "int thread_id_x = blockDim.x * blockIdx.x + threadIdx.x;\n"+
+                            "float maxCoef = A[thread_id_x*sample_dim];\n"+
+                            "float actualCoef = 0;\n"+
+                            "double E = 2.718281828459045;\n"+
+                            "if (thread_id_x < numElements)\n"+
+                            "{\n"+
+                                ///REALLY HIGH PROBABILITY OF BRANCH DIVERGENCE.
+                                //Description: All of the threads that lie under one condition execute first (stalling the others) and then next. Assuming one clock cycle per operation we would need double time to execute one warp.
+                                //Warping divergence: study reduction options for getting the maximum
+                                "#pragma omp parallel for\n"+
+                                "for (int cA = 1; cA < sample_dim; cA++)\n"+
+                                    "if (A[thread_id_x * sample_dim + cA] > maxCoef)\n"+
+                                        "maxCoef = A[thread_id_x * sample_dim+cA];\n"+
+
+                                //No warping divergence as all threads execute the same
+                                "#pragma omp parallel for\n"+
+                                "for (int cA = 0; cA < sample_dim; cA++)\n"+
+                                "{\n"+
+                                    "actualCoef = (float) pow(E, (double)(A[thread_id_x * sample_dim + cA] - maxCoef));\n"+
+                                    "auxE[thread_id_x * sample_dim + cA] = actualCoef;\n"+
+                                    "C_value += actualCoef;\n"+
+                                "}\n"+
+                                "#pragma omp parallel for\n"+
+                                "C_value += 0.00000001f;\n" +
+                                "for (int cA = 0; cA < sample_dim; cA++)\n"+
+                                "{\n"+
+                                    "N[thread_id_x * sample_dim + cA] = auxE[thread_id_x * sample_dim + cA] / C_value;\n"+
+                                "}\n"+
+                            "}\n"+
+                        "}\n"+
+                        "\n"
 
                 ;
 
     }
 
+    /*public void MultiHeadAttn(jcuda.jcudnn.cudnnHandle Handle) {
+        int batch_size 		=  16;
+        int emb_dim 		=  1024;
+	    int num_heads       =  16;
+        int seq_len 		=  64;
+        int beam_dim 		=  1;
+        int seqLensVecSize = batch_size;
+        List<Integer> seqLensVec = new ArrayList<>();
+        for (int i = 0; i < seqLensVecSize; i++)
+            seqLensVec.add(seq_len);
+
+        // q, k, v embedding vector lengths
+        int qSize = emb_dim;
+        int kSize = emb_dim;
+        int vSize = emb_dim;
+
+        // q, k, v embedding vector lengths after input projections.
+        int qProjSize = emb_dim / num_heads;
+        int kProjSize = emb_dim / num_heads;
+        int vProjSize = emb_dim / num_heads;
+
+        // o embedding vector length after the output projection
+        int oProjSize = emb_dim;
+
+        int qoMaxSeqLength = seq_len;
+        int kvMaxSeqLength = seq_len;
+        int maxBatchSize = batch_size;
+        int maxBeamSize = 1;
+
+        // ***********************************************************************
+        // Variables' Roles:
+        //
+        // devAQ -> [ devWQ + devBQ ] -> ..
+        // Input      Linear Layer          \
+        //                                   |
+        // devAK -> [ devWK + devBK ] -> [ hidden ] -> [ devWO + devBO ] -> devAO
+        // Input      Linear Layer           |           Linear Layer       Output
+        //                                  /
+        // devAV -> [ devWV + devBV ] -> ..
+        // Input      Linear Layer
+        //
+        // ***********************************************************************
+
+        // Below variables are used as shown above.
+        //Pointer Apointers_d = new Pointer();
+        //JCuda.cudaMalloc(Apointers_d, A.size() * Sizeof.POINTER);
+        //JCuda.cudaMemcpy(Apointers_d, Pointer.to(Apointers), A.size() * Sizeof.POINTER, cudaMemcpyKind.cudaMemcpyHostToDevice);
+
+        Pointer devAQ = new Pointer(); // q Activations
+        Pointer devAK = new Pointer(); // k Activations
+        Pointer devAV = new Pointer(); // v Activations
+        Pointer devAO = new Pointer(); // o Activations
+        Pointer devWQ = new Pointer(); // q Linear Layer Weights
+        Pointer devWK = new Pointer(); // k Linear Layer Weights
+        Pointer devWV = new Pointer(); // v Linear Layer Weights
+        Pointer devWO = new Pointer(); // o Linear Layer Weights
+        Pointer devBQ = new Pointer(); // q Linear Layer Biases
+        Pointer devBK = new Pointer(); // k Linear Layer Biases
+        Pointer devBV = new Pointer(); // v Linear Layer Biases
+        Pointer devBO = new Pointer(); // o Linear Layer Biases
+
+        // Corresponding partial derivatives.
+        Pointer devDAQ = new Pointer();
+        Pointer devDAK = new Pointer();
+        Pointer devDAV = new Pointer();
+        Pointer devDAO = new Pointer();
+        Pointer devDWQ = new Pointer();
+        Pointer devDWK = new Pointer();
+        Pointer devDWV = new Pointer();
+        Pointer devDWO = new Pointer();
+        Pointer devDBQ = new Pointer();
+        Pointer devDBK = new Pointer();
+        Pointer devDBV = new Pointer();
+        Pointer devDBO = new Pointer();
+
+        long[] sizeWeights = new long[]{0};
+        long[] sizeWkspace = new long[]{0};
+        long[] sizeReserve = new long[]{0};
+        Pointer devWs = new Pointer();
+        Pointer devDWs = new Pointer();
+        Pointer devWkspace = new Pointer();
+        Pointer devReserve = new Pointer();
+
+        // Device array specifying seq. lengths of query, residual, and output seq. data.
+        Pointer devQSeqArray = new Pointer();
+        // Device array specifying seq. lengths of key and value input data.
+        Pointer devKSeqArray = new Pointer();
+        // Host arrays specifying the attention window size for each Q time-step.
+        List<Integer> loWinIdx, hiWinIdx;
+
+        int CUDNN_SEQDATA_DIM_COUNT = 4;
+
+        int axes[] = new int[CUDNN_SEQDATA_DIM_COUNT];
+        axes[0] = jcuda.jcudnn.cudnnSeqDataAxis.CUDNN_SEQDATA_BEAM_DIM;
+        axes[1] = jcuda.jcudnn.cudnnSeqDataAxis.CUDNN_SEQDATA_TIME_DIM;
+        axes[2] = jcuda.jcudnn.cudnnSeqDataAxis.CUDNN_SEQDATA_BATCH_DIM;
+        axes[3] = jcuda.jcudnn.cudnnSeqDataAxis.CUDNN_SEQDATA_VECT_DIM;
+
+        int dimA[] = new int[CUDNN_SEQDATA_DIM_COUNT];
+        dimA[cudnnSeqDataAxis.CUDNN_SEQDATA_BEAM_DIM]  = beam_dim;
+        dimA[cudnnSeqDataAxis.CUDNN_SEQDATA_TIME_DIM]  = seq_len;
+        dimA[cudnnSeqDataAxis.CUDNN_SEQDATA_BATCH_DIM] = batch_size;
+        dimA[cudnnSeqDataAxis.CUDNN_SEQDATA_VECT_DIM]  = emb_dim;
+
+        jcuda.jcudnn.cudnnAttnDescriptor attn_desc;
+        jcuda.jcudnn.cudnnSeqDataDescriptor q_desc = null;
+        jcuda.jcudnn.cudnnSeqDataDescriptor k_desc = null;
+        jcuda.jcudnn.cudnnSeqDataDescriptor v_desc = null;
+        jcuda.jcudnn.cudnnSeqDataDescriptor o_desc = null;
+
+        // Dropout is currently not supported by CuDNN's multi-head attention API.
+        jcuda.jcudnn.cudnnDropoutDescriptor attnDropoutDesc = new jcuda.jcudnn.cudnnDropoutDescriptor();
+        jcuda.jcudnn.cudnnDropoutDescriptor postDropoutDesc = new jcuda.jcudnn.cudnnDropoutDescriptor();
+
+        boolean enable_bias = false;
+        int attnMode = enable_bias ? JCudnn.CUDNN_ATTN_ENABLE_PROJ_BIASES : JCudnn.CUDNN_ATTN_DISABLE_PROJ_BIASES;
+        double smScaler = 1.0;
+        int dataType = cudnnDataType.CUDNN_DATA_FLOAT;
+        int computePrec = cudnnDataType.CUDNN_DATA_FLOAT;
+        int mathType = cudnnMathType.CUDNN_DEFAULT_MATH;
+
+        checkCudnnError(jcuda.jcudnn.JCudnn.cudnnCreateAttnDescriptor(attn_desc));
+        checkCudnnError(jcuda.jcudnn.JCudnn.cudnnSetAttnDescriptor(
+                attn_desc,
+                attnMode,
+                num_heads,
+                smScaler,
+                dataType,
+                computePrec,
+                mathType,
+                attnDropoutDesc,
+                postDropoutDesc,
+                qSize,
+                kSize,
+                vSize,
+                qProjSize,
+                kProjSize,
+                vProjSize,
+                oProjSize,
+                qoMaxSeqLength,
+                kvMaxSeqLength,
+                maxBatchSize,
+                maxBeamSize));
+
+        boolean training = true;
+
+        checkCudnnError(jcuda.jcudnn.JCudnn.cudnnCreate(Handle));
+        checkCudnnError(jcuda.jcudnn.JCudnn.cudnnGetMultiHeadAttnBuffers(
+                Handle, attn_desc, sizeWeights, sizeWkspace, training ? sizeReserve : null));
+        checkCudaErrors(cudaMalloc(devWs, sizeWeights));
+        checkCudaErrors(cudaMalloc(devWkspace, sizeWkspace));
+        if (training) {
+            checkCudaErrors(cudaMalloc(devDWs, sizeWeights));
+            checkCudaErrors(cudaMalloc(devReserve, sizeReserve));
+            checkCudaErrors(JCuda.cudaMemset(devDWs, 0, sizeWeights));
+            checkCudaErrors(JCuda.cudaMemset(devReserve, 0, sizeReserve));
+
+            checkCudaErrors(JCuda.cudaMemset(devWs, 0, sizeWeights));
+            checkCudaErrors(JCuda.cudaMemset(devWkspace, 0, sizeWkspace));
+        }
+
+        class subblock{
+            String name;
+            Pointer devA; 	// used for q, k, v, o activations.
+            Pointer devW;  	// used for q, k, v, o linear layer weights.
+            Pointer devB;  	// used for q, k, v, o linear layer biases.
+            Pointer devDA; 	// used for partial derivatives of q, k, v, o activations.
+            Pointer devDW;  // used for partial derivatives of q, k, v, o linear layer weights.
+            Pointer devDB;  // used for partial derivatives of q, k, v, o linear layer biases.
+            cudnnMultiHeadAttnWeightKind enumW;
+            cudnnMultiHeadAttnWeightKind enumB;
+        };
+
+        // Shorten enum names to fit the subblocks table below.
+        int enumWQ = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_Q_WEIGHTS, enumBQ = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_Q_BIASES;
+        int enumWK = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_K_WEIGHTS, enumBK = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_K_BIASES;
+        int enumWV = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_V_WEIGHTS, enumBV = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_V_BIASES;
+        int enumWO = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_O_WEIGHTS, enumBO = jcuda.jcudnn.cudnnMultiHeadAttnWeightKind.CUDNN_MH_ATTN_O_BIASES;
+
+        List<subblock> subblocks = new ArrayList<subblock>()
+        {
+            //
+            //  Corresponding struct member names:
+            // .name | .devA | .devW | .devB | .devDA | .devDW | .devDB |.enumW |.enumB
+            //
+            {"q",     devAQ, devWQ, devBQ, devDAQ, devDWQ, devDBQ, enumWQ, enumBQ},
+            {"k",     devAK, devWK, devBK, devDAK, devDWK, devDBK, enumWK, enumBK},
+            {"v",     devAV, devWV, devBV, devDAV, devDWV, devDBV, enumWV, enumBV},
+            {"o",     devAO, devWO, devBO, devDAO, devDWO, devDBO, enumWO, enumBO},
+        };
+        for (subblock s : subblocks) {
+
+            auto avec = cfg.vecs[s.name];
+            auto wvec = cfg.vecs[s.name + "_p.weight"];
+            auto bvec = cfg.vecs[s.name + "_p.bias"];
+
+            cudnnTensorDescriptor desc;
+            checkCudnnError(cudnnCreateTensorDescriptor(desc));
+
+            // Allocate memory for activations devAQ, devAK, devAV, devAO.
+            checkCudaErrors(cudaMalloc(s.devA, sizeof(T) * avec.size()));
+
+            // Store addresses for weights in devWQ, devWK, devWV, devWO.
+            checkCudnnError(cudnnGetMultiHeadAttnWeights(
+                    cudnnHandle, attn_desc, s.enumW, sizeWeights, devWs,  desc, s.devW));
+
+            // Store addresses for biases in devBQ, devBK, devBV, devBO.
+            checkCudnnError(cudnnGetMultiHeadAttnWeights(
+                    cudnnHandle, attn_desc, s.enumB, sizeWeights, devWs,  desc, s.devB));
+
+            if (training) {
+                // Allocate memory for activations' gradients devDAQ, devDAK, devDAV, devDAO.
+                checkCudaErrors(cudaMalloc(s.devDA, sizeof(T) * avec.size()));
+
+                // Store addresses for weights' gradients in devDWQ, devDWK, devDWV, devDWO.
+                checkCudnnError(cudnnGetMultiHeadAttnWeights(
+                        cudnnHandle, attn_desc, s.enumW, sizeWeights, devDWs, desc, s.devDW));
+
+                // Store addresses for biases' gradients in devDBQ, devDBK, devDBV, devDBO.
+                checkCudnnError(cudnnGetMultiHeadAttnWeights(
+                        cudnnHandle, attn_desc, s.enumB, sizeWeights, devDWs, desc, s.devDB));
+            }
+            // Copy PyTorch reference weights to GPU.
+            checkCudaErrors(cudaMemcpy(
+                    *s.devW, wvec.data(), sizeof(T) * wvec.size(), cudaMemcpyHostToDevice));
+
+            // Copy PyTorch reference biases to GPU.
+            checkCudaErrors(cudaMemcpy(
+                    *s.devB, bvec.data(), sizeof(T) * bvec.size(), cudaMemcpyHostToDevice));
+
+            // Copy PyTorch reference inputs to GPU.
+            if (s.name == "q" || s.name == "k" || s.name == "v")
+                checkCudaErrors(cudaMemcpy(
+                        *s.devA, avec.data(), sizeof(T) * avec.size(), cudaMemcpyHostToDevice));
+        }
+        if (training) {
+            // Copy gradients that will propagate backward through the entire net, to GPU.
+            std::vector<T> DAO (cfg.vecs["o"].size(), 1.0);
+            checkCudaErrors(cudaMemcpy(
+                    devDAO, DAO.data(), sizeof(T) * DAO.size(), cudaMemcpyHostToDevice));
+        }
+        for (cudnnSeqDataDescriptor * desc: { &q_desc, &k_desc, &v_desc, &o_desc }) {
+            checkCudnnError(cudnnCreateSeqDataDescriptor(desc));
+            checkCudnnError(cudnnSetSeqDataDescriptor(
+                    *desc, dataType, CUDNN_SEQDATA_DIM_COUNT, dimA, axes, seqLensVecSize, seqLensVec.data(), NULL));
+        }
+
+        std::vector<int>  hostQSeqVec(batch_size * beam_dim, seq_len);
+        std::vector<int>  hostKSeqVec(batch_size, seq_len);
+        int qSeqArraySize = hostQSeqVec.size() * sizeof(int);
+        int kSeqArraySize = hostKSeqVec.size() * sizeof(int);
+
+        checkCudaErrors(cudaMalloc((void**)&devQSeqArray, qSeqArraySize));
+        checkCudaErrors(cudaMalloc((void**)&devKSeqArray, kSeqArraySize));
+        checkCudaErrors(cudaMemcpy(
+                devQSeqArray, (void*)hostQSeqVec.data(), qSeqArraySize, cudaMemcpyHostToDevice));
+        checkCudaErrors(cudaMemcpy(
+                devKSeqArray, (void*)hostKSeqVec.data(), kSeqArraySize, cudaMemcpyHostToDevice));
+
+        int maxSeqLenK = INT_MAX;
+        for (int i = 0; i < seq_len; i++) {
+            loWinIdx.push_back(0);
+            hiWinIdx.push_back(maxSeqLenK);
+        }
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        auto t1 = std::chrono::high_resolution_clock::now();
+        for (int iter = 0; iter < FLAGS_iterations; ++iter) {
+            int currIdx=-1;
+            checkCudnnError(cudnnMultiHeadAttnForward(
+                    // parameter names in CuDNN API docs
+                    cudnnHandle,    // cudnnHandle_t handle
+                    attn_desc,      // const cudnnAttnDescriptor_t attn_desc
+                    currIdx,        // int currIdx
+                    (const int*)loWinIdx.data(),    // const int loWinIdx[]
+                    (const int*)hiWinIdx.data(),    // const int hiWinIdx[]
+                    devQSeqArray,   // const int devQSeqArray[],
+                    devKSeqArray,   // const int devKSeqArray[],
+                    q_desc,         // const cudnnSeqDataDescriptor_t q_desc
+                    devAQ,          // const void *queries,
+                    NULL,           // const void *residuals,
+                    k_desc,         // const cudnnSeqDataDescriptor_t k_desc,
+                    devAK,          // const void *keys,
+                    v_desc,         // const cudnnSeqDataDescriptor_t v_desc,
+                    devAV,          // const void *values,
+                    o_desc,         // const cudnnSeqDataDescriptor_t o_desc,
+                    devAO,          // void *out
+                    sizeWeights,    // size_t weightSizeInBytes,
+                    devWs,          // const void *weights,
+                    sizeWkspace,    // size_t workSpaceSizeInBytes,
+                    devWkspace,     // void *workSpace,
+                    sizeReserve,    // size_t reserveSpaceSizeInBytes,
+                    devReserve));   // void *reserveSpace
+            if (training) {
+                checkCudnnError(cudnnMultiHeadAttnBackwardData(
+                        cudnnHandle,
+                        attn_desc,
+                        (const int*)loWinIdx.data(),
+                        (const int*)hiWinIdx.data(),
+                        devQSeqArray,
+                        devKSeqArray,
+                        o_desc,
+                        devDAO,
+                        q_desc,
+                        devDAQ,
+                        devAQ,
+                        k_desc,
+                        devDAK,
+                        devAK,
+                        v_desc,
+                        devDAV,
+                        devAV,
+                        sizeWeights,
+                        devWs,
+                        sizeWkspace,
+                        devWkspace,
+                        sizeReserve,
+                        devReserve));
+                checkCudnnError(cudnnMultiHeadAttnBackwardWeights(
+                        cudnnHandle,
+                        attn_desc,
+                        CUDNN_WGRAD_MODE_SET,
+                        q_desc,
+                        devAQ,
+                        k_desc,
+                        devAK,
+                        v_desc,
+                        devAV,
+                        o_desc,
+                        devDAO,
+                        sizeWeights,
+                        devWs,
+                        devDWs,
+                        sizeWkspace,
+                        devWkspace,
+                        sizeReserve,
+                        devReserve));
+            }
+        }
+
+        checkCudaErrors(cudaDeviceSynchronize());
+        auto t2 = std::chrono::high_resolution_clock::now();
+
+        struct kv{
+            std::string name;
+            void * devPtr;
+            T error = 0.0;
+            int error_i = 0;
+            T error_div_spread = 0.0;
+            T minPyt = FLT_MAX;
+            T maxPyt = FLT_MIN;
+            T minCud = FLT_MAX;
+            T maxCud = FLT_MIN;
+        };
+        std::vector<kv> kvvec {
+            {"q_p.weight.grad", devDWQ},
+            {"k_p.weight.grad", devDWK},
+            {"v_p.weight.grad", devDWV},
+            {"o_p.weight.grad", devDWO},
+            // {"q_p.bias.grad", devDBQ},
+            // {"k_p.bias.grad", devDBK},
+            // {"v_p.bias.grad", devDBV},
+            // {"o_p.bias.grad", devDBO},
+            // {"q_p.weight", devWQ},
+            // {"k_p.weight", devWK},
+            // {"v_p.weight", devWV},
+            // {"o_p.weight", devWO},
+            // {"q_p.bias", devBQ},
+            // {"k_p.bias", devBK},
+            // {"v_p.bias", devBV},
+            // {"o_p.bias", devBO},
+            {"o", devAO},
+        };
+
+        for (auto & [name, devPtr, error, error_i, error_div_spread, minPyt, maxPyt, minCud, maxCud] : kvvec) {
+            if (cfg.vecs.find(name) == cfg.vecs.end() || cfg.vecs[name].empty() || devPtr == nullptr)
+                continue;
+            auto pytVec = cfg.vecs[name];
+            auto size = sizeof(T) * pytVec.size();
+            auto cudnnVec = pytVec;
+            checkCudaErrors(cudaMemcpy(cudnnVec.data(), devPtr, size, cudaMemcpyDeviceToHost));
+
+            // TO DO (Maybe?): change indexing to using stride and dimension lengths
+            // info provided by cudnnGetTensorNdDescriptor and/or cudnnGetSeqDataDescriptor.
+
+            minPyt = sizeof(T) == 8 ? DBL_MAX : FLT_MAX;
+            maxPyt = sizeof(T) == 8 ? DBL_MIN : FLT_MIN;
+            minCud = sizeof(T) == 8 ? DBL_MAX : FLT_MAX;
+            maxCud = sizeof(T) == 8 ? DBL_MIN : FLT_MIN;
+
+            for (int i = 0; i < pytVec.size(); i++) {
+                auto cudVal = cudnnVec[i];
+                auto pytVal = pytVec[i];
+
+                if (error < abs(cudVal - pytVal)) {
+                    error = abs(cudVal - pytVal);
+                    error_i = i;
+                }
+                minPyt = std::min(minPyt, pytVal);
+                maxPyt = std::max(maxPyt, pytVal);
+                minCud = std::min(minCud, cudVal);
+                maxCud = std::max(maxCud, cudVal);
+            }
+        }
+
+        JCuda.cudaFree(devWs);
+        JCuda.cudaFree(devDWs);
+        JCuda.cudaFree(devWkspace);
+        JCuda.cudaFree(devReserve);
+        JCuda.cudaFree(devQSeqArray);
+        JCuda.cudaFree(devKSeqArray);
+        JCuda.cudaFree(devAQ);
+        JCuda.cudaFree(devAK);
+        JCuda.cudaFree(devAV);
+        JCuda.cudaFree(devAO);
+        JCuda.cudaFree(devDAQ);
+        JCuda.cudaFree(devDAK);
+        JCuda.cudaFree(devDAV);
+        JCuda.cudaFree(devDAO);
+
+        return;
+    }*/
+
+    public void checkCudnnError(int status) {
+        do {
+            if (status != jcuda.jcudnn.cudnnStatus.CUDNN_STATUS_SUCCESS) {
+                FatalError("CUDNN failure: " + jcuda.jcudnn.JCudnn.cudnnGetErrorString(status));
+            }
+        } while (false);
+    }
+
+    public void checkCudaErrors(int status) {
+        do {
+            if (status != 0) {
+                FatalError("Cuda failure: " + status);
+            }
+        } while (false);
+    }
+
+
+    public void FatalError(String s) {
+        do {
+            String _where, _message;
+            _message = s + "\n";
+            System.out.println(_message + "\nAborting...\n");
+            jcuda.runtime.JCuda.cudaDeviceReset();
+        } while (false);
+    }
+
     public static void main(String[] args) {
 
-        CublasUtil.startup(0);
+        CublasUtil.startup();
 
         Random rand = new Random(1);
         float[][] Aarray = a.randFloat(2, 3, rand);
@@ -1201,7 +2383,7 @@ public class CublasUtil {
             Matrix A = Matrix.build(Aarray);
             Matrix B = Matrix.build(Barray);
             Matrix C = Matrix.build(Carray);
-            Matrix D = (A.mmul(B.transpose()).add(Matrix.ones(2, 3)).muli(2.0f)).mul(C);
+            Matrix D = (B.transpose().dot(A).add(Matrix.ones(2, 3)).muli(2.0f)).mul(C);
             D.maxi(-68.0f);
             System.out.println(a.toString(D.toArray2()));
             System.out.println(D.norm1());

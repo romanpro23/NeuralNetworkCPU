@@ -1,6 +1,5 @@
 package neural_network.optimizers;
 
-import lombok.Data;
 import nnarrays.NNArray;
 
 public class NesterovOptimizer extends Optimizer {

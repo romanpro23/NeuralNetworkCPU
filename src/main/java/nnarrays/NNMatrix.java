@@ -262,8 +262,26 @@ public class NNMatrix extends NNArray {
         }
     }
 
-    public NNMatrix dotT(NNMatrix matrix) {
-        if (!UseGPU) {
+    public NNMatrix dot(NNMatrix matrix)
+    {
+        NNMatrix result = new NNMatrix(row, matrix.column);
+
+        if (column == matrix.row) {
+            for (int i = 0; i < row; ++i) {
+                for (int j = 0; j < result.column; ++j) {
+                    float tmp = 0.0f;
+                    for (int h = 0; h < column; ++h) {
+                        tmp += data[i * matrix.row + h] * matrix.data[h * result.column + j];
+                    }
+                    result.data[i * result.column + j] = tmp;
+                }
+            }
+        }
+        return result;
+    }
+
+    /*public NNMatrix dotT(NNMatrix matrix) {
+        //if (!UseGPU) {
             NNMatrix result = new NNMatrix(row, matrix.getRow());
 
             for (int n = 0, indR = 0; n < row; n++) {
@@ -273,23 +291,26 @@ public class NNMatrix extends NNArray {
                     }
                 }
             }
+
             return result;
-        }
+        /*}
         else {
             CublasUtil.Matrix A_data = CublasUtil.Matrix.build(column, row, data);
             CublasUtil.Matrix B_matrix = CublasUtil.Matrix.build(matrix.getColumn(), matrix.getRow(), matrix.getData());
-            CublasUtil.Matrix B_matrix_T = B_matrix.transpose();
-            CublasUtil.Matrix C_matrix = B_matrix_T.mmul(A_data);
+            CublasUtil.Matrix C_matrix = A_data.dotT(B_matrix);
 
             NNMatrix result = new NNMatrix(row, matrix.getRow(), C_matrix.toArray());
 
             A_data.free();
             B_matrix.free();
-            B_matrix_T.free();
             C_matrix.free();
 
             return result;
         }
+    }*/
+
+    public NNMatrix dotT(NNMatrix matrix) {
+        return dot(matrix.transpose());
     }
 
     public NNMatrix dot(NNTensor tensor) {
@@ -361,15 +382,15 @@ public class NNMatrix extends NNArray {
         return result;
     }
 
-    public NNMatrix dot(NNMatrix matrix) {
-        if (!UseGPU) {
+    /*public NNMatrix dot(NNMatrix matrix) {
+        //if (!UseGPU) {
             return dotT(matrix.transpose());
-        }
+        /*}
         else
         {
             CublasUtil.Matrix A_data = CublasUtil.Matrix.build(column, row, data);
             CublasUtil.Matrix B_matrix = CublasUtil.Matrix.build(matrix.getColumn(), matrix.getRow(), matrix.getData());
-            CublasUtil.Matrix C_matrix = B_matrix.mmul(A_data);
+            CublasUtil.Matrix C_matrix = A_data.dot(B_matrix);
 
             NNMatrix result = new NNMatrix(row, matrix.column, C_matrix.toArray());
 
@@ -380,7 +401,7 @@ public class NNMatrix extends NNArray {
             return result;
 
         }
-    }
+    }*/
 
     public NNMatrix dot(NNVector vector) {
         NNMatrix result = new NNMatrix(row, vector.size);

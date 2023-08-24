@@ -26,13 +26,13 @@ public class speechtotext {
         loader.setUseReverse(true);
 
         Optimizer optimizer = new AdamOptimizer();
-        network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt")))
+        /*network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt")))
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setTrainable(true)
-                .create();
+                .create();*/
 
-                /*network = new NeuralNetwork();
+                network = new NeuralNetwork();
                 network.addInputLayer(24, 488, 1)
                 //.addLayer(new ConvolutionLayer(64, 20, 42, 4, 0, 0))
                 //.addLayer(new ConvolutionLayer(4096, 24, 492, 2, 0, 0))
@@ -80,9 +80,9 @@ public class speechtotext {
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setTrainable(true)
-                .create();*/
+                .create();
 
-        optimizer.read(new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt")));
+  //      optimizer.read(new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt")));
 
         network.info();
         DataTrainer trainer = new DataTrainer(5000, 5000, loader);
@@ -91,8 +91,8 @@ public class speechtotext {
             long start = System.nanoTime();
             trainer.train(network, 64, 1, new DataMetric.Top1());
 
-            network.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt"));
-            optimizer.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt"));
+  //          network.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt"));
+  //          optimizer.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt"));
 
             System.out.println((System.nanoTime() - start) / 1000000);
 

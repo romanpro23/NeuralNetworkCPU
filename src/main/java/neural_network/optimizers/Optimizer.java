@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -90,6 +91,14 @@ public abstract class Optimizer {
         NNArray[] additionParam = new NNArray[countParam];
         for (int i = 0; i < countParam; i++) {
             additionParam[i] = new NNArray(weight.size());
+        }
+        optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
+    }
+
+    public void addDataOptimize(CublasUtil.Matrix weight, CublasUtil.Matrix derWeight) {
+        CublasUtil.Matrix[] additionParam = new CublasUtil.Matrix[countParam];
+        for (int i = 0; i < countParam; i++) {
+            additionParam[i] = new CublasUtil.Matrix(weight.rows(), weight.cols());
         }
         optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
     }

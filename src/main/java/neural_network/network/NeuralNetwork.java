@@ -40,7 +40,7 @@ public class NeuralNetwork {
         initializeOptimizers = new ArrayList<>();
         stopGradient = 0;
 
-        CublasUtil.startup(0);
+        CublasUtil.startup();
     }
 
     public NeuralNetwork copy() {
