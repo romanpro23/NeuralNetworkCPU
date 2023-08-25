@@ -181,58 +181,13 @@ __global__ void derSoftmax(const float* __restrict__ output, const float* __rest
    }
 }
 extern "C"
-__global__ void softmax_sum(const float* __restrict__ c, int row, int col, float *sum)
+__global__ void MatAdd(float* A, const float* __restrict__ B, int numElements)
 {
-int X = blockIdx.x*blockDim.x + threadIdx.x;
-int Y = blockIdx.y*blockDim.y + threadIdx.y;
-if (X < row && Y < col)
-{
-if(Y == 0)
-{
-float local_sum = 0;
-for(int i = 0; i < col ; i++)
-{
-local_sum += exp(c[X*col + i]);
-}
-sum[X] = local_sum;
-}
-}
-}
-extern "C"
-__global__ void softmax_probability(const float* __restrict__ sum, int row, int col, float* c){
-int X = blockIdx.x*blockDim.x + threadIdx.x;
-int Y = blockIdx.y*blockDim.y + threadIdx.y;
-if (X < row && Y < col){
-c[X*col + Y] = exp(c[X*col + Y]) / sum[X];
-}
-}
-extern "C"
-__global__ void softmax_kernel(const float* __restrict__ input_data, int nrow, int ncol, float* output_data)
-{
-int y = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;
-if (y >= nrow) {
-return;
-}
-input_data += y * ncol;
-output_data += y * ncol;
-float maxval = *input_data;
-for (int x = 1; x < ncol; ++x) {
-maxval = max(maxval, input_data[x]);
-}
-float sum = 0;
-for (int x = 0; x < ncol; ++x) {
-sum += exp(input_data[x] - maxval);
-}
-for (int x = 0; x < ncol; ++x) {
-output_data[x] = exp(input_data[x] - maxval) / sum;
-}
-}
-extern "C"
-__global__ void set_value(float* A, float value, long int total_ops)
-{
-int thread_id_x = threadIdx.x +blockIdx.x*blockDim.x;
-if (thread_id_x < total_ops)
-A[thread_id_x]=value;
+    int k = blockDim.x * blockIdx.x + threadIdx.x;
+    if (k < numElements)
+    {
+       A[k] += B[k];
+    }
 }
 extern "C"
 __global__ void addCopy(float* A, float* C, int A_col, int C_col, int start, int n) 
@@ -248,54 +203,6 @@ for (int j = 0; j < A_col; j++, indexIn++, indexOut++)
 }
 }
 extern "C"
-__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int a_ncolumns, int c_nlines, int c_ncolumns, int nBlocks)
-{
-    int i, z; 
-    float sum = 0;
-    const int NTHREADS_X = 32;
-    const int NTHREADS_Y = 32;
-    int nMultiplications = a_ncolumns;
-    int multiplicationsInBlock = NTHREADS_Y;
-    int column = blockIdx.x * blockDim.x + threadIdx.x;
-    int line =  blockIdx.y * blockDim.y + threadIdx.y;
-    __shared__ float s_a[NTHREADS_Y][NTHREADS_X];
-    __shared__ float s_b[NTHREADS_Y][NTHREADS_X];
-    int a_tLine, a_tColumn, b_tLine, b_tColumn;
-    for (z = 0; z < nBlocks; z++)
-    {
-        a_tLine = (blockIdx.y * NTHREADS_Y + threadIdx.y);
-        a_tColumn = (z * NTHREADS_X + threadIdx.x);
-        if (a_tLine < c_nlines && a_tColumn < a_ncolumns)
-        {
-            s_a[threadIdx.y][threadIdx.x] = a[ (a_ncolumns * a_tLine) + a_tColumn];
-        }
-        b_tLine = (z * NTHREADS_Y + threadIdx.y);
-        b_tColumn = (blockIdx.x * NTHREADS_X + threadIdx.x);
-        if (b_tLine < a_ncolumns && b_tColumn < c_ncolumns)
-        {
-            s_b[threadIdx.y][threadIdx.x] = b[ (c_ncolumns * b_tLine) + b_tColumn ];
-        }
-        __syncthreads();
-        if (column < c_ncolumns && line < c_nlines)
-        {
-            if (nMultiplications < NTHREADS_Y)
-            {
-                multiplicationsInBlock = nMultiplications;
-            }
-            for (i = 0; i < multiplicationsInBlock; i++)
-            {
-                sum += s_a[threadIdx.y][i] * s_b[i][threadIdx.x];
-            }
-            nMultiplications -= NTHREADS_Y;
-        }
-        __syncthreads();
-    }
-    if (column < c_ncolumns && line < c_nlines)
-    {
-        c[line * c_ncolumns + column] = sum;
-    }
-}
-extern "C"
 __global__ void addBackCopy(float* A, float* C, int A_col, int C_col, int start, int n) 
 {
    int index = threadIdx.x + (blockIdx.x * blockDim.x);
@@ -307,36 +214,6 @@ __global__ void addBackCopy(float* A, float* C, int A_col, int C_col, int start,
    {
        C[indexIn] = A[indexOut];
    }
-}
-extern "C"
-__global__ void matrixMultiplyShared(float * A, float * B, float * C, int numARows, int numAColumns, int numBRows, int numBColumns, int numCRows, int numCColumns) {
-const int TILE_WIDTH = 32;
-__shared__ float sA[TILE_WIDTH][TILE_WIDTH];
-__shared__ float sB[TILE_WIDTH][TILE_WIDTH];
-int Row = blockDim.y * blockIdx.y + threadIdx.y;
-int Col = blockDim.x * blockIdx.x + threadIdx.x;
-float Cvalue = 0.0;
-sA[threadIdx.y][threadIdx.x] = 0.0;
-sB[threadIdx.y][threadIdx.x] = 0.0;
-for (int ph = 0; ph < (((numAColumns - 1) / TILE_WIDTH) + 1); ph++) {
-    if ((Row < numARows) && (threadIdx.x + (ph * TILE_WIDTH)) < numAColumns) {
-        sA[threadIdx.y][threadIdx.x] = A[(Row * numAColumns) + threadIdx.x + (ph * TILE_WIDTH)];
-    } else {
-        sA[threadIdx.y][threadIdx.x] = 0.0;
-    }
-    if (Col < numBColumns && (threadIdx.y + ph * TILE_WIDTH) < numBRows) {
-        sB[threadIdx.y][threadIdx.x] = B[(threadIdx.y + ph * TILE_WIDTH) * numBColumns + Col];
-    } else {
-        sB[threadIdx.y][threadIdx.x] = 0.0;
-    }
-    __syncthreads();
-    for (int j = 0; j < TILE_WIDTH; ++j) {
-        Cvalue += sA[threadIdx.y][j] * sB[j][threadIdx.x];
-    }
-}
-if (Row < numCRows && Col < numCColumns) {
-    C[Row * numCColumns + Col] = Cvalue;
-}
 }
 extern "C"
 __global__ void Softmax(const float* __restrict__ A, float* auxE, int sample_dim, float* N, int numElements)

@@ -4,6 +4,8 @@ import static jcuda.driver.JCudaDriver.*;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
+import java.awt.event.HierarchyEvent;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -103,7 +105,7 @@ public class CublasUtil {
             this.rows = rows;
             this.cols = cols;
             this.data_d = new Pointer();
-            cudaMalloc(data_d, rows*cols * Sizeof.FLOAT);
+            cudaMalloc(data_d, rows * cols * Sizeof.FLOAT);
             CublasUtil.allocated.add(this);
         }
 
@@ -127,6 +129,7 @@ public class CublasUtil {
                 return false;
             }
         }
+
         public int hashCode() {
             return this.data_d.hashCode();
         }
@@ -142,10 +145,10 @@ public class CublasUtil {
         public static Matrix build(int rows, int cols, float[] data_h) {
             Matrix result = new Matrix(rows, cols);
 
-            cudaMalloc(result.data_d, Sizeof.FLOAT * rows * cols);
-            cudaMemcpy(result.data_d, Pointer.to(data_h), Sizeof.FLOAT * rows * cols, cudaMemcpyHostToDevice);
+            //cudaMalloc(result.data_d, Sizeof.FLOAT * rows * cols);
+            //cudaMemcpy(result.data_d, Pointer.to(data_h), Sizeof.FLOAT * rows * cols, cudaMemcpyHostToDevice);
 
-            //JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, Pointer.to(data_h), result.rows, result.data_d, result.rows);
+            JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, Pointer.to(data_h), result.rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
@@ -190,48 +193,48 @@ public class CublasUtil {
 
         public Matrix copy() {
             Matrix result = new Matrix(rows, cols);
-            JCublas2.cublasScopy(cublasHandle, this.rows*this.cols, this.data_d, 1, result.data_d, 1);
+            JCublas2.cublasScopy(cublasHandle, this.rows * this.cols, this.data_d, 1, result.data_d, 1);
 //			JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, this.data_d, result.rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
 
         public Matrix copySubmatrix(int r0, int r1, int c0, int c1) {
-            Matrix result = new Matrix(r1-r0, c1-c0);
-            JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, this.data_d.withByteOffset((c0*this.rows+r0)*Sizeof.FLOAT), this.rows, result.data_d, result.rows);
+            Matrix result = new Matrix(r1 - r0, c1 - c0);
+            JCublas2.cublasSetMatrix(result.rows, result.cols, Sizeof.FLOAT, this.data_d.withByteOffset((c0 * this.rows + r0) * Sizeof.FLOAT), this.rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
 
         public Matrix setSubmatrix(int r, int c, Matrix that, int r0, int r1, int c0, int c1) {
-            JCublas2.cublasSetMatrix(r1-r0, c1-c0, Sizeof.FLOAT, that.data_d.withByteOffset((c0*that.rows+r0)*Sizeof.FLOAT), that.rows, this.data_d.withByteOffset((c*this.rows+r)*Sizeof.FLOAT), this.rows);
+            JCublas2.cublasSetMatrix(r1 - r0, c1 - c0, Sizeof.FLOAT, that.data_d.withByteOffset((c0 * that.rows + r0) * Sizeof.FLOAT), that.rows, this.data_d.withByteOffset((c * this.rows + r) * Sizeof.FLOAT), this.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
 
         public Matrix setSubmatrix(Matrix that, int r, int c) {
-            JCublas2.cublasSetMatrix(that.rows, that.cols, Sizeof.FLOAT, that.data_d, that.rows, this.data_d.withByteOffset((c*this.rows+r)*Sizeof.FLOAT), this.rows);
+            JCublas2.cublasSetMatrix(that.rows, that.cols, Sizeof.FLOAT, that.data_d, that.rows, this.data_d.withByteOffset((c * this.rows + r) * Sizeof.FLOAT), this.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
 
         public Matrix setSubmatrix(float[][] mat, int r, int c) {
             float[] data_h = toColMajor(mat);
-            JCublas2.cublasSetMatrix(mat.length, mat[0].length, Sizeof.FLOAT, Pointer.to(data_h), mat.length, this.data_d.withByteOffset((c*this.rows+r)*Sizeof.FLOAT), this.rows);
+            JCublas2.cublasSetMatrix(mat.length, mat[0].length, Sizeof.FLOAT, Pointer.to(data_h), mat.length, this.data_d.withByteOffset((c * this.rows + r) * Sizeof.FLOAT), this.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
 
         public Matrix set(int r, int c, float alpha) {
-            return setSubmatrix(new float[][] {{alpha}}, r, c);
+            return setSubmatrix(new float[][]{{alpha}}, r, c);
         }
 
         public Matrix copyRow(int r) {
-            return copySubmatrix(r, r+1, 0, cols);
+            return copySubmatrix(r, r + 1, 0, cols);
         }
 
         public Matrix copyCol(int c) {
-            return copySubmatrix(0, rows, c, c+1);
+            return copySubmatrix(0, rows, c, c + 1);
         }
 
         public Matrix setRow(int r, Matrix row) {
@@ -249,9 +252,9 @@ public class CublasUtil {
         }
 
         public float[] toArray() {
-            float[] data_h = new float[rows*cols];
-			JCublas2.cublasGetVector(data_h.length, Sizeof.FLOAT, data_d, 1, Pointer.to(data_h), 1);
-  //          JCublas2.cublasGetMatrix(rows, cols, Sizeof.FLOAT, data_d, rows, Pointer.to(data_h), rows);
+            float[] data_h = new float[rows * cols];
+            JCublas2.cublasGetVector(data_h.length, Sizeof.FLOAT, data_d, 1, Pointer.to(data_h), 1);
+            //          JCublas2.cublasGetMatrix(rows, cols, Sizeof.FLOAT, data_d, rows, Pointer.to(data_h), rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return data_h;
         }
@@ -286,7 +289,7 @@ public class CublasUtil {
         }
 
         public Matrix diagAddi(Matrix diag) {
-            JCublas2.cublasSaxpy(cublasHandle, diag.rows*diag.cols, Pointer.to(new float[] {1.0f}), diag.data_d, 1, this.data_d, this.rows+1);
+            JCublas2.cublasSaxpy(cublasHandle, diag.rows * diag.cols, Pointer.to(new float[]{1.0f}), diag.data_d, 1, this.data_d, this.rows + 1);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
@@ -394,8 +397,20 @@ public class CublasUtil {
             return this;
         }
 
-        public Matrix add(Matrix that) {
+        public Matrix add_(Matrix that) {
+            Matrix result = comb(1.0f, 1.0f, that);
             return comb(1.0f, 1.0f, that);
+        }
+
+        public Matrix add(Matrix that) {
+            return add(this, that);
+        }
+
+        public Matrix add(Matrix ts, Matrix that) {
+            Matrix result = add_(that);
+            ts.free();
+            ts = result;
+            return ts;
         }
 
         public Matrix addi(Matrix that) {
@@ -428,7 +443,7 @@ public class CublasUtil {
         // result = alpha * this + beta * that
         public Matrix comb(float alpha, float beta, Matrix that) {
             Matrix result = new Matrix(rows, cols);
-            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[] {alpha}), data_d, rows, Pointer.to(new float[] {beta}), that.data_d, that.rows, result.data_d, result.rows);
+            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[]{alpha}), data_d, rows, Pointer.to(new float[]{beta}), that.data_d, that.rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
@@ -440,16 +455,16 @@ public class CublasUtil {
 
         public Matrix dot(Matrix that) {
             Matrix result = new Matrix(this.rows, that.cols);
-            dot(this, that, result);
+            //dot(this, that, result);
+            gemm(1.0f, this, that, 0.0f, result);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
 
         public Matrix dotT(Matrix that) {
-            Matrix result = new Matrix(this.rows, that.cols);
+            Matrix result = new Matrix(this.rows, that.rows);
             CublasUtil.Matrix transpose = that.transpose();
-            dot(this, transpose, result);
-            //gemm(1.0f,  that, this, 0.0f, result);
+            gemm(1.0f, this, transpose, 0.0f, result);
             transpose.free();
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
@@ -537,7 +552,7 @@ public class CublasUtil {
         }
 
         public Matrix muli(float alpha) {
-            JCublas2.cublasSscal(cublasHandle, rows*cols, Pointer.to(new float[] {alpha}), data_d, 1);
+            JCublas2.cublasSscal(cublasHandle, rows * cols, Pointer.to(new float[]{alpha}), data_d, 1);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
@@ -567,6 +582,11 @@ public class CublasUtil {
             addCopy(that, this, this.rows, this.cols, start);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
+
+        /*public void add(Matrix that) {
+            Add(this, that);
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }*/
 
         public void addBackCopy(Matrix that, int start) {
             addBackCopy(that, this, this.rows, this.cols, start);
@@ -663,7 +683,7 @@ public class CublasUtil {
 
         public Matrix transpose() {
             Matrix result = new Matrix(cols, rows);
-            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, cols, rows, Pointer.to(new float[] {1.0f}), data_d, rows, Pointer.to(new float[] {0.0f}), new Pointer(), rows, result.data_d, result.rows);
+            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, cols, rows, Pointer.to(new float[]{1.0f}), data_d, rows, Pointer.to(new float[]{0.0f}), new Pointer(), rows, result.data_d, result.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
@@ -681,21 +701,21 @@ public class CublasUtil {
         }
 
         public Matrix zeroi() {
-            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[] {0.0f}), new Pointer(), rows, Pointer.to(new float[] {0.0f}), new Pointer(), rows, data_d, rows);
+            JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[]{0.0f}), new Pointer(), rows, Pointer.to(new float[]{0.0f}), new Pointer(), rows, data_d, rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return this;
         }
 
         public float norm1() {
             float[] result = new float[1];
-            JCublas2.cublasSasum(cublasHandle, rows*cols, data_d, 1, Pointer.to(result));
+            JCublas2.cublasSasum(cublasHandle, rows * cols, data_d, 1, Pointer.to(result));
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result[0];
         }
 
         public float norm2() {
             float[] result = new float[1];
-            JCublas2.cublasSnrm2(cublasHandle, rows*cols, data_d, 1, Pointer.to(result));
+            JCublas2.cublasSnrm2(cublasHandle, rows * cols, data_d, 1, Pointer.to(result));
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result[0];
         }
@@ -712,7 +732,7 @@ public class CublasUtil {
 
         public static List<Matrix> invert(List<Matrix> A) {
             List<Matrix> B = new ArrayList<Matrix>();
-            for (int i=0; i<A.size(); ++i) {
+            for (int i = 0; i < A.size(); ++i) {
                 B.add(new Matrix(A.get(0).rows, A.get(0).cols));
             }
             getrfGetriBatched(A, B);
@@ -721,7 +741,7 @@ public class CublasUtil {
 
         public static List<Matrix> mmul(List<Matrix> A, List<Matrix> B) {
             List<Matrix> C = new ArrayList<Matrix>();
-            for (int i=0; i<A.size(); ++i) {
+            for (int i = 0; i < A.size(); ++i) {
                 C.add(new Matrix(A.get(0).rows, B.get(0).cols));
             }
             gemmBatched(1.0f, A, B, 0.0f, C);
@@ -734,9 +754,9 @@ public class CublasUtil {
             int rows = mat.length;
             int cols = mat[0].length;
             float[] data = new float[rows * cols];
-            int i=0;
-            for (int c=0; c<cols; ++c) {
-                for (int r=0; r<rows; ++r) {
+            int i = 0;
+            for (int c = 0; c < cols; ++c) {
+                for (int r = 0; r < rows; ++r) {
                     data[i] = mat[r][c];
                     i++;
                 }
@@ -747,9 +767,9 @@ public class CublasUtil {
         private static float[][] fromColMajor(float[] data, int rows) {
             int cols = data.length / rows;
             float[][] mat = new float[rows][cols];
-            int i=0;
-            for (int c=0; c<cols; ++c) {
-                for (int r=0; r<rows; ++r) {
+            int i = 0;
+            for (int c = 0; c < cols; ++c) {
+                for (int r = 0; r < rows; ++r) {
                     mat[r][c] = data[i];
                     i++;
                 }
@@ -770,7 +790,7 @@ public class CublasUtil {
         private static void getrfGetriBatched(List<Matrix> A, List<Matrix> B) {
             Pointer[] Apointers = new Pointer[A.size()];
             Pointer[] Bpointers = new Pointer[B.size()];
-            for (int i=0; i<A.size(); ++i) {
+            for (int i = 0; i < A.size(); ++i) {
                 Apointers[i] = A.get(i).data_d;
                 Bpointers[i] = B.get(i).data_d;
             }
@@ -804,7 +824,7 @@ public class CublasUtil {
             Pointer[] Apointers = new Pointer[A.size()];
             Pointer[] Bpointers = new Pointer[B.size()];
             Pointer[] Cpointers = new Pointer[C.size()];
-            for (int i=0; i<A.size(); ++i) {
+            for (int i = 0; i < A.size(); ++i) {
                 Apointers[i] = A.get(i).data_d;
                 Bpointers[i] = B.get(i).data_d;
                 Cpointers[i] = C.get(i).data_d;
@@ -820,7 +840,7 @@ public class CublasUtil {
             cudaMemcpy(Cpointers_d, Pointer.to(Cpointers), C.size() * Sizeof.POINTER, cudaMemcpyHostToDevice);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
-            JCublas2.cublasSgemmBatched(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, C.get(0).rows, C.get(0).cols, B.get(0).rows, Pointer.to(new float[] {alpha}), Apointers_d, A.get(0).rows, Bpointers_d, B.get(0).rows, Pointer.to(new float[] {beta}), Cpointers_d, C.get(0).rows, A.size());
+            JCublas2.cublasSgemmBatched(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, C.get(0).rows, C.get(0).cols, B.get(0).rows, Pointer.to(new float[]{alpha}), Apointers_d, A.get(0).rows, Bpointers_d, B.get(0).rows, Pointer.to(new float[]{beta}), Cpointers_d, C.get(0).rows, A.size());
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             JCuda.cudaFree(Apointers_d);
@@ -831,7 +851,8 @@ public class CublasUtil {
 
         // C = alpha * A * B + beta * C
         private static void gemm(float alpha, Matrix A, Matrix B, float beta, Matrix C) {
-            JCublas2.cublasSgemm(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, C.rows, C.cols, B.rows, Pointer.to(new float[] {alpha}), A.data_d, A.rows, B.data_d, B.rows, Pointer.to(new float[] {beta}), C.data_d, C.rows);
+            //JCublas2.cublasSgemm(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, C.rows, C.cols, B.rows, Pointer.to(new float[] {alpha}), A.data_d, A.rows, B.data_d, B.rows, Pointer.to(new float[] {beta}), C.data_d, C.rows);
+            JCublas2.cublasSgemm(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, B.cols, A.rows, B.rows, Pointer.to(new float[]{alpha}), B.data_d, B.cols, A.data_d, B.rows, Pointer.to(new float[]{beta}), C.data_d, B.cols);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
@@ -843,16 +864,16 @@ public class CublasUtil {
 
         // A = alpha * x * y^T + A
         private static void ger(float alpha, Matrix x, Matrix y, Matrix A) {
-            JCublas2.cublasSger(cublasHandle, A.rows, A.cols, Pointer.to(new float[] {alpha}), x.data_d, 1, y.data_d, 1, A.data_d, A.rows);
+            JCublas2.cublasSger(cublasHandle, A.rows, A.cols, Pointer.to(new float[]{alpha}), x.data_d, 1, y.data_d, 1, A.data_d, A.rows);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
         // A = alpha
         private static void scalarSet(Matrix A, float alpha) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorScalarSet");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {alpha}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[]{alpha}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -866,10 +887,10 @@ public class CublasUtil {
 
         // B = A + alpha
         private static void scalarAdd(Matrix A, float alpha, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorScalarAdd");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[] {alpha}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[]{alpha}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -883,10 +904,10 @@ public class CublasUtil {
 
         // B = log(A)
         private static void log(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorLog");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -900,10 +921,10 @@ public class CublasUtil {
 
         // B = exp(A)
         private static void exp(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorExp");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -917,10 +938,10 @@ public class CublasUtil {
 
         // B = sign(A)
         private static void sign(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorSign");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -934,10 +955,10 @@ public class CublasUtil {
 
         // B = abs(A)
         private static void abs(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorAbs");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -951,10 +972,10 @@ public class CublasUtil {
 
         // C = A ./ B
         private static void div(Matrix A, Matrix B, Matrix C) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorDiv");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -969,9 +990,9 @@ public class CublasUtil {
         private static void matrixMultiplyShared(Matrix A, Matrix B, Matrix C) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "matrixMultiplyShared");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new float[] {A.rows}), Pointer.to(new int[] {A.cols}), Pointer.to(new int[] {B.rows}), Pointer.to(new int[] {B.cols}), Pointer.to(new int[] {C.rows}), Pointer.to(new int[] {C.cols}));
-                    cuLaunchKernel(function,
-                    (C.cols-1)/32+1,  (C.rows-1)/32+1, 1,      // Grid dimension
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new float[]{A.rows}), Pointer.to(new int[]{A.cols}), Pointer.to(new int[]{B.rows}), Pointer.to(new int[]{B.cols}), Pointer.to(new int[]{C.rows}), Pointer.to(new int[]{C.cols}));
+            cuLaunchKernel(function,
+                    (C.cols - 1) / 32 + 1, (C.rows - 1) / 32 + 1, 1,      // Grid dimension
                     32, 32, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
@@ -981,10 +1002,10 @@ public class CublasUtil {
 
         // A = A ./ B
         private static void div(Matrix A, float B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "matrixDiv");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {B}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[]{B}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -997,14 +1018,14 @@ public class CublasUtil {
         }
 
         private static void dot(Matrix A, Matrix B, Matrix C) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dot");
-            int blockSize = Math.min(n, BLOCK_SIZE) / Math.min(n, BLOCK_SIZE);
-            int grid_rows = (int) Math.ceil((double)C.cols / blockSize);
-            int grid_cols =  (int) Math.ceil((double)C.rows / blockSize);
+            int blockSize = 32;
+            int grid_rows = (int) Math.ceil((double) C.cols / blockSize);
+            int grid_cols = (int) Math.ceil((double) C.rows / blockSize);
 
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols}), Pointer.to(new int[] {C.rows}), Pointer.to(new int[] {C.cols}), Pointer.to(new int[] {(int) Math.ceil( (double) A.cols / blockSize)}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[]{A.cols}), Pointer.to(new int[]{C.rows}), Pointer.to(new int[]{C.cols}));
             cuLaunchKernel(function,
                     grid_rows, grid_cols, 1,      // Grid dimension
                     blockSize, blockSize, 1,      // Block dimension
@@ -1015,10 +1036,10 @@ public class CublasUtil {
         }
 
         private static void mask(Matrix A, float val, float newVal, Matrix C) {
-            int n = C.rows*C.cols;
+            int n = C.rows * C.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "mask");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {val}), Pointer.to(new float[] {newVal}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[]{val}), Pointer.to(new float[]{newVal}), Pointer.to(C.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1031,10 +1052,10 @@ public class CublasUtil {
         }
 
         private static void softmax_sum(Matrix A, int row, int col, Matrix sum) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "softmax_sum");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new int[] {row}), Pointer.to(new int[] {col}), Pointer.to(sum.data_d));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new int[]{row}), Pointer.to(new int[]{col}), Pointer.to(sum.data_d));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1050,7 +1071,7 @@ public class CublasUtil {
             int n = row * col;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "softmax_probability");
-            Pointer kernelParameters = Pointer.to(Pointer.to(sum.data_d), Pointer.to(new int[] {row}), Pointer.to(new int[] {col}), Pointer.to(C.data_d));
+            Pointer kernelParameters = Pointer.to(Pointer.to(sum.data_d), Pointer.to(new int[]{row}), Pointer.to(new int[]{col}), Pointer.to(C.data_d));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1066,7 +1087,23 @@ public class CublasUtil {
             int n = row;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "addCopy");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols()}), Pointer.to(new int[] {C.cols()}), Pointer.to(new int[] {start}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[]{A.cols()}), Pointer.to(new int[]{C.cols()}), Pointer.to(new int[]{start}), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+        }
+
+        private static void Add(Matrix A, Matrix B) {
+            int n = A.rows * A.cols;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "MatAdd");
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1082,7 +1119,7 @@ public class CublasUtil {
             int n = row;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "addBackCopy");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {A.cols()}), Pointer.to(new int[] {C.cols()}), Pointer.to(new int[] {start}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(C.data_d), Pointer.to(new int[]{A.cols()}), Pointer.to(new int[]{C.cols()}), Pointer.to(new int[]{start}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1096,10 +1133,10 @@ public class CublasUtil {
 
         // C = A .* B
         private static void mul(Matrix A, Matrix B, Matrix C) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorMul");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(C.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1112,10 +1149,10 @@ public class CublasUtil {
         }
 
         private static void dropout(Matrix A, float random, float chanceDrop) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dropout");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[] {random}), Pointer.to(new float[] {chanceDrop}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(new float[]{random}), Pointer.to(new float[]{chanceDrop}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1129,10 +1166,10 @@ public class CublasUtil {
 
         // B = max(A, val)
         private static void max(Matrix A, Matrix B, float val) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorMax");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[] {val}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[]{val}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1146,10 +1183,10 @@ public class CublasUtil {
 
         // B = min(A, val)
         private static void min(Matrix A, Matrix B, float val) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorMin");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[] {val}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[]{val}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1163,10 +1200,10 @@ public class CublasUtil {
 
         // B = pow(A, val)
         private static void pow(Matrix A, Matrix B, float val) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorPow");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[] {val}), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new float[]{val}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1180,10 +1217,10 @@ public class CublasUtil {
 
         // B = sqr(A)
         private static void sqr(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorSqr");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1197,10 +1234,10 @@ public class CublasUtil {
 
         // B = sqrt(A)
         private static void sqrt(Matrix A, Matrix B) {
-            int n = A.rows*A.cols;
+            int n = A.rows * A.cols;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "vectorSqrt");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(B.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1216,7 +1253,7 @@ public class CublasUtil {
             int n = A.rows;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "Softmax");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[] {sample_dim}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[]{sample_dim}), Pointer.to(C.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -1232,7 +1269,7 @@ public class CublasUtil {
             int n = A.rows;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derSoftmax");
-            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[] {A.cols}), Pointer.to(C.data_d), Pointer.to(new int[] {n}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(A.data_d), Pointer.to(auxE.data_d), Pointer.to(new int[]{A.cols}), Pointer.to(C.data_d), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
 
@@ -1269,352 +1306,213 @@ public class CublasUtil {
         }
 
         public static final String kernels =
-                        "extern \"C\"\n"+
-                        "__global__ void vectorScalarSet(float* A, float alpha, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        A[i] = alpha;\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void matrixDiv(float* A, float B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        A[i] /= B;\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorScalarAdd(const float* __restrict__ A, float* B, float alpha, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = A[i] + alpha;\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorLog(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = log(A[i]);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorExp(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = exp(A[i]);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorSign(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = (A[i] > 0.0 ? 1.0 : -1.0);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorAbs(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = abs(A[i]);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorDiv(const float* __restrict__ A, const float* __restrict__ B, float* C, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        C[i] = A[i] / B[i];\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorMul(const float* __restrict__ A, const float* __restrict__ B, float* C, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        C[i] = A[i] * B[i];\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorMax(const float* __restrict__ A, float* B, float val, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = max(A[i], val);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorMin(const float* __restrict__ A, float* B, float val, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = min(A[i], val);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorPow(const float* __restrict__ A, float* B, float val, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = pow((double) A[i], (double) val);\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorSqr(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    float val;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        val = A[i];\n"+
-                        "        B[i] = val*val;\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void vectorSqrt(const float* __restrict__ A, float* B, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        B[i] = sqrt(A[i]);\n"+
-                        "    }\n"+
-                        "}\n" +
-
-                        "extern \"C\"\n"+
-                        "__global__ void mask(const float* __restrict__ A, float val, float newVal, float* C, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "       if (A[i] == val)\n"+
-                        "       {\n"+
-                        "           C[i] = newVal;\n"+
-                        "       }\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void dropout(float* A, float random, float chanceDrop, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    float drop = 1.0f / (1.0f - chanceDrop);\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "       if (random > chanceDrop)\n"+
-                        "       {\n"+
-                        "           A[i] = A[i] * drop;\n"+
-                        "       }\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error,int column, float* C, int numElements)\n"+
-                        "{\n"+
-                        "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (k < numElements)\n"+
-                        "    {\n"+
-                        "       int index, indexI, indexJ;\n"+
-                        "       float value;\n"+
-                        "       index = k * column;\n"+
-                        "       indexI = index;\n"+
-                        "       for (int i = 0; i < column; i++, indexI++)\n"+
-                        "       {\n"+
-                        "           C[indexI] = 0;\n"+
-                        "           indexJ = index;\n"+
-                        "           for (int j = 0; j < column; j++, indexJ++) \n"+
-                        "           {\n"+
-                        "               if (i != j) \n"+
-                        "               {\n"+
-                        "                   value = output[indexI] * -output[indexJ];\n"+
-                        "               } \n"+
-                        "               else \n"+
-                        "               {\n"+
-                        "                   value = output[indexI] * (1 - output[indexI]);\n"+
-                        "               }\n"+
-                        "               C[indexI] += error[indexJ] * value;\n"+
-                        "           }\n"+
-                        "       }\n"+
-                        "   }\n"+
-                        "}\n"+
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void softmax(const float* __restrict__ A, int n_row_x, int n_col_x, float* C, int numElements)\n"+
-                        "{\n"+
-                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                        "    if (i < numElements)\n"+
-                        "    {\n"+
-                        "        float row_exp_sum = 0;\n" +
-                        "        for (int j = 0; j < n_col_x; j++) {\n" +
-                        "            row_exp_sum += expf(A[i * n_col_x + j]);\n" +
-                        "        }\n" +
-                        "        for (int j = 0; j < n_col_x; j++) {\n" +
-                        "            C[i * n_col_x + j] = expf(A[i * n_col_x + j]) / row_exp_sum;\n" +
-                        "        }\n" +
-                        "    }\n"+
-                        "}\n"+*/
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void  softmax(const float* __restrict__ input, int row, int column, float* C, int numElements) \n" +
+                "extern \"C\"\n" +
+                        "__global__ void vectorScalarSet(float* A, float alpha, int numElements)\n" +
                         "{\n" +
-                            "int index = 0;\n" +
-                            "double E = 2.718281828459045;\n" +
-                            "int k = threadIdx.x + blockIdx.x * blockDim.x;\n"+
-                            "{\n" +
-                                "float sum = 0;\n" +
-                                "index = k * column;\n" +
-                                "float max = input[index];\n" +
-                                "for (int i = 1; i < column; i++, index++) \n" +
-                                "{\n" +
-                                    "if (max < input[index])\n" +
-                                        "max = input[index];\n" +
-                                "}\n" +
-                                "#pragma omp parallel for\n"+
-                                "index = k * column;\n" +
-                                "for (int i = 0; i < column; i++, index++) \n" +
-                                "{\n" +
-                                    "float val = (float)(pow(E, (double)input[index] - max));\n" +
-                                    //"if (val > Float.MAX_VALUE) {\n" +
-                                        //"C[index] = Float.MAX_VALUE;\n" +
-                                    //"}\n" +
-                                    //"else\n" +
-                                    //"{\n" +
-                                        "C[index] = val;\n" +
-                                    //"}\n" +
-
-                                    //"if (sum + C[index] > Float.MAX_VALUE) {\n" +
-                                        //"sum = Float.MAX_VALUE;\n" +
-                                    //"}\n" +
-                                    //"else {\n" +
-                                        "sum += C[index];\n" +
-                                    //"}\n" +
-                                "}\n" +
-                                "#pragma omp parallel for\n"+
-                                "sum += 0.00000001f;\n" +
-                                "index = k * column;\n" +
-                                "for (int i = 0; i < column; i++, index++) \n" +
-                                "{\n" +
-                                    "C[index] /= sum;\n" +
-                                "}\n" +
-                            "}\n" +
-                        "}\n" +*/
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void softmax(const float* __restrict__ A, int n_row_x, int n_col_x, float* C, int numElements) {\n" +
-                            //"    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n_row_x; i += blockDim.x * gridDim.x) \n" +
-                            "int i = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                            "{\n" +
-                            "    if (i < numElements)\n"+
-                            "    {\n"+
-                            "        float row_exp_sum = 0;\n" +
-                            "        for (int j = 0; j < n_col_x; j++) {\n" +
-                            "            row_exp_sum += expf(A[i * n_col_x + j]);\n" +
-                            "        }\n" +
-                            "        for (int j = 0; j < n_col_x; j++) {\n" +
-                            "            C[i * n_col_x + j] = expf(A[i * n_col_x + j]) / row_exp_sum;\n" +
-                            "        }\n" +
-                            "    }\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        A[i] = alpha;\n" +
                         "    }\n" +
-                        "}\n" +*/
-
-                        "extern \"C\"\n"+
-                        "__global__ void softmax_sum(const float* __restrict__ c, int row, int col, float *sum)\n" +
-                        "{\n" +
-                            "int X = blockIdx.x*blockDim.x + threadIdx.x;\n" +
-                            "int Y = blockIdx.y*blockDim.y + threadIdx.y;\n" +
-                            "if (X < row && Y < col)\n" +
-                            "{\n" +
-                                "if(Y == 0)\n" +
-                                "{\n" +
-                                    "float local_sum = 0;\n" +
-                                    "for(int i = 0; i < col ; i++)\n" +
-                                    "{\n" +
-                                        "local_sum += exp(c[X*col + i]);\n" +
-                                    "}\n" +
-                                    "sum[X] = local_sum;\n" +
-                                "}\n" +
-                            "}\n" +
                         "}\n" +
 
-                        "extern \"C\"\n"+
-                        "__global__ void softmax_probability(const float* __restrict__ sum, int row, int col, float* c){\n"+
-                            "int X = blockIdx.x*blockDim.x + threadIdx.x;\n"+
-                            "int Y = blockIdx.y*blockDim.y + threadIdx.y;\n"+
-                            "if (X < row && Y < col){\n"+
-                                "c[X*col + Y] = exp(c[X*col + Y]) / sum[X];\n"+
-                            "}\n"+
-                        "}\n"+
-
-                        "extern \"C\"\n"+
-                        "__global__ void softmax_kernel(const float* __restrict__ input_data, int nrow, int ncol, float* output_data)\n" +
+                        "extern \"C\"\n" +
+                        "__global__ void matrixDiv(float* A, float B, int numElements)\n" +
                         "{\n" +
-                            "int y = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;\n" +
-                            "if (y >= nrow) {\n" +
-                                "return;\n" +
-                            "}\n" +
-
-                            "input_data += y * ncol;\n" +
-                            "output_data += y * ncol;\n" +
-                            "float maxval = *input_data;\n" +
-
-                            "for (int x = 1; x < ncol; ++x) {\n" +
-                                "maxval = max(maxval, input_data[x]);\n" +
-                            "}\n" +
-
-
-                            "float sum = 0;\n" +
-                            "for (int x = 0; x < ncol; ++x) {\n" +
-                                "sum += exp(input_data[x] - maxval);\n" +
-                            "}\n" +
-                            "for (int x = 0; x < ncol; ++x) {\n" +
-                                    "output_data[x] = exp(input_data[x] - maxval) / sum;\n" +
-                            "}\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        A[i] /= B;\n" +
+                        "    }\n" +
                         "}\n" +
 
-                        /*__global__ void softmax_activation(int n, double *A, double *C, double exp_sum) {
-                            int index = threadIdx.x + (blockIdx.x * blockDim.x);
-                            if (index >= n)
-                                return;
-                            C[index] = exp(A[index]) / exp_sum;
-                        }*/
+                        "extern \"C\"\n" +
+                        "__global__ void vectorScalarAdd(const float* __restrict__ A, float* B, float alpha, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = A[i] + alpha;\n" +
+                        "    }\n" +
+                        "}\n" +
 
-                        "extern \"C\"\n"+
-                        "__global__ void set_value(float* A, float value, long int total_ops)\n"+
-                        "{\n"+
-                            "int thread_id_x = threadIdx.x +blockIdx.x*blockDim.x;\n"+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorLog(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = log(A[i]);\n" +
+                        "    }\n" +
+                        "}\n" +
 
-                            "if (thread_id_x < total_ops)\n"+
-                                "A[thread_id_x]=value;\n"+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorExp(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = exp(A[i]);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorSign(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = (A[i] > 0.0 ? 1.0 : -1.0);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorAbs(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = abs(A[i]);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorDiv(const float* __restrict__ A, const float* __restrict__ B, float* C, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        C[i] = A[i] / B[i];\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorMul(const float* __restrict__ A, const float* __restrict__ B, float* C, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        C[i] = A[i] * B[i];\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorMax(const float* __restrict__ A, float* B, float val, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = max(A[i], val);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorMin(const float* __restrict__ A, float* B, float val, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = min(A[i], val);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorPow(const float* __restrict__ A, float* B, float val, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = pow((double) A[i], (double) val);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorSqr(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    float val;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        val = A[i];\n" +
+                        "        B[i] = val*val;\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void vectorSqrt(const float* __restrict__ A, float* B, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "        B[i] = sqrt(A[i]);\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void mask(const float* __restrict__ A, float val, float newVal, float* C, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "       if (A[i] == val)\n" +
+                        "       {\n" +
+                        "           C[i] = newVal;\n" +
+                        "       }\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void dropout(float* A, float random, float chanceDrop, int numElements)\n" +
+                        "{\n" +
+                        "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    float drop = 1.0f / (1.0f - chanceDrop);\n" +
+                        "    if (i < numElements)\n" +
+                        "    {\n" +
+                        "       if (random > chanceDrop)\n" +
+                        "       {\n" +
+                        "           A[i] = A[i] * drop;\n" +
+                        "       }\n" +
+                        "    }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error,int column, float* C, int numElements)\n" +
+                        "{\n" +
+                        "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (k < numElements)\n" +
+                        "    {\n" +
+                        "       int index, indexI, indexJ;\n" +
+                        "       float value;\n" +
+                        "       index = k * column;\n" +
+                        "       indexI = index;\n" +
+                        "       for (int i = 0; i < column; i++, indexI++)\n" +
+                        "       {\n" +
+                        "           C[indexI] = 0;\n" +
+                        "           indexJ = index;\n" +
+                        "           for (int j = 0; j < column; j++, indexJ++) \n" +
+                        "           {\n" +
+                        "               if (i != j) \n" +
+                        "               {\n" +
+                        "                   value = output[indexI] * -output[indexJ];\n" +
+                        "               } \n" +
+                        "               else \n" +
+                        "               {\n" +
+                        "                   value = output[indexI] * (1 - output[indexI]);\n" +
+                        "               }\n" +
+                        "               C[indexI] += error[indexJ] * value;\n" +
+                        "           }\n" +
+                        "       }\n" +
+                        "   }\n" +
+                        "}\n" +
+
+                        "extern \"C\"\n" +
+                        "__global__ void MatAdd(float* A, const float* __restrict__ B, int numElements)\n" +
+                        "{\n" +
+                        "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                        "    if (k < numElements)\n" +
+                        "    {\n" +
+                        "       A[k] += B[k];\n" +
+                        "    }\n" +
                         "}\n"+
 
                         "extern \"C\"\n"+
@@ -1631,125 +1529,6 @@ public class CublasUtil {
                             "}\n"+
                         "}\n"+
 
-                        /*"extern \"C\"\n"+
-                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c) \n"+
-                        "{ \n"+
-                        "    int id = threadIdx.x + blockIdx.x * blockDim.x; \n"+
-                        "    if(row < M)\n"+
-                        "    {\n"+
-                                "    for(int i=0; i<N; i++)\n"+
-                                "    {\n"+
-                                "       c[row] = c[row] + a[row*N + i] * x[i];\n"+
-                                "    }\n"+
-                        "    }\n"+
-                        "}\n"+*/
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int rows, int n, int cols)\n"+
-                        "{\n"+
-                        "    int i = blockIdx.x * blockDim.x + threadIdx.x;\n"+
-                        "    int j = blockIdx.y * blockDim.y + threadIdx.y;\n"+
-                        "    if(i < rows && j < cols)\n"+
-                        "    {\n"+
-                        "        float sum = 0;\n"+
-                        "        for(int k = 0; k < n; k++)\n"+
-                        "        {\n"+
-                        "            sum += a[i * n + k] * b[k * cols + j];\n"+
-                        "        }\n"+
-                        "        c[i * cols + j] = sum;\n"+
-                        "    }\n"+
-                        "}\n"+*/
-
-                        "extern \"C\"\n"+
-                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int a_ncolumns, int c_nlines, int c_ncolumns, int nBlocks)\n"+
-                        "{\n"+
-                        "    int i, z; \n"+
-                        "    float sum = 0;\n"+
-                        "    const int NTHREADS_X = 32;\n"+
-                        "    const int NTHREADS_Y = 32;\n"+
-                        "    int nMultiplications = a_ncolumns;\n"+
-                        "    int multiplicationsInBlock = NTHREADS_Y;\n"+
-                        "    int column = blockIdx.x * blockDim.x + threadIdx.x;\n"+
-                        "    int line =  blockIdx.y * blockDim.y + threadIdx.y;\n"+
-
-                        "    __shared__ float s_a[NTHREADS_Y][NTHREADS_X];\n"+
-                        "    __shared__ float s_b[NTHREADS_Y][NTHREADS_X];\n"+
-
-                        "    int a_tLine, a_tColumn, b_tLine, b_tColumn;\n"+
-
-                        "    for (z = 0; z < nBlocks; z++)\n"+
-                        "    {\n"+
-
-                        // Load Matrix A
-                        "        a_tLine = (blockIdx.y * NTHREADS_Y + threadIdx.y);\n"+
-                        "        a_tColumn = (z * NTHREADS_X + threadIdx.x);\n"+
-                        "        if (a_tLine < c_nlines && a_tColumn < a_ncolumns)\n"+
-                        "        {\n"+
-                        "            s_a[threadIdx.y][threadIdx.x] = a[ (a_ncolumns * a_tLine) + a_tColumn];\n"+
-                        "        }\n"+
-
-                        // Load Matrix B
-                        "        b_tLine = (z * NTHREADS_Y + threadIdx.y);\n"+
-                        "        b_tColumn = (blockIdx.x * NTHREADS_X + threadIdx.x);\n"+
-                        "        if (b_tLine < a_ncolumns && b_tColumn < c_ncolumns)\n"+
-                        "        {\n"+
-                        "            s_b[threadIdx.y][threadIdx.x] = b[ (c_ncolumns * b_tLine) + b_tColumn ];\n"+
-                        "        }\n"+
-
-                        "        __syncthreads();\n"+
-
-                        "        if (column < c_ncolumns && line < c_nlines)\n"+
-                        "        {\n"+
-                        "            if (nMultiplications < NTHREADS_Y)\n"+
-                        "            {\n"+
-                        "                multiplicationsInBlock = nMultiplications;\n"+
-                        "            }\n"+
-
-                        "            for (i = 0; i < multiplicationsInBlock; i++)\n"+
-                        "            {\n"+
-                        "                sum += s_a[threadIdx.y][i] * s_b[i][threadIdx.x];\n"+
-                        "            }\n"+
-
-                        "            nMultiplications -= NTHREADS_Y;\n"+
-                        "        }\n"+
-
-                        "        __syncthreads();\n"+
-                        "    }\n"+
-
-                        "    if (column < c_ncolumns && line < c_nlines)\n"+
-                        "    {\n"+
-                        "        c[line * c_ncolumns + column] = sum;\n"+
-                        "    }\n"+
-                        "}\n"+
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void dot(const float* __restrict__ a, const float* __restrict__ b, float* c, int N) \n"+
-                        "{\n"+
-                        "    const int threadsPerBlock = 32;\n"+
-                        "    __shared__ float cache[threadsPerBlock];\n"+
-                        "    int tid = threadIdx.x + blockIdx.x * blockDim.x;\n"+
-                        "    int cacheIndex = threadIdx.x;\n"+
-                        "    float temp = 0;\n"+
-                        "    while (tid < N)\n"+
-                        "    {\n"+
-                        "        temp += a[tid] * b[tid];\n"+
-                        "        tid += blockDim.x * gridDim.x;\n"+
-                        "    }\n"+
-                        "    cache[cacheIndex] = temp;\n"+
-                        "    __syncthreads();\n"+
-                        "    int i = blockDim.x/2;\n"+
-                        "    while (i != 0) \n"+
-                        "    {\n"+
-                        "        if (cacheIndex < i)\n"+
-                        "            cache[cacheIndex] += cache[cacheIndex + i];\n"+
-                        "        __syncthreads();\n"+
-                        "        i /= 2;\n"+
-                        "    }\n"+
-
-                        "    if (cacheIndex == 0)\n"+
-                        "        c[blockIdx.x] = cache[0];\n"+
-                        "}\n"+*/
-
                         "extern \"C\"\n"+
                         "__global__ void addBackCopy(float* A, float* C, int A_col, int C_col, int start, int n) \n"+
                         "{\n"+
@@ -1762,79 +1541,6 @@ public class CublasUtil {
                         "   {\n"+
                         "       C[indexIn] = A[indexOut];\n"+
                         "   }\n"+
-                        "}\n"+
-
-                        /*"extern \"C\"\n"+
-                        "__global__ void matrixMultiplyShared(float * A, float * B, float * C, int numARows, int numAColumns, int numBRows, int numBColumns, int numCRows, int numCColumns) \n"+
-                        "{\n"+
-                            //@@ Insert code to implement matrix multiplication here
-                            //@@ You have to use shared memory for this MP
-                            "const int TILE_WIDTH = 32;\n"+
-                            "__shared__ float sharedA[TILE_WIDTH][TILE_WIDTH];\n"+
-                            "__shared__ float sharedB[TILE_WIDTH][TILE_WIDTH];\n"+
-                            "int bx = blockIdx.x;\n"+
-                            "int by = blockIdx.y;\n"+
-                            "int tx = threadIdx.x;\n"+
-                            "int ty = threadIdx.y;\n"+
-                            "int Row = by*TILE_WIDTH + ty;\n"+
-                            "int Col = bx*TILE_WIDTH + tx;\n"+
-                            "float Cvalue = 0.0;\n"+
-                            "if (numAColumns != numBRows) return ;\n"+
-                            "for (int i = 0; i < (int)(ceil((float)numAColumns/TILE_WIDTH)); i++)\n"+
-                            "{\n"+
-                            "if (i*TILE_WIDTH + tx < numAColumns && Row < numARows){\n"+
-                            "    sharedA[ty][tx] = A[Row*numAColumns + i*TILE_WIDTH + tx];\n"+
-                            "}else{\n"+
-                            "    sharedA[ty][tx] = 0.0;\n"+
-                            "}\n"+
-                            "if (i*TILE_WIDTH + ty < numBRows && Col < numBColumns){\n"+
-                            "    sharedB[ty][tx] = B[(i*TILE_WIDTH + ty)*numBColumns + Col];\n"+
-                            "}else{\n"+
-                            "    sharedB[ty][tx] = 0.0;\n"+
-                            "}\n"+
-                            "__syncthreads();\n"+
-                            "if(Row < numARows && Col < numBColumns){\n"+
-                            "    for(int j = 0; j < TILE_WIDTH; j++)\n"+
-                            "        Cvalue += sharedA[ty][j] * sharedB[j][tx];\n"+
-                            "}\n"+
-                            "__syncthreads();\n"+
-                            "}\n"+
-                            "if (Row < numCRows && Col < numCColumns)\n"+
-                            "    C[Row*numCColumns + Col] = Cvalue;\n"+
-                        "}\n"+*/
-
-                            "extern \"C\"\n"+
-                            "__global__ void matrixMultiplyShared(float * A, float * B, float * C, int numARows, int numAColumns, int numBRows, int numBColumns, int numCRows, int numCColumns) {\n"+
-                            "const int TILE_WIDTH = 32;\n"+
-                            "__shared__ float sA[TILE_WIDTH][TILE_WIDTH];\n"+   // Tile size of 32x32
-                            "__shared__ float sB[TILE_WIDTH][TILE_WIDTH];\n"+
-
-                            "int Row = blockDim.y * blockIdx.y + threadIdx.y;\n"+
-                            "int Col = blockDim.x * blockIdx.x + threadIdx.x;\n"+
-                            "float Cvalue = 0.0;\n"+
-                            "sA[threadIdx.y][threadIdx.x] = 0.0;\n"+
-                            "sB[threadIdx.y][threadIdx.x] = 0.0;\n"+
-
-                            "for (int ph = 0; ph < (((numAColumns - 1) / TILE_WIDTH) + 1); ph++) {\n"+
-                            "    if ((Row < numARows) && (threadIdx.x + (ph * TILE_WIDTH)) < numAColumns) {\n"+
-                            "        sA[threadIdx.y][threadIdx.x] = A[(Row * numAColumns) + threadIdx.x + (ph * TILE_WIDTH)];\n"+
-                            "    } else {\n"+
-                            "        sA[threadIdx.y][threadIdx.x] = 0.0;\n"+
-                            "    }\n"+
-                            "    if (Col < numBColumns && (threadIdx.y + ph * TILE_WIDTH) < numBRows) {\n"+
-                            "        sB[threadIdx.y][threadIdx.x] = B[(threadIdx.y + ph * TILE_WIDTH) * numBColumns + Col];\n"+
-                            "    } else {\n"+
-                            "        sB[threadIdx.y][threadIdx.x] = 0.0;\n"+
-                            "    }\n"+
-                            "    __syncthreads();\n"+
-
-                            "    for (int j = 0; j < TILE_WIDTH; ++j) {\n"+
-                            "        Cvalue += sA[threadIdx.y][j] * sB[j][threadIdx.x];\n"+
-                            "    }\n"+
-                            "}\n"+
-                            "if (Row < numCRows && Col < numCColumns) {\n"+
-                            "    C[Row * numCColumns + Col] = Cvalue;\n"+
-                            "}\n"+
                         "}\n"+
 
                         "extern \"C\"\n"+
