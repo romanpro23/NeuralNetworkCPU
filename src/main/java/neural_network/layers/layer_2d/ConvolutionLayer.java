@@ -5,6 +5,7 @@ import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -78,6 +79,11 @@ public class ConvolutionLayer extends NeuralLayer2D {
     }
 
     @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
+    }
+
+    @Override
     public void generateOutput(NNArray[] inputs) {
         this.input = NNArrays.isMatrix(inputs);
         output = new NNMatrix[inputs.length];
@@ -94,6 +100,11 @@ public class ConvolutionLayer extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
+    }
+
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
     }
 
     @Override

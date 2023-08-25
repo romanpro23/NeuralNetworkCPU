@@ -6,6 +6,7 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,6 +21,11 @@ public class MaskLayer extends DoubleNeuralLayer2D {
     public void generateOutput(NNArray[] inputs) {
         this.input = NNArrays.isMatrix(inputs);
         this.output = input;
+    }
+
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
     }
 
     @Override
@@ -85,5 +91,10 @@ public class MaskLayer extends DoubleNeuralLayer2D {
     }
     public static MaskLayer read(Scanner scanner) {
         return new MaskLayer();
+    }
+
+    @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
     }
 }

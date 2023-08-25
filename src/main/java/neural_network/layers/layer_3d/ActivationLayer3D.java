@@ -3,6 +3,7 @@ package neural_network.layers.layer_3d;
 import lombok.Setter;
 import neural_network.activation.FunctionActivation;
 import nnarrays.*;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -37,6 +38,11 @@ public class ActivationLayer3D extends NeuralLayer3D {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateError(NNArray[] error) {
         errorNL = getErrorNextLayer(error);
         this.error = new NNTensor[errorNL.length];
@@ -52,6 +58,16 @@ public class ActivationLayer3D extends NeuralLayer3D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override

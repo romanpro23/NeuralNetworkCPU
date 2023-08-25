@@ -4,6 +4,7 @@ import lombok.Setter;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -65,6 +66,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
+    }
+
+    @Override
     public void generateOutput(NNArray[] input) {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
@@ -86,6 +92,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
+    }
+
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
     }
 
     private void normalization(int n) {

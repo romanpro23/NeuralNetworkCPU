@@ -4,6 +4,7 @@ import neural_network.activation.FunctionActivation;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -36,6 +37,11 @@ public class ActivationLayer extends DenseNeuralLayer {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateError(NNArray[] error) {
         errorNL = getErrorNextLayer(error);
         this.error = new NNVector[errorNL.length];
@@ -44,6 +50,16 @@ public class ActivationLayer extends DenseNeuralLayer {
             this.error[i] = new NNVector(countNeuron);
             functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override

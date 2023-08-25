@@ -118,6 +118,10 @@ public class NeuralNetwork {
         return layers.get(layers.size() - 1).getOutput();
     }
 
+    public CublasUtil.Matrix[] getOutputs_gpu() {
+        return layers.get(layers.size() - 1).getOutput_gpu();
+    }
+
     public NNArray[] getError() {
         return layers.get(0).getError();
     }
@@ -228,6 +232,15 @@ public class NeuralNetwork {
         }
 
         return getOutputs();
+    }
+
+    public CublasUtil.Matrix[] query(CublasUtil.Matrix[] input) {
+        layers.get(0).generateOutput(input);
+        for (int i = 1; i < layers.size(); i++) {
+            layers.get(i).generateOutput(layers.get(i - 1).getOutput_gpu());
+        }
+
+        return getOutputs_gpu();
     }
 
     public NNArray query(NNTensor input) {

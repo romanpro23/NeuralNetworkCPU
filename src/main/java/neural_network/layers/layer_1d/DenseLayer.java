@@ -10,6 +10,7 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -119,6 +120,11 @@ public class DenseLayer extends DenseNeuralLayer {
         }
     }
 
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
     @SneakyThrows
     @Override
     public void generateError(NNArray[] errors) {
@@ -143,6 +149,16 @@ public class DenseLayer extends DenseNeuralLayer {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     private void derivativeWeight(NNVector input, NNVector error) {

@@ -7,6 +7,7 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -127,6 +128,11 @@ public class BatchRenormalizationLayer3D extends NeuralLayer3D {
         renormalization(mean, var, r, d);
     }
 
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
     private NNVector movingAverages() {
         NNVector result = new NNVector(depth);
         for (int i = 0; i < depth; i++) {
@@ -225,6 +231,16 @@ public class BatchRenormalizationLayer3D extends NeuralLayer3D {
             movingVar.momentumAverage(var, momentum);
             derivativeWeight(errorNL);
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     private NNVector derVar(NNTensor[] error, NNVector mean, NNVector var) {

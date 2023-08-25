@@ -4,6 +4,7 @@ import neural_network.layers.NeuralLayer;
 import neural_network.layers.layer_3d.NeuralLayer3D;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -46,9 +47,19 @@ public class ConcatenateLayer extends NeuralLayer3D {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateError(NNArray[] error) {
         errorNL = NNArrays.isTensor(error);
         this.error = NNArrays.subTensor(errorNL, input, 0);
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override
@@ -73,6 +84,11 @@ public class ConcatenateLayer extends NeuralLayer3D {
     @Override
     public NNArray[] getErrorNL() {
         return NNArrays.subTensor(errorNL, inputLayer.getOutput(), input[0].size());
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     public static ConcatenateLayer read(ArrayList<NeuralLayer> layers, Scanner scanner) {

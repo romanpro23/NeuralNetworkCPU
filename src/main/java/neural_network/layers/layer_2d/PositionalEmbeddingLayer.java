@@ -4,6 +4,7 @@ import lombok.Getter;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -28,6 +29,11 @@ public class PositionalEmbeddingLayer extends NeuralLayer2D {
     }
 
     @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
+    }
+
+    @Override
     public void generateOutput(NNArray[] input) {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
@@ -37,6 +43,11 @@ public class PositionalEmbeddingLayer extends NeuralLayer2D {
             this.output[i].copy(this.input[i]);
             this.output[i].add(positionalVal);
         }
+    }
+
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
     }
 
     @Override

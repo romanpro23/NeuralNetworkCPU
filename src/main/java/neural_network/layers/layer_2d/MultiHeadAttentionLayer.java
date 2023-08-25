@@ -374,6 +374,86 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         }
     }
 
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] inputs) {
+        input_gpu = inputs;
+        this.output = new NNMatrix[input_gpu.length];
+
+        key_gpu = new CublasUtil.Matrix[input_gpu.length][];
+        query_gpu = new CublasUtil.Matrix[input_gpu.length][];
+        value_gpu = new CublasUtil.Matrix[input_gpu.length][];
+
+        attention_gpu = new CublasUtil.Matrix[input_gpu.length];
+        score_gpu = new CublasUtil.Matrix[input_gpu.length][];
+        inputAtt_gpu = new CublasUtil.Matrix[input_gpu.length][];
+        outputAtt_gpu = new CublasUtil.Matrix[input_gpu.length][];
+
+        if (hasEncoderLayer) {
+            outputDecoder_gpu = encoderLayer.getOutput_gpu();
+        }
+
+        for (int i = 0; i < input_gpu.length; i++) {
+            output[i] = attention(input_gpu[i], i);
+        }
+
+        if (hasEncoderLayer) {
+            for (int i = 0; i < outputDecoder_gpu.length; i++) {
+                outputDecoder_gpu[i].free();
+            }
+        }
+    }
+
+    private NNMatrix attention(CublasUtil.Matrix input, int i) {
+        key_gpu[i] = new CublasUtil.Matrix[countHead];
+        query_gpu[i] = new CublasUtil.Matrix[countHead];
+        value_gpu[i] = new CublasUtil.Matrix[countHead];
+
+        score_gpu[i] = new CublasUtil.Matrix[countHead];
+        inputAtt_gpu[i] = new CublasUtil.Matrix[countHead];
+        outputAtt_gpu[i] = new CublasUtil.Matrix[countHead];
+
+        attention_gpu[i] = new CublasUtil.Matrix(width, countHead * sizeAttention);
+
+        for (int j = 0; j < countHead; j++) {
+            if (hasEncoderLayer) {
+                key_gpu[i][j] = outputDecoder_gpu[i].dot(weightKey_gpu[i]);
+                query_gpu[i][j] = outputDecoder_gpu[i].dot(weightQuery_gpu[i]);
+            } else {
+                key_gpu[i][j] = input.dot(weightKey_gpu[j]);
+                query_gpu[i][j] = input.dot(weightQuery_gpu[j]);
+            }
+
+            value_gpu[i][j] = input.dot(weightValue_gpu[j]);
+
+            score_gpu[i][j] = query_gpu[i][j].dotT(key_gpu[i][j]);
+
+            score_gpu[i][j].div((float) Math.sqrt(sizeAttention));
+
+            if (useMask) {
+                score_gpu[i][j].mask(0, -1000000000, mask_gpu);
+            }
+
+            inputAtt_gpu[i][j] = new CublasUtil.Matrix(score_gpu[i][j].rows(), score_gpu[i][j].cols());
+            inputAtt_gpu[i][j].softmax(score_gpu[i][j]);
+
+            if (dropout != 0) {
+                inputAtt_gpu[i][j].dropout((float) Math.random(), dropout);
+            }
+
+            outputAtt_gpu[i][j] = inputAtt_gpu[i][j].dot(value_gpu[i][j]);
+            attention_gpu[i].addCopy(outputAtt_gpu[i][j], j);
+        }
+
+        input.free();
+
+        CublasUtil.Matrix C_matrix = attention_gpu[i].dot(weight_gpu);
+        NNMatrix result = new NNMatrix(C_matrix.rows(), C_matrix.cols(), C_matrix.toArray());
+
+        C_matrix.free();
+
+        return result;
+    }
+
     private NNMatrix attention(NNMatrix input, int i) {
         if (UseCPU) {
             key[i] = new NNMatrix[countHead];
@@ -640,6 +720,105 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         return errorInput;
     }
 
+    private CublasUtil.Matrix errorAttention(CublasUtil.Matrix error_gpu, CublasUtil.Matrix input, int i)
+    {
+        CublasUtil.Matrix derAttention_gpu = null;
+        CublasUtil.Matrix errorInput_gpu = null;
+        CublasUtil.Matrix input_gpu = null;
+
+        derAttention_gpu = error_gpu.dotT(weight_gpu);
+        if (trainable) {
+            CublasUtil.Matrix transpose = attention_gpu[i].transpose();
+            CublasUtil.Matrix temp = transpose.dot(error_gpu);
+            derWeight_gpu.add(temp);
+            temp.free();
+            transpose.free();
+        }
+
+        for (int j = 0; j < countHead; j++) {
+            CublasUtil.Matrix errorOutAtt_gpu = new CublasUtil.Matrix(outputAtt_gpu[i][j].rows(), outputAtt_gpu[i][j].cols());
+            errorOutAtt_gpu.addBackCopy(derAttention_gpu, j);
+
+            CublasUtil.Matrix errorInAtt_gpu = errorOutAtt_gpu.dotT(value_gpu[i][j]);
+            CublasUtil.Matrix transpose = inputAtt_gpu[i][j].transpose();
+            CublasUtil.Matrix errorValue_gpu = transpose.dot(errorOutAtt_gpu);
+            transpose.free();
+            errorOutAtt_gpu.free();
+
+            if (dropout != 0) {
+                errorInAtt_gpu.dropout((float) Math.random(), dropout);
+            }
+
+            CublasUtil.Matrix errorScore_gpu = new CublasUtil.Matrix(score_gpu[i][j].rows(), score_gpu[i][j].cols());
+            errorScore_gpu.derSoftmax(inputAtt_gpu[i][j], errorInAtt_gpu);
+            errorScore_gpu.div((float) Math.sqrt(sizeAttention));
+            errorInAtt_gpu.free();
+
+            CublasUtil.Matrix errorQuery_gpu = errorScore_gpu.dot(key_gpu[i][j]);
+            CublasUtil.Matrix ta = query_gpu[i][j].transpose();
+            CublasUtil.Matrix tt = ta.dotT(errorScore_gpu);
+            ta.free();
+            CublasUtil.Matrix errorKey_gpu = tt.transpose();
+            tt.free();
+            errorScore_gpu.free();
+
+            if (hasEncoderLayer) {
+                CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
+                errorDecoder_gpu[i].add(temp);
+                temp.free();
+                CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
+                errorDecoder_gpu[i].add(temp2);
+                temp2.free();
+            } else {
+                CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
+                errorInput_gpu.add(temp);
+                temp.free();
+                CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
+                errorInput_gpu.add(temp2);
+                temp2.free();
+            }
+            CublasUtil.Matrix temp = errorValue_gpu.dotT(weightValue_gpu[j]);
+            errorInput_gpu.add(temp);
+            temp.free();
+
+            if (trainable) {
+                CublasUtil.Matrix inputT = input_gpu.transpose();
+
+                CublasUtil.Matrix temp2 = inputT.dot(errorKey_gpu);
+                derWeightKey_gpu[j].add(temp2);
+                temp2.free();
+
+                CublasUtil.Matrix temp3 = inputT.dot(errorQuery_gpu);
+                derWeightQuery_gpu[j].add(temp3);
+                temp3.free();
+
+                CublasUtil.Matrix temp4 = inputT.dot(errorValue_gpu);
+                derWeightValue_gpu[j].add(temp4);
+                temp4.free();
+
+                inputT.free();
+            }
+            errorKey_gpu.free();
+            errorQuery_gpu.free();
+            errorValue_gpu.free();
+        }
+
+        derAttention_gpu.free();
+
+        for (int j = 0; j < countHead; j++) {
+            inputAtt_gpu[i][j].free();
+            outputAtt_gpu[i][j].free();
+            score_gpu[i][j].free();
+
+            key_gpu[i][j].free();
+            value_gpu[i][j].free();
+            query_gpu[i][j].free();
+        }
+        attention_gpu[i].free();
+
+        return errorInput_gpu;
+    }
+
     @Override
     public NNArray[] getErrorNL(){
         return errorDecoder;
@@ -714,6 +893,43 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 }*/
             }
         }
+    }
+
+    @SneakyThrows
+    @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+        errorNL_gpu = getErrorNextLayer(errors);
+        this.error = new NNMatrix[errors.length];
+
+        if (hasEncoderLayer) {
+            errorDecoder_gpu = new CublasUtil.Matrix[errors.length];
+        }
+
+        for (int i = 0; i < input_gpu.length; i++) {
+            if (hasEncoderLayer) {
+                errorDecoder_gpu[i] = new CublasUtil.Matrix(outputDecoder[i].getRow(), outputDecoder[i].getColumn());
+            }
+            error_gpu[i] = errorAttention(errorNL_gpu[i], input_gpu[i], i);
+
+            if (hasEncoderLayer) {
+                errorDecoder_gpu[i].free();
+            }
+        }
+
+        if (trainable && regularization != null) {
+            /*regularization.regularization(weight_gpu);
+
+            for (int i = 0; i < countHead; i++) {
+                regularization.regularization(weightValue_gpu[i]);
+                regularization.regularization(weightKey_gpu[i]);
+                regularization.regularization(weightQuery_gpu[i]);
+            }*/
+        }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     public static MultiHeadAttentionLayer read(Scanner scanner) {

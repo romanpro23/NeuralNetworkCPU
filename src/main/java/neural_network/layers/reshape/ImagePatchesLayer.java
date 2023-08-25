@@ -6,6 +6,7 @@ import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -86,6 +87,11 @@ public class ImagePatchesLayer extends NeuralLayer {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateTrainOutput(NNArray[] input) {
         generateOutput(input);
     }
@@ -157,8 +163,18 @@ public class ImagePatchesLayer extends NeuralLayer {
     }
 
     @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
     public NNArray[] getError() {
         return error;
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     public static ImagePatchesLayer read(Scanner scanner) {

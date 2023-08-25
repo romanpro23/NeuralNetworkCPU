@@ -3,6 +3,7 @@ package neural_network.layers.reshape;
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.*;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -66,6 +67,11 @@ public class ReshapeLayer2D extends NeuralLayer {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateTrainOutput(NNArray[] input) {
         generateOutput(input);
     }
@@ -99,8 +105,18 @@ public class ReshapeLayer2D extends NeuralLayer {
     }
 
     @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
     public NNArray[] getError() {
         return error;
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     public static ReshapeLayer2D read(Scanner scanner) {

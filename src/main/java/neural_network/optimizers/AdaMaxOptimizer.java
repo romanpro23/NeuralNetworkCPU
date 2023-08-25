@@ -1,6 +1,7 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 public class AdaMaxOptimizer extends Optimizer {
     /**
@@ -49,6 +50,11 @@ public class AdaMaxOptimizer extends Optimizer {
 
         subDivSqrtNorm(weight, additionParam[0], additionParam[1]);
         deltaWeight.clear();
+    }
+
+    @Override
+    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
+
     }
 
     private void subDivSqrtNorm(NNArray w, NNArray m, NNArray v) {

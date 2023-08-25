@@ -1,6 +1,7 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 public class QHMomentumOptimizer extends Optimizer {
     /**
@@ -33,5 +34,10 @@ public class QHMomentumOptimizer extends Optimizer {
         additionParam[0].momentum(deltaWeight, retentionRate);
         weight.subAndMulQH(additionParam[0], deltaWeight, learningRate, v);
         deltaWeight.clear();
+    }
+
+    @Override
+    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
+
     }
 }

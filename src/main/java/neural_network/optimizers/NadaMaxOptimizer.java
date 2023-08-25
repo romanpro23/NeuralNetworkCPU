@@ -1,6 +1,7 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 public class NadaMaxOptimizer extends Optimizer {
     /**
@@ -50,6 +51,11 @@ public class NadaMaxOptimizer extends Optimizer {
 
         weight.subDivNormNesterov(additionParam[0], additionParam[1], deltaWeight, learningRate, beta1, b1t);
         deltaWeight.clear();
+    }
+
+    @Override
+    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
+
     }
 
     private void max(NNArray v, NNArray dw) {

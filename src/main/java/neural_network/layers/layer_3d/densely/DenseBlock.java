@@ -6,6 +6,7 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -60,6 +61,11 @@ public class DenseBlock extends NeuralLayer3D {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateTrainOutput(NNArray[] input) {
         this.input = NNArrays.isTensor(input);
 
@@ -85,6 +91,11 @@ public class DenseBlock extends NeuralLayer3D {
         this.error = NNArrays.subTensor(errorNL, input, 0);
     }
 
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
     private void addErrorBlock(NNTensor[] errorBlock) {
         int row = errorNL[0].getRows();
         int column = errorNL[0].getColumns();
@@ -108,6 +119,11 @@ public class DenseBlock extends NeuralLayer3D {
         for (DenseUnit denseUnit : module) {
             denseUnit.trainable(trainable);
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override

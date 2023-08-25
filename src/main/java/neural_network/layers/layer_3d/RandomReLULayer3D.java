@@ -3,6 +3,7 @@ package neural_network.layers.layer_3d;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -45,6 +46,11 @@ public class RandomReLULayer3D extends NeuralLayer3D {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateTrainOutput(NNArray[] input) {
         this.input = NNArrays.isTensor(input);
         this.output = new NNTensor[input.length];
@@ -81,6 +87,16 @@ public class RandomReLULayer3D extends NeuralLayer3D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override

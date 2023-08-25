@@ -3,6 +3,7 @@ package neural_network.layers.layer_2d;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -22,6 +23,11 @@ public class DropoutLayer2D extends NeuralLayer2D {
     }
 
     @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
+    @Override
     public void generateTrainOutput(NNArray[] input) {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
@@ -30,6 +36,11 @@ public class DropoutLayer2D extends NeuralLayer2D {
             this.output[i] = new NNMatrix(outWidth, outDepth);
             output[i].dropout(this.input[i], dropout);
         }
+    }
+
+    @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
     }
 
     @Override

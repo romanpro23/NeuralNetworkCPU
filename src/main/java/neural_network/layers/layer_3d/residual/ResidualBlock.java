@@ -6,6 +6,7 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -55,6 +56,11 @@ public class ResidualBlock extends NeuralLayer3D {
         generateOutputModule();
     }
 
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
+    }
+
     private void generateOutputModule() {
         if (module.size() == 1) {
             this.output = NNArrays.isTensor(module.get(0).getOutput());
@@ -92,6 +98,11 @@ public class ResidualBlock extends NeuralLayer3D {
                 error[i].add(residualUnit.getError()[i]);
             }
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getOutput_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     @Override
@@ -134,6 +145,11 @@ public class ResidualBlock extends NeuralLayer3D {
         for (ResidualUnit residualUnit : module) {
             residualUnit.trainable(trainable);
         }
+    }
+
+    @Override
+    public CublasUtil.Matrix[] getError_gpu() {
+        return new CublasUtil.Matrix[0];
     }
 
     public static ResidualBlock read(Scanner scanner) {

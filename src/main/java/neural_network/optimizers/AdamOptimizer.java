@@ -1,6 +1,7 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 import java.util.Arrays;
 
@@ -51,5 +52,14 @@ public class AdamOptimizer extends Optimizer {
 
         weight.subDivSqrtNorm(additionParam[0], additionParam[1], learningRate, b1t, b2t);
         deltaWeight.clear();
+    }
+
+    @Override
+    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
+        /*additionParam_gpu[0].momentum(deltaWeight_gpu, beta1);
+        additionParam_gpu[1].momentumPow2(deltaWeight_gpu, beta2);
+
+        weight_gpu.subDivSqrtNorm(additionParam_gpu[0], additionParam_gpu[1], learningRate, b1t, b2t);
+        deltaWeight.clear();*/
     }
 }

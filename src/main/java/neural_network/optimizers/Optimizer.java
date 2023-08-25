@@ -23,6 +23,9 @@ public abstract class Optimizer {
 
     protected int t = 0;
 
+    public boolean UseGPU = true;
+    public boolean UseCPU = false;
+
     public Optimizer() {
         optimizeData = new ArrayList<>();
     }
@@ -71,19 +74,32 @@ public abstract class Optimizer {
         if (optimizeData.isEmpty()) {
             return;
         }
-        ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
-        for (int t = 0; t < optimizeData.size(); t++) {
-            final int finalT = t;
-            executor.execute(() -> {
-                DataOptimize data = optimizeData.get(finalT);
+
+        if (UseCPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
+            for (int t = 0; t < optimizeData.size(); t++) {
+                final int finalT = t;
+                executor.execute(() -> {
+                    DataOptimize data = optimizeData.get(finalT);
+                    if (clipValue != 0) {
+                        data.getDerWeight().clip(clipValue);
+                    }
+                    updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+
+        if (UseGPU) {
+            for (int t = 0; t < optimizeData.size(); t++) {
+                DataOptimize data = optimizeData.get(t);
                 if (clipValue != 0) {
                     data.getDerWeight().clip(clipValue);
                 }
-                updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+                updateWeight(data.getWeight_gpu(), data.getDerWeight_gpu(), data.getAdditionParam_gpu());
+            }
         }
     }
 
@@ -104,6 +120,8 @@ public abstract class Optimizer {
     }
 
     protected abstract void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam);
+
+    protected abstract void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu);
 
     public Optimizer setClipValue(double clipValue) {
         this.clipValue = (float) clipValue;

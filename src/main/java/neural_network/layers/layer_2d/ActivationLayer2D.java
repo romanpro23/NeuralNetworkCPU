@@ -4,6 +4,7 @@ import neural_network.activation.FunctionActivation;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -34,6 +35,11 @@ public class ActivationLayer2D extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
+    }
+
+    @Override
+    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
+
     }
 
     @Override
@@ -69,5 +75,10 @@ public class ActivationLayer2D extends NeuralLayer2D {
 
     public static ActivationLayer2D read(Scanner scanner) {
         return new ActivationLayer2D(FunctionActivation.read(scanner));
+    }
+
+    @Override
+    public void generateError(CublasUtil.Matrix[] errors) {
+
     }
 }

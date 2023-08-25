@@ -1,6 +1,7 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 public class NesterovOptimizer extends Optimizer {
     /**
@@ -23,5 +24,10 @@ public class NesterovOptimizer extends Optimizer {
         additionParam[0].momentumN(deltaWeight, retentionRate, learningRate);
         weight.addMomentumN(deltaWeight, additionParam[0], retentionRate, learningRate);
         deltaWeight.clear();
+    }
+
+    @Override
+    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
+
     }
 }

@@ -19,6 +19,7 @@ import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.*;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -126,6 +127,7 @@ public abstract class NeuralLayer {
     public abstract void initialize(int[] size);
 
     public abstract void generateOutput(NNArray[] input);
+    public abstract void generateOutput(CublasUtil.Matrix[] input_gpu);
 
     public abstract void generateTrainOutput(NNArray[] input);
 
@@ -133,10 +135,16 @@ public abstract class NeuralLayer {
 
     public abstract NNArray[] getOutput();
 
+    public abstract CublasUtil.Matrix[] getOutput_gpu();
+
     public abstract NNArray[] getError();
 
     public NNArray[] getErrorNL(){
         return getError();
+    };
+
+    public CublasUtil.Matrix[] getErrorNL_gpu(){
+        return getError_gpu();
     };
 
     public void addNextLayer(NeuralLayer neuralLayer){
@@ -146,4 +154,6 @@ public abstract class NeuralLayer {
     public void trainable(boolean trainable){
         this.trainable = trainable;
     }
+
+    public abstract CublasUtil.Matrix[] getError_gpu();
 }
