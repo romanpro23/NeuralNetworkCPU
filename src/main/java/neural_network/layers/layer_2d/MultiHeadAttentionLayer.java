@@ -78,7 +78,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     private CublasUtil.Matrix[] errorDecoder_gpu;
 
     public boolean UseGPU = true;
-    public boolean UseCPU = true;
+    public boolean UseCPU = false;
 
     public MultiHeadAttentionLayer(int countHead, int sizeAttention) {
         this(countHead, sizeAttention, 0);
