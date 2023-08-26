@@ -78,7 +78,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     private CublasUtil.Matrix[] errorDecoder_gpu;
 
     public boolean UseGPU = true;
-    public boolean UseCPU = false;
+    public boolean UseCPU = true;
 
     public MultiHeadAttentionLayer(int countHead, int sizeAttention) {
         this(countHead, sizeAttention, 0);
@@ -582,7 +582,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             if (trainable) {
                 CublasUtil.Matrix transpose = attention_gpu[i].transpose();
                 CublasUtil.Matrix temp = transpose.dot(error_gpu);
-                derWeight_gpu.add(temp);
+                derWeight_gpu.add_(temp);
                 temp.free();
                 transpose.free();
             }
@@ -659,36 +659,36 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
                 if(hasEncoderLayer){
                     CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
-                    errorDecoder_gpu[i].add(temp);
+                    errorDecoder_gpu[i].add_(temp);
                     temp.free();
                     CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
-                    errorDecoder_gpu[i].add(temp2);
+                    errorDecoder_gpu[i].add_(temp2);
                     temp2.free();
                 } else {
                     CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
-                    errorInput_gpu.add(temp);
+                    errorInput_gpu.add_(temp);
                     temp.free();
                     CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
-                    errorInput_gpu.add(temp2);
+                    errorInput_gpu.add_(temp2);
                     temp2.free();
                 }
                 CublasUtil.Matrix temp = errorValue_gpu.dotT(weightValue_gpu[j]);
-                errorInput_gpu.add(temp);
+                errorInput_gpu.add_(temp);
                 temp.free();
 
                 if (trainable) {
                     CublasUtil.Matrix inputT = input_gpu.transpose();
 
                     CublasUtil.Matrix temp2 = inputT.dot(errorKey_gpu);
-                    derWeightKey_gpu[j].add(temp2);
+                    derWeightKey_gpu[j].add_(temp2);
                     temp2.free();
 
                     CublasUtil.Matrix temp3 = inputT.dot(errorQuery_gpu);
-                    derWeightQuery_gpu[j].add(temp3);
+                    derWeightQuery_gpu[j].add_(temp3);
                     temp3.free();
 
                     CublasUtil.Matrix temp4 = inputT.dot(errorValue_gpu);
-                    derWeightValue_gpu[j].add(temp4);
+                    derWeightValue_gpu[j].add_(temp4);
                     temp4.free();
 
                     inputT.free();
@@ -730,7 +730,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         if (trainable) {
             CublasUtil.Matrix transpose = attention_gpu[i].transpose();
             CublasUtil.Matrix temp = transpose.dot(error_gpu);
-            derWeight_gpu.add(temp);
+            derWeight_gpu.add_(temp);
             temp.free();
             transpose.free();
         }
@@ -764,36 +764,36 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
             if (hasEncoderLayer) {
                 CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
-                errorDecoder_gpu[i].add(temp);
+                errorDecoder_gpu[i].add_(temp);
                 temp.free();
                 CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
-                errorDecoder_gpu[i].add(temp2);
+                errorDecoder_gpu[i].add_(temp2);
                 temp2.free();
             } else {
                 CublasUtil.Matrix temp = errorKey_gpu.dotT(weightKey_gpu[j]);
-                errorInput_gpu.add(temp);
+                errorInput_gpu.add_(temp);
                 temp.free();
                 CublasUtil.Matrix temp2 = errorQuery_gpu.dotT(weightQuery_gpu[j]);
-                errorInput_gpu.add(temp2);
+                errorInput_gpu.add_(temp2);
                 temp2.free();
             }
             CublasUtil.Matrix temp = errorValue_gpu.dotT(weightValue_gpu[j]);
-            errorInput_gpu.add(temp);
+            errorInput_gpu.add_(temp);
             temp.free();
 
             if (trainable) {
                 CublasUtil.Matrix inputT = input_gpu.transpose();
 
                 CublasUtil.Matrix temp2 = inputT.dot(errorKey_gpu);
-                derWeightKey_gpu[j].add(temp2);
+                derWeightKey_gpu[j].add_(temp2);
                 temp2.free();
 
                 CublasUtil.Matrix temp3 = inputT.dot(errorQuery_gpu);
-                derWeightQuery_gpu[j].add(temp3);
+                derWeightQuery_gpu[j].add_(temp3);
                 temp3.free();
 
                 CublasUtil.Matrix temp4 = inputT.dot(errorValue_gpu);
-                derWeightValue_gpu[j].add(temp4);
+                derWeightValue_gpu[j].add_(temp4);
                 temp4.free();
 
                 inputT.free();

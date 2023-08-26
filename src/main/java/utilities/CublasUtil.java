@@ -397,20 +397,9 @@ public class CublasUtil {
             return this;
         }
 
-        public Matrix add_(Matrix that) {
+        public Matrix add(Matrix that) {
             Matrix result = comb(1.0f, 1.0f, that);
             return comb(1.0f, 1.0f, that);
-        }
-
-        public Matrix add(Matrix that) {
-            return add(this, that);
-        }
-
-        public Matrix add(Matrix ts, Matrix that) {
-            Matrix result = add_(that);
-            ts.free();
-            ts = result;
-            return ts;
         }
 
         public Matrix addi(Matrix that) {
@@ -583,10 +572,10 @@ public class CublasUtil {
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
-        /*public void add(Matrix that) {
+        public void add_(Matrix that) {
             Add(this, that);
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-        }*/
+        }
 
         public void addBackCopy(Matrix that, int start) {
             addBackCopy(that, this, this.rows, this.cols, start);
