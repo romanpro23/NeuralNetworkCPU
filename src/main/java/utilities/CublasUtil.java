@@ -13,6 +13,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
+import nnarrays.NNArray;
 import nnarrays.NNMatrix;
 import org.jblas.FloatMatrix;
 import org.jblas.Solve;
@@ -30,87 +31,20 @@ import jcuda.jcublas.cublasPointerMode;
 import jcuda.jcublas.cublasSideMode;
 import jcuda.runtime.JCuda;
 
-public class CublasUtil {
-
-    public static final boolean DEBUG_SYNC = false;
-
-    public static LinkedList<Matrix> allocated;
-    public static cublasHandle cublasHandle;
-    public static CUmodule helperModule;
-
-    public static void startup() {
-        JCudaHelper.init();
-        cublasHandle = new cublasHandle();
-        JCublas2.cublasCreate(cublasHandle);
-        helperModule = JCudaHelper.compile("la_helper_funs", Matrix.kernels);
-        allocated = new LinkedList<Matrix>();
-        JCublas2.cublasSetAtomicsMode(cublasHandle, cublasAtomicsMode.CUBLAS_ATOMICS_ALLOWED);
-        JCublas2.cublasSetPointerMode(cublasHandle, cublasPointerMode.CUBLAS_POINTER_MODE_HOST);
-    }
-
-    public static void shutdown() {
-        if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-        freeAll(true);
-        JCublas2.cublasDestroy(cublasHandle);
-        //CudaUtil.shutdown();
-    }
-
-    public static void freeAll() {
-        freeAll(false);
-    }
-
-    public static void freeAll(boolean freeDontFree) {
-        if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-        LinkedList<Matrix> remainingAllocated = new LinkedList<Matrix>();
-        while (!allocated.isEmpty()) {
-            Matrix mat = allocated.poll();
-            if (freeDontFree || !mat.dontFree) {
-                mat.free();
-            } else {
-                remainingAllocated.add(mat);
-            }
-        }
-        allocated = remainingAllocated;
-    }
-
-    public static void freeAllBut(Matrix... args) {
-        Collection<Matrix> keep = new HashSet<Matrix>();
-        for (Matrix mat : args) keep.add(mat);
-        freeAllBut(keep);
-    }
-
-    public static void freeAllBut(Collection<Matrix> keep) {
-        if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-        LinkedList<Matrix> remainingAllocated = new LinkedList<Matrix>();
-        while (!allocated.isEmpty()) {
-            Matrix mat = allocated.poll();
-            if (!keep.contains(mat) && !mat.dontFree) {
-                mat.free();
-            } else {
-                remainingAllocated.add(mat);
-            }
-        }
-        allocated = remainingAllocated;
-    }
-
-    public static class Matrix {
+    /*public static class Matrix__ {
 
         private boolean dontFree;
         private int rows;
         private int cols;
         private Pointer data_d;
 
-        public Matrix(int rows, int cols) {
+        public Matrix__(int rows, int cols) {
             this.dontFree = false;
             this.rows = rows;
             this.cols = cols;
             this.data_d = new Pointer();
             cudaMalloc(data_d, rows * cols * Sizeof.FLOAT);
             CublasUtil.allocated.add(this);
-        }
-
-        public void setDontFree(boolean dontFree) {
-            this.dontFree = dontFree;
         }
 
         public boolean dontFree() {
@@ -458,11 +392,6 @@ public class CublasUtil {
             if (DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             return result;
         }
-
-        /*public Matrix mmuli(Matrix that) {
-            replaceRef(mmul(that), this);
-            return this;
-        }*/
 
         public Matrix add(float alpha) {
             Matrix result = new Matrix(rows, cols);
@@ -1293,8 +1222,8 @@ public class CublasUtil {
             size = temp * BLOCK_SIZE;
             return size;
         }
-
         public static final String kernels =
+
                 "extern \"C\"\n" +
                         "__global__ void vectorScalarSet(float* A, float alpha, int numElements)\n" +
                         "{\n" +
@@ -1575,7 +1504,7 @@ public class CublasUtil {
 
     }
 
-    /*public void MultiHeadAttn(jcuda.jcudnn.cudnnHandle Handle) {
+    public void MultiHeadAttn(jcuda.jcudnn.cudnnHandle Handle) {
         int batch_size 		=  16;
         int emb_dim 		=  1024;
 	    int num_heads       =  16;
@@ -1996,9 +1925,9 @@ public class CublasUtil {
         JCuda.cudaFree(devDAO);
 
         return;
-    }*/
+    }
 
-    public void checkCudnnError(int status) {
+    /*public void checkCudnnError(int status) {
         do {
             if (status != jcuda.jcudnn.cudnnStatus.CUDNN_STATUS_SUCCESS) {
                 FatalError("CUDNN failure: " + jcuda.jcudnn.JCudnn.cudnnGetErrorString(status));
@@ -2280,4 +2209,4 @@ public class CublasUtil {
         CublasUtil.shutdown();
     }
 
-}
+}*/

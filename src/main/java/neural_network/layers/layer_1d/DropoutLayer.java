@@ -3,7 +3,6 @@ package neural_network.layers.layer_1d;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -31,11 +30,6 @@ public class DropoutLayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateTrainOutput(NNArray[] input) {
         this.input = NNArrays.isVector(input);
         this.output = new NNVector[input.length];
@@ -55,16 +49,6 @@ public class DropoutLayer extends DenseNeuralLayer {
             this.error[i] = new NNVector(countNeuron);
             this.error[i].dropoutBack(output[i], errorNL[i], dropout);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

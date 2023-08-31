@@ -7,7 +7,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -94,11 +93,6 @@ public class InstanceNormalizationLayer3D extends NeuralLayer3D {
         }
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private void normalization(int n) {
         float[] varSqrt = new float[var[n].size()];
         for (int i = 0; i < var[n].size(); i++) {
@@ -167,16 +161,6 @@ public class InstanceNormalizationLayer3D extends NeuralLayer3D {
             regularization.regularization(betta);
             regularization.regularization(gamma);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private NNTensor generateErrorNorm(int n) {

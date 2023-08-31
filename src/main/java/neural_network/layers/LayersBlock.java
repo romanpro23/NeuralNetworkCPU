@@ -3,7 +3,6 @@ package neural_network.layers;
 import lombok.Getter;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -56,11 +55,6 @@ public class LayersBlock extends NeuralLayer {
         for (NeuralLayer layer : layers) {
             layer.trainable(trainable);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override
@@ -135,11 +129,6 @@ public class LayersBlock extends NeuralLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateTrainOutput(NNArray[] input) {
         layers.get(0).generateTrainOutput(input);
         for (int i = 1; i < layers.size(); i++) {
@@ -158,11 +147,6 @@ public class LayersBlock extends NeuralLayer {
     @Override
     public NNArray[] getOutput() {
         return layers.get(layers.size() - 1).getOutput();
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

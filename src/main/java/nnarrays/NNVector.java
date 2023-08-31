@@ -1,11 +1,18 @@
 package nnarrays;
 
+import jcuda.Pointer;
+import jcuda.driver.CUfunction;
 import lombok.SneakyThrows;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
+
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static utilities.GPUInit.helperModule;
 
 public class NNVector extends NNArray {
     public NNVector(int length) {
@@ -36,10 +43,31 @@ public class NNVector extends NNArray {
     public NNVector dot(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getRow());
 
-        for (int i = 0, index = 0; i < matrix.getRow(); i++) {
-            for (int j = 0; j < matrix.getColumn(); j++, index++) {
-                result.data[i] += data[j] * matrix.data[index];
+        if (!Use.GPU) {
+            for (int i = 0, index = 0; i < matrix.getRow(); i++) {
+                for (int j = 0; j < matrix.getColumn(); j++, index++) {
+                    result.data[i] += data[j] * matrix.data[index];
+                }
             }
+        }
+        else
+        {
+            int row =  matrix.getRow();
+            int column =  matrix.getColumn();
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
 
         return result;
@@ -153,10 +181,31 @@ public class NNVector extends NNArray {
     public NNVector dotT(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getColumn());
 
-        for (int i = 0, index = 0; i < matrix.getRow(); i++) {
-            for (int j = 0; j < matrix.getColumn(); j++, index++) {
-                result.data[j] += data[i] * matrix.data[index];
+        if (!Use.GPU) {
+            for (int i = 0, index = 0; i < matrix.getRow(); i++) {
+                for (int j = 0; j < matrix.getColumn(); j++, index++) {
+                    result.data[j] += data[i] * matrix.data[index];
+                }
             }
+        }
+        else
+        {
+            int row =  matrix.getRow();
+            int column =  matrix.getColumn();
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
 
         return result;
@@ -254,8 +303,26 @@ public class NNVector extends NNArray {
         if (size != vector.size) {
             throw new Exception("Vector has difference size");
         }
-        for (int i = 0; i < size; i++) {
-            data[i] += vector.data[i];
+
+        if (!Use.GPU) {
+            for (int i = 0; i < size; i++) {
+                data[i] += vector.data[i];
+            }
+        }
+        else
+        {
+            int n = size;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "MatAdd");
+            Pointer kernelParameters = Pointer.to(Pointer.to(this.data_gpu), Pointer.to(vector.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
     }
 
@@ -297,11 +364,33 @@ public class NNVector extends NNArray {
         if (size != matrix.getColumn()) {
             throw new Exception("Vector has difference size");
         }
-        int index = 0;
-        for (int i = 0; i < matrix.getRow(); i++) {
-            for (int k = 0; k < matrix.getColumn(); k++, index++) {
-                data[k] += matrix.data[index];
+
+        if (!Use.GPU) {
+            int index = 0;
+            for (int i = 0; i < matrix.getRow(); i++) {
+                for (int k = 0; k < matrix.getColumn(); k++, index++) {
+                    data[k] += matrix.data[index];
+                }
             }
+        }
+        else
+        {
+            int row = matrix.getRow();
+            int column = matrix.getColumn();
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "add_NNMatrix");
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.getData_gpu()), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
     }
 

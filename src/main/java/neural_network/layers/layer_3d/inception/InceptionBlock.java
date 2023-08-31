@@ -6,7 +6,6 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -56,11 +55,6 @@ public class InceptionBlock extends NeuralLayer3D {
         generateOutputModule();
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private void generateOutputModule() {
         if (module.size() == 1) {
             this.output = NNArrays.isTensor(module.get(0).getOutput());
@@ -97,11 +91,6 @@ public class InceptionBlock extends NeuralLayer3D {
                 error[i].add(inceptionUnit.getError()[i]);
             }
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override
@@ -144,11 +133,6 @@ public class InceptionBlock extends NeuralLayer3D {
         for (InceptionUnit inceptionUnit : module) {
             inceptionUnit.trainable(trainable);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     public static InceptionBlock read(Scanner scanner) {

@@ -1,5 +1,7 @@
 package neural_network.layers.layer_1d;
 
+import jcuda.Pointer;
+import jcuda.driver.CUfunction;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -10,13 +12,18 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static nnarrays.NNArray.BLOCK_SIZE;
+import static utilities.GPUInit.helperModule;
 
 public class DenseLayer extends DenseNeuralLayer {
     //trainable parts
@@ -107,22 +114,26 @@ public class DenseLayer extends DenseNeuralLayer {
         this.input = NNArrays.isVector(inputs);
         this.output = new NNVector[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
-        for (int t = 0; t < inputs.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+            for (int t = 0; t < inputs.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    output[i] = input[i].dot(weight);
+                    output[i].add(threshold);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < inputs.length; i++) {
                 output[i] = input[i].dot(weight);
                 output[i].add(threshold);
-            });
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @SneakyThrows
@@ -131,18 +142,29 @@ public class DenseLayer extends DenseNeuralLayer {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNVector[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
+                        derivativeWeight(input[i], errorNL[i]);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derivativeWeight(input[i], errorNL[i]);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {
@@ -151,21 +173,32 @@ public class DenseLayer extends DenseNeuralLayer {
         }
     }
 
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
     private void derivativeWeight(NNVector input, NNVector error) {
-        for (int j = 0, index = 0; j < error.size(); j++) {
-            for (int k = 0; k < input.size(); k++, index++) {
-                derWeight.getData()[index] += error.getData()[j] * input.getData()[k];
+        if (!Use.GPU) {
+            for (int j = 0, index = 0; j < error.size(); j++) {
+                for (int k = 0; k < input.size(); k++, index++) {
+                    derWeight.getData()[index] += error.getData()[j] * input.getData()[k];
+                }
             }
+        }
+        else
+        {
+            int row = error.size();
+            int column = input.size();
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "derivativeWeight");
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
         derThreshold.add(error);
     }

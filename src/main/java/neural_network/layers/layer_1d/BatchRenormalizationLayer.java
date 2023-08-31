@@ -6,7 +6,6 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -119,11 +118,6 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
         renormalization(mean, var, r, d);
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private NNVector movingAverages() {
         NNVector result = new NNVector(countNeuron);
         for (int i = 0; i < countNeuron; i++) {
@@ -209,16 +203,6 @@ public class BatchRenormalizationLayer extends DenseNeuralLayer {
             movingVar.momentumAverage(var, momentum);
             derivativeWeight(errorNL);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private NNVector derVar(NNVector[] error, NNVector mean, NNVector var) {

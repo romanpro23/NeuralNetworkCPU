@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class NadamOptimizer extends Optimizer {
     /**
@@ -32,6 +31,7 @@ public class NadamOptimizer extends Optimizer {
     }
 
     public NadamOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -50,10 +50,5 @@ public class NadamOptimizer extends Optimizer {
 
         weight.subDivSqrtNormNesterov(additionParam[0], additionParam[1], deltaWeight, learningRate, beta1, b1t, b2t);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

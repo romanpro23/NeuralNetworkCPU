@@ -9,7 +9,6 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -52,11 +51,6 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         if(trainable){
@@ -75,11 +69,6 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     @Override
     public void initialize(Optimizer optimizer) {
         optimizer.addDataOptimize(weight, derWeight);
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 
     @Override

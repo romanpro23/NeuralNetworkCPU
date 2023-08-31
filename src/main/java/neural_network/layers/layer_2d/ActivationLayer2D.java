@@ -4,7 +4,7 @@ import neural_network.activation.FunctionActivation;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import utilities.CublasUtil;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -24,22 +24,26 @@ public class ActivationLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    this.output[i] = new NNMatrix(width, depth);
+                    functionActivation.activation(input[i], output[i]);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < input.length; i++) {
                 this.output[i] = new NNMatrix(width, depth);
                 functionActivation.activation(input[i], output[i]);
-            });
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override
@@ -47,16 +51,25 @@ public class ActivationLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(error);
         this.error = new NNMatrix[errorNL.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    this.error[i] = new NNMatrix(width, depth);
+                    functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < input.length; i++) {
                 this.error[i] = new NNMatrix(width, depth);
                 functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
@@ -75,10 +88,5 @@ public class ActivationLayer2D extends NeuralLayer2D {
 
     public static ActivationLayer2D read(Scanner scanner) {
         return new ActivationLayer2D(FunctionActivation.read(scanner));
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 }

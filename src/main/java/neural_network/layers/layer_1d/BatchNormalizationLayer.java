@@ -6,7 +6,6 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -85,11 +84,6 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
         normalization(movingMean, movingVar);
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private void normalization(NNVector mean, NNVector var) {
         float[] varSqrt = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -164,16 +158,6 @@ public class BatchNormalizationLayer extends DenseNeuralLayer {
             movingVar.momentum(var, momentum);
             derivativeWeight(errorNL);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private NNVector derVar(NNVector[] error, NNVector mean, NNVector var) {

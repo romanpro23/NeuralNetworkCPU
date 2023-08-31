@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 import java.util.Arrays;
 
@@ -13,6 +12,7 @@ public class SGDOptimizer extends Optimizer {
     private float learningRate;
 
     public SGDOptimizer(double learningRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.countParam = 0;
     }
@@ -21,10 +21,5 @@ public class SGDOptimizer extends Optimizer {
     public void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam) {
         weight.sub(deltaWeight.mul(learningRate));
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

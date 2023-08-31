@@ -6,7 +6,6 @@ import neural_network.layers.layer_2d.NeuralLayer2D;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -73,11 +72,6 @@ public class CapsuleLayer extends NeuralLayer2D {
     }
 
     @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
-    }
-
-    @Override
     public void generateOutput(NNArray[] inputs) {
         this.input = NNArrays.isMatrix(inputs);
         output = new NNMatrix[inputs.length];
@@ -113,11 +107,6 @@ public class CapsuleLayer extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override

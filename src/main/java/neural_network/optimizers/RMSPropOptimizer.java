@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class RMSPropOptimizer extends Optimizer {
     /**
@@ -18,6 +17,7 @@ public class RMSPropOptimizer extends Optimizer {
     }
 
     public RMSPropOptimizer(double decayRate) {
+        super();
         this.decayRate = (float) decayRate;
         this.countParam = 2;
     }
@@ -29,10 +29,5 @@ public class RMSPropOptimizer extends Optimizer {
         weight.sub(deltaW);
         additionParam[0].momentumPow2(deltaW, decayRate);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

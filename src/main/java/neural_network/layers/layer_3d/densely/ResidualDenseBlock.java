@@ -4,7 +4,6 @@ import neural_network.layers.layer_3d.ConvolutionLayer;
 import neural_network.layers.layer_3d.NeuralLayer3D;
 import neural_network.optimizers.Optimizer;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -41,7 +40,6 @@ public class ResidualDenseBlock extends NeuralLayer3D {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-
         height = size[0];
         width = size[1];
         depth = size[2];
@@ -73,11 +71,6 @@ public class ResidualDenseBlock extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateTrainOutput(NNArray[] inputs) {
         this.input = NNArrays.isTensor(inputs);
         this.output = new NNTensor[inputs.length];
@@ -105,11 +98,6 @@ public class ResidualDenseBlock extends NeuralLayer3D {
         denseBlock.generateError(outputLayer.getError());
 
         addError();
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private void addError(){
@@ -143,11 +131,6 @@ public class ResidualDenseBlock extends NeuralLayer3D {
         if (!trainable) {
             trainableBetta = false;
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     public ResidualDenseBlock setTrainableBetta(boolean trainable) {

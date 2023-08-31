@@ -4,7 +4,6 @@ import neural_network.layers.layer_2d.NeuralLayer2D;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -30,11 +29,6 @@ public class SquashActivationLayer extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override
@@ -69,10 +63,5 @@ public class SquashActivationLayer extends NeuralLayer2D {
 
     public static SquashActivationLayer read(Scanner scanner) {
         return new SquashActivationLayer();
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 }

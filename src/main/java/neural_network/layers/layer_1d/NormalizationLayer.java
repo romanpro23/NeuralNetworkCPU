@@ -6,7 +6,6 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -86,11 +85,6 @@ public class NormalizationLayer extends DenseNeuralLayer {
         }
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private NNVector normalization(NNVector outputNorm, NNVector input, NNVector mean, NNVector var) {
         NNVector output = new NNVector(outputNorm);
         float varSqrt = (float) (Math.sqrt(var.get(0) + epsilon));
@@ -153,16 +147,6 @@ public class NormalizationLayer extends DenseNeuralLayer {
             regularization.regularization(betta);
             regularization.regularization(gamma);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private NNVector derVar(NNVector error, NNVector input, NNVector mean, NNVector var) {

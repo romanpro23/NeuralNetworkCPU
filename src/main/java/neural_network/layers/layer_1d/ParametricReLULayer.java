@@ -6,7 +6,6 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -60,11 +59,6 @@ public class ParametricReLULayer extends DenseNeuralLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] error) {
         errorNL = getErrorNextLayer(error);
         this.error = new NNVector[errorNL.length];
@@ -80,16 +74,6 @@ public class ParametricReLULayer extends DenseNeuralLayer {
         if (trainable && regularization != null){
             regularization.regularization(alpha);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private void derivativeWeight(NNVector input, NNVector error) {

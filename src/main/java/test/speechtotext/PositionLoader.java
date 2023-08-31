@@ -2,9 +2,11 @@ package test.speechtotext;
 
 import data.loaders.DataLoader3D;
 import data.loaders.ImageData3D;
+import data.loaders.TransformData;
 import data.nlp.NLP;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
+import utilities.Use;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -54,6 +56,8 @@ public class PositionLoader extends DataLoader3D {
         File folder = new File("C:/tesstrain-windows-gui-main/SpeechToSpeech-0.012/images/");
         File[] listOfFiles = folder.listFiles();
 
+        TransformData transformData = new TransformData.Sigmoid();
+
         int wwq = 0;
         for (File afile : listOfFiles) {
             if (afile.isFile()) {
@@ -78,20 +82,26 @@ public class PositionLoader extends DataLoader3D {
                     }
                 }
 
+                Use.GPU = false;
+
                 int ss = 0;
-                float[] inputsData = new float[size_width * 24];
+                //float[] inputsData = new float[size_width * 24];
+                NNTensor inputsData = new NNTensor(size_width, 24, 1);
                 for (int xx = 0; xx < size_width; xx++) {
                     if (width > xx) {
                         for (int yy = 0; yy < height; yy++) {
-                            Color originalColor = new Color(img.getRGB(xx, yy));
-                            int pixels = originalColor.getRed();
+                            //Color originalColor = new Color(img.getRGB(xx, yy));
+                            //int pixels = originalColor.getRed();
 
-                            inputsData[ss] = (float) pixels;
+                            Color color = new Color(img.getRGB(xx, yy));
+                            inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
+                            //inputsData[ss] = (float) pixels;
                             ss++;
                         }
                     } else {
                         for (int yy = 0; yy < height; yy++) {
-                            inputsData[ss] = 0.0f;
+                            inputsData.set(xx, yy, 0, transformData.transformR(0));
+                            //inputsData[ss] = 0.0f;
                             ss++;
                         }
                     }
@@ -119,10 +129,16 @@ public class PositionLoader extends DataLoader3D {
                         label += " ";
                     }
 
+                    Use.GPU = true;
+
                     NNVector output = codeString(label);
 
-                    train.add(new ImageData3D(new NNTensor(size_width, 24, 1, inputsData), output));
-                    test.add(new ImageData3D(new NNTensor(size_width, 24, 1, inputsData), output));
+                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
+
+                    train.add(new ImageData3D(ImageTensor, output));
+                    test.add(new ImageData3D(ImageTensor, output));
+
+                    inputsData.MakeNullData();
 
                     if (wwq % 100 == 0) {
                         System.out.println(wwq);

@@ -9,7 +9,7 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -44,11 +44,6 @@ public class DenseLayer2D extends NeuralLayer2D {
     public void initialize(Optimizer optimizer) {
         optimizer.addDataOptimize(weight, derWeight);
         optimizer.addDataOptimize(threshold, derThreshold);
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 
     public DenseLayer2D setTrainable(boolean trainable) {
@@ -117,22 +112,26 @@ public class DenseLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
                     output[i] = input[i].dot(weight);
                     output[i].add(threshold);
-            });
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+        else
+        {
+            for (int i = 0; i < input.length; i++) {
+                output[i] = input[i].dot(weight);
+                output[i].add(threshold);
+            }
         }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @SneakyThrows
@@ -141,19 +140,31 @@ public class DenseLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
+                        derWeight.add(input[i].transpose().dot(errorNL[i]));
+                        derThreshold.add(errorNL[i]);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derWeight.add(input[i].transpose().dot(errorNL[i]));
                     derThreshold.add(errorNL[i]);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

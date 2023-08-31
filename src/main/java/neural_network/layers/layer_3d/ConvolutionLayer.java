@@ -5,7 +5,6 @@ import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -64,7 +63,7 @@ public class ConvolutionLayer extends NeuralLayer3D {
     public void initialize(int[] size) {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
-        }
+        };
         this.depth = size[2];
         this.height = size[0];
         this.width = size[1];
@@ -108,11 +107,6 @@ public class ConvolutionLayer extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         error = new NNTensor[errors.length];
@@ -148,16 +142,6 @@ public class ConvolutionLayer extends NeuralLayer3D {
             regularization.regularization(weight);
             regularization.regularization(threshold);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

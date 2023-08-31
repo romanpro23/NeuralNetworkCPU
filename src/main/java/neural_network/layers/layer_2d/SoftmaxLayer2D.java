@@ -3,7 +3,6 @@ package neural_network.layers.layer_2d;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -29,11 +28,6 @@ public class SoftmaxLayer2D extends NeuralLayer2D {
         executor.shutdown();
         while (!executor.isTerminated()) {
         }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override
@@ -68,10 +62,5 @@ public class SoftmaxLayer2D extends NeuralLayer2D {
 
     public static SoftmaxLayer2D read(Scanner scanner) {
         return new SoftmaxLayer2D();
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 }

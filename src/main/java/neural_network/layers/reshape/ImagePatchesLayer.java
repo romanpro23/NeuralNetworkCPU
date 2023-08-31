@@ -6,7 +6,7 @@ import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -73,22 +73,26 @@ public class ImagePatchesLayer extends NeuralLayer {
         this.output = new NNMatrix[input.length];
         this.patches = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
-        for (int t = 0; t < inputs.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+            for (int t = 0; t < inputs.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    patches[i] = input[i].imageVector(sizeKernel);
+                    output[i] = patches[i].dot(weight);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else
+        {
+            for (int i = 0; i < inputs.length; i++) {
                 patches[i] = input[i].imageVector(sizeKernel);
                 output[i] = patches[i].dot(weight);
-            });
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override
@@ -102,21 +106,34 @@ public class ImagePatchesLayer extends NeuralLayer {
         if (returnGradient)
             error = new NNTensor[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if(returnGradient) {
+        if (!Use.GPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    if (returnGradient) {
+                        NNMatrix errorImg = errorNL[i].dotT(weight);
+                        error[i] = input[i].backImageVector(errorImg, sizeKernel);
+                    }
+                    if (trainable) {
+                        derWeight.add(patches[i].transpose().dot(errorNL[i]));
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+        else {
+            for (int i = 0; i < input.length; i++) {
+                if (returnGradient) {
                     NNMatrix errorImg = errorNL[i].dotT(weight);
                     error[i] = input[i].backImageVector(errorImg, sizeKernel);
                 }
-                if(trainable){
+                if (trainable) {
                     derWeight.add(patches[i].transpose().dot(errorNL[i]));
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {
@@ -163,18 +180,8 @@ public class ImagePatchesLayer extends NeuralLayer {
     }
 
     @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
     public NNArray[] getError() {
         return error;
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     public static ImagePatchesLayer read(Scanner scanner) {

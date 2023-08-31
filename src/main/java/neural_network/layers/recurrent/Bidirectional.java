@@ -6,7 +6,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -74,11 +73,6 @@ public class Bidirectional extends RecurrentNeuralLayer {
             outWidth = 1;
         }
         outDepth = forwardLayer.countNeuron * 2;
-    }
-
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
     }
 
     @Override
@@ -208,11 +202,6 @@ public class Bidirectional extends RecurrentNeuralLayer {
         generateOutput(inputs, null);
         forwardLayer.dropout = false;
         backLayer.dropout = false;
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 
     @Override

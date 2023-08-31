@@ -6,7 +6,6 @@ import neural_network.layers.layer_3d.NeuralLayer3D;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -47,6 +46,7 @@ public class SpatialAttentionModule extends NeuralLayer3D {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
+
         this.depth = size[2];
         this.height = size[0];
         this.width = size[1];
@@ -99,11 +99,6 @@ public class SpatialAttentionModule extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         error = new NNTensor[errors.length];
@@ -139,16 +134,6 @@ public class SpatialAttentionModule extends NeuralLayer3D {
         if (regularization != null && trainable) {
             regularization.regularization(weight);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

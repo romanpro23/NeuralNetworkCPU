@@ -9,7 +9,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -114,11 +113,6 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void initialize(Optimizer optimizer) {
         super.initialize(optimizer);
         for (int i = 0; i < 4; i++) {
@@ -126,11 +120,6 @@ public class LSTMLuongAttentionLayer extends LuongAttentionLayer {
             optimizer.addDataOptimize(weightHidden[i], derWeightHidden[i]);
             optimizer.addDataOptimize(threshold[i], derThreshold[i]);
         }
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 
     @Override

@@ -5,7 +5,6 @@ import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -128,11 +127,6 @@ public class DeformableConvolutionLayer extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         error = new NNTensor[errors.length];
@@ -165,16 +159,6 @@ public class DeformableConvolutionLayer extends NeuralLayer3D {
             regularization.regularization(weightOffset);
             regularization.regularization(threshold);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

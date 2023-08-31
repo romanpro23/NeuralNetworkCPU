@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class AMSGradOptimizer extends Optimizer {
     /**
@@ -32,6 +31,7 @@ public class AMSGradOptimizer extends Optimizer {
     }
 
     public AMSGradOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -54,11 +54,6 @@ public class AMSGradOptimizer extends Optimizer {
 
         weight.subDivSqrtNorm(additionParam[0], additionParam[2], learningRate, b1t, b2t);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 
     private void max(NNArray v_, NNArray v) {

@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class DiffGradOptimizer extends Optimizer {
     /**
@@ -33,6 +32,7 @@ public class DiffGradOptimizer extends Optimizer {
     }
 
     public DiffGradOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -52,10 +52,5 @@ public class DiffGradOptimizer extends Optimizer {
         weight.subDivSqrtNormDiff(additionParam[0], additionParam[1], deltaWeight, additionParam[2], learningRate, b1t, b2t);
         additionParam[2].copy(deltaWeight);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

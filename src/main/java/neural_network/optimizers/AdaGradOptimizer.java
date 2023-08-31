@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class AdaGradOptimizer extends Optimizer {
     /**
@@ -16,6 +15,7 @@ public class AdaGradOptimizer extends Optimizer {
     }
 
     public AdaGradOptimizer(double learningRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.countParam = 1;
     }
@@ -25,10 +25,5 @@ public class AdaGradOptimizer extends Optimizer {
         additionParam[0].addPow2(deltaWeight);
         weight.subDivSqrt(deltaWeight,additionParam[0], learningRate);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

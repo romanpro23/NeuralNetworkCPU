@@ -13,6 +13,8 @@ import neural_network.optimizers.AdamOptimizer;
 import neural_network.optimizers.Optimizer;
 import trainer.DataMetric;
 import trainer.DataTrainer;
+import utilities.GPUInit;
+import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -22,6 +24,8 @@ public class speechtotext {
     static NeuralNetwork network;
 
     public static void main(String[] args) throws Exception {
+        GPUInit.startup();
+
         PositionLoader loader = new PositionLoader(45);
         loader.setUseReverse(true);
 

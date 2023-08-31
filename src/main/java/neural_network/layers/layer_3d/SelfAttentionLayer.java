@@ -5,7 +5,6 @@ import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -104,11 +103,6 @@ public class SelfAttentionLayer extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
 
@@ -169,11 +163,6 @@ public class SelfAttentionLayer extends NeuralLayer3D {
         }
     }
 
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
     private void findDerivative(NNMatrix out, NNTensor error) {
         for (int i = 0; i < out.size(); i++) {
             derGamma.getData()[0] += out.get(i) * error.get(i);
@@ -207,11 +196,6 @@ public class SelfAttentionLayer extends NeuralLayer3D {
         queryLayer.setTrainable(trainable);
         valueLayer.setTrainable(trainable);
         keyLayer.setTrainable(trainable);
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     public static SelfAttentionLayer read(Scanner scanner) {

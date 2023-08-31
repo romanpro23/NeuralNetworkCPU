@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class AdamInjectOptimizer extends Optimizer {
     /**
@@ -33,6 +32,7 @@ public class AdamInjectOptimizer extends Optimizer {
     }
 
     public AdamInjectOptimizer(double beta1, double beta2, double learningRate, double k) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -58,10 +58,5 @@ public class AdamInjectOptimizer extends Optimizer {
         additionParam[2].deltaSubDivSqrtNorm(additionParam[0], additionParam[1], learningRate, b1t, b2t);
         weight.sub(additionParam[2]);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }

@@ -1,6 +1,5 @@
 package neural_network.network;
 
-import utilities.CublasUtil;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
@@ -15,6 +14,7 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
+import utilities.GPUInit;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -34,13 +34,13 @@ public class NeuralNetwork {
 
     protected FunctionLoss functionLoss;
 
+    protected static boolean gpu = false;
+
     public NeuralNetwork() {
         layers = new ArrayList<>();
         optimizers = new ArrayList<>();
         initializeOptimizers = new ArrayList<>();
         stopGradient = 0;
-
-        CublasUtil.startup();
     }
 
     public NeuralNetwork copy() {
@@ -116,10 +116,6 @@ public class NeuralNetwork {
 
     public NNArray[] getOutputs() {
         return layers.get(layers.size() - 1).getOutput();
-    }
-
-    public CublasUtil.Matrix[] getOutputs_gpu() {
-        return layers.get(layers.size() - 1).getOutput_gpu();
     }
 
     public NNArray[] getError() {
@@ -232,15 +228,6 @@ public class NeuralNetwork {
         }
 
         return getOutputs();
-    }
-
-    public CublasUtil.Matrix[] query(CublasUtil.Matrix[] input) {
-        layers.get(0).generateOutput(input);
-        for (int i = 1; i < layers.size(); i++) {
-            layers.get(i).generateOutput(layers.get(i - 1).getOutput_gpu());
-        }
-
-        return getOutputs_gpu();
     }
 
     public NNArray query(NNTensor input) {

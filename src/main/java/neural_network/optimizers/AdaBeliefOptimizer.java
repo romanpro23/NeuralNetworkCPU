@@ -2,7 +2,6 @@ package neural_network.optimizers;
 
 import lombok.Setter;
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class AdaBeliefOptimizer extends Optimizer {
     /**
@@ -33,6 +32,7 @@ public class AdaBeliefOptimizer extends Optimizer {
     }
 
     public AdaBeliefOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -51,11 +51,6 @@ public class AdaBeliefOptimizer extends Optimizer {
 
         weight.subDivSqrtNorm(additionParam[0], additionParam[1], learningRate, b1t, b2t);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 
     private void momentumSubPow2(NNArray v, NNArray dw, NNArray m) {

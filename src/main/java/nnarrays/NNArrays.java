@@ -1,12 +1,27 @@
 package nnarrays;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.driver.CUfunction;
+import jcuda.jcublas.JCublas2;
+import jcuda.runtime.JCuda;
 import lombok.SneakyThrows;
+import utilities.Use;
 
 import java.util.Arrays;
 
 import static java.lang.Math.log;
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.cudaMalloc;
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.BLOCK_SIZE;
+import static utilities.GPUInit.helperModule;
 
 public final class NNArrays {
+
     public static NNVector[] isVector(NNArray[] batch) {
         return (NNVector[]) batch;
     }
@@ -14,7 +29,14 @@ public final class NNArrays {
     public static NNVector[] toVector(NNArray[] batch) {
         NNVector[] arr = new NNVector[batch.length];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = new NNVector(batch[i]);
+            if (!Use.GPU) {
+                arr[i] = new NNVector(batch[i]);
+            }
+            else
+            {
+                arr[i] = new NNVector(batch[i].size);
+                arr[i].copy(batch[i]);
+            }
         }
 
         return arr;
@@ -323,8 +345,33 @@ public final class NNArrays {
 
     public static float sum(NNArray array) {
         float sum = 0;
-        for (int i = 0; i < array.size; i++) {
-            sum += array.data[i];
+        if (!Use.GPU) {
+            for (int i = 0; i < array.size; i++) {
+                sum += array.data[i];
+            }
+        }
+        else
+        {
+            Pointer sum_gpu = new Pointer();
+            cudaMalloc(sum_gpu, (long) Sizeof.FLOAT);
+
+            float[] sumArray = new float[1];
+
+            int n = array.size;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "sum");
+            Pointer kernelParameters = Pointer.to(Pointer.to(array.data_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            JCublas2.cublasGetVector(sumArray.length, Sizeof.FLOAT, sum_gpu, 1, Pointer.to(sumArray), 1);
+            sum = sumArray[0];
+            JCuda.cudaFree(sum_gpu);
         }
 
         return sum;
@@ -336,8 +383,26 @@ public final class NNArrays {
             throw new Exception("Vector has difference size");
         }
         NNArray result = new NNArray(first.size);
-        for (int i = 0; i < result.size; i++) {
-            result.data[i] = first.data[i] - second.data[i];
+
+        if (!Use.GPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = first.data[i] - second.data[i];
+            }
+        }
+        else
+        {
+            int n = result.size;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "sub");
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
 
         return result;

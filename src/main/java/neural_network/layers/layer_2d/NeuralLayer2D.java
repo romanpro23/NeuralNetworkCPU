@@ -6,7 +6,6 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
-import utilities.CublasUtil;
 
 public abstract class NeuralLayer2D extends NeuralLayer {
     protected int width, outWidth;
@@ -16,11 +15,6 @@ public abstract class NeuralLayer2D extends NeuralLayer {
     protected NNMatrix[] output;
     protected NNMatrix[] error;
     protected NNMatrix[] errorNL;
-
-    protected CublasUtil.Matrix[] input_gpu;
-    protected CublasUtil.Matrix[] output_gpu;
-    protected CublasUtil.Matrix[] error_gpu;
-    protected CublasUtil.Matrix[] errorNL_gpu;
 
     @Override
     public int[] size() {
@@ -41,7 +35,7 @@ public abstract class NeuralLayer2D extends NeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        //no have initialize element
+
     }
 
     @Override
@@ -62,36 +56,13 @@ public abstract class NeuralLayer2D extends NeuralLayer {
         return errorNL;
     }
 
-    public CublasUtil.Matrix[] getErrorNextLayer(CublasUtil.Matrix[] error) {
-        if (!nextLayers.isEmpty()) {
-            for (int i = 0; i < error.length; i++) {
-                for (NeuralLayer nextLayer : nextLayers) {
-                    error[i].add(nextLayer.getErrorNL_gpu()[i]);
-                }
-            }
-        }
-        return error;
-    }
-
     @Override
     public NNArray[] getOutput() {
         return output;
     }
 
     @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return output_gpu;
-    }
-
-    @Override
     public NNArray[] getError() {
         return error;
     }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return error_gpu;
-    }
-
-    public abstract void generateError(CublasUtil.Matrix[] errors);
 }

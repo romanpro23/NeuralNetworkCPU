@@ -10,7 +10,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -78,11 +77,6 @@ public class EmbeddingLayer extends NeuralLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateTrainOutput(NNArray[] input) {
         generateOutput(input);
     }
@@ -147,18 +141,8 @@ public class EmbeddingLayer extends NeuralLayer {
     }
 
     @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
     public NNArray[] getError() {
         return errorNL;
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     public static EmbeddingLayer read(Scanner scanner){

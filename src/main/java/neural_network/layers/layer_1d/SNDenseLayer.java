@@ -9,7 +9,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -159,11 +158,6 @@ public class SNDenseLayer extends DenseNeuralLayer {
         }
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private void backSpectralNorm() {
         NNMatrix dW = u.dot(v);
         dW.oneSub();
@@ -204,16 +198,6 @@ public class SNDenseLayer extends DenseNeuralLayer {
                 regularization.regularization(threshold);
             }
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private void derivativeWeight(NNVector input, NNVector error) {

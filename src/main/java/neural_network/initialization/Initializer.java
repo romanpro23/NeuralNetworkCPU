@@ -1,7 +1,6 @@
 package neural_network.initialization;
 
 import nnarrays.*;
-import utilities.CublasUtil;
 
 import java.util.Random;
 
@@ -13,7 +12,7 @@ public abstract class Initializer {
 
     public abstract void initialize(NNMatrix weight);
 
-    public abstract void initialize(NNTensor weight);
+    public abstract void initialize(NNTensor weightu);
 
     public abstract void initialize(NNTensor4D weight);
 
@@ -214,8 +213,6 @@ public abstract class Initializer {
 
             initializeUniform(weight);
         }
-
-
 
         @Override
         public void initialize(NNTensor weight) {

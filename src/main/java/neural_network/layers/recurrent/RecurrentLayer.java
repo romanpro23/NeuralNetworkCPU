@@ -8,7 +8,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -137,20 +136,10 @@ public class RecurrentLayer extends RecurrentNeuralLayer {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void initialize(Optimizer optimizer) {
         optimizer.addDataOptimize(weightInput, derWeightInput);
         optimizer.addDataOptimize(weightHidden, derWeightHidden);
         optimizer.addDataOptimize(threshold, derThreshold);
-    }
-
-    @Override
-    public void generateError(CublasUtil.Matrix[] errors) {
-
     }
 
     @Override

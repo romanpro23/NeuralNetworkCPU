@@ -7,7 +7,6 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -93,11 +92,6 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
         normalization(movingMean, movingVar);
     }
 
-    @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
     private void normalization(NNVector mean, NNVector var) {
         float[] varSqrt = new float[var.size()];
         for (int i = 0; i < var.size(); i++) {
@@ -181,16 +175,6 @@ public class BatchNormalizationLayer3D extends NeuralLayer3D {
             movingVar.momentum(var, momentum);
             derivativeWeight(errorNL);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     private NNVector derVar(NNTensor[] error, NNVector mean, NNVector var) {

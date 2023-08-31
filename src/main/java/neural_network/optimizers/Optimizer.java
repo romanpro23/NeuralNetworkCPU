@@ -4,12 +4,11 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import nnarrays.NNArray;
-import utilities.CublasUtil;
+import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,9 +21,6 @@ public abstract class Optimizer {
     protected int countParam = 0;
 
     protected int t = 0;
-
-    public boolean UseGPU = true;
-    public boolean UseCPU = false;
 
     public Optimizer() {
         optimizeData = new ArrayList<>();
@@ -75,7 +71,7 @@ public abstract class Optimizer {
             return;
         }
 
-        if (UseCPU) {
+        if (!Use.GPU) {
             ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
             for (int t = 0; t < optimizeData.size(); t++) {
                 final int finalT = t;
@@ -91,14 +87,14 @@ public abstract class Optimizer {
             while (!executor.isTerminated()) {
             }
         }
-
-        if (UseGPU) {
-            for (int t = 0; t < optimizeData.size(); t++) {
-                DataOptimize data = optimizeData.get(t);
+        else
+        {
+            for (int i = 0; i < optimizeData.size(); i++) {
+                DataOptimize data = optimizeData.get(i);
                 if (clipValue != 0) {
                     data.getDerWeight().clip(clipValue);
                 }
-                updateWeight(data.getWeight_gpu(), data.getDerWeight_gpu(), data.getAdditionParam_gpu());
+                updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
             }
         }
     }
@@ -111,17 +107,7 @@ public abstract class Optimizer {
         optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
     }
 
-    public void addDataOptimize(CublasUtil.Matrix weight, CublasUtil.Matrix derWeight) {
-        CublasUtil.Matrix[] additionParam = new CublasUtil.Matrix[countParam];
-        for (int i = 0; i < countParam; i++) {
-            additionParam[i] = new CublasUtil.Matrix(weight.rows(), weight.cols());
-        }
-        optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
-    }
-
     protected abstract void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam);
-
-    protected abstract void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu);
 
     public Optimizer setClipValue(double clipValue) {
         this.clipValue = (float) clipValue;

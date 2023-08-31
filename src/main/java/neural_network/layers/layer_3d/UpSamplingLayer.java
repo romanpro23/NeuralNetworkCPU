@@ -3,7 +3,6 @@ package neural_network.layers.layer_3d;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
-import utilities.CublasUtil;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -53,11 +52,6 @@ public class UpSamplingLayer extends NeuralLayer3D {
     }
 
     @Override
-    public void generateOutput(CublasUtil.Matrix[] input_gpu) {
-
-    }
-
-    @Override
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNTensor[errors.length];
@@ -66,16 +60,6 @@ public class UpSamplingLayer extends NeuralLayer3D {
             this.error[i] = new NNTensor(height, width, depth);
             this.error[i].backUpSampling(errorNL[i], heightKernel, widthKernel);
         }
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getOutput_gpu() {
-        return new CublasUtil.Matrix[0];
-    }
-
-    @Override
-    public CublasUtil.Matrix[] getError_gpu() {
-        return new CublasUtil.Matrix[0];
     }
 
     @Override

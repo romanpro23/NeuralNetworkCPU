@@ -1,7 +1,6 @@
 package neural_network.optimizers;
 
 import nnarrays.NNArray;
-import utilities.CublasUtil;
 
 public class AdaBoundOptimizer extends Optimizer {
     /**
@@ -36,6 +35,7 @@ public class AdaBoundOptimizer extends Optimizer {
     }
 
     public AdaBoundOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -54,10 +54,5 @@ public class AdaBoundOptimizer extends Optimizer {
 
         weight.subDivSqrtNormClip(additionParam[0], additionParam[1], learningRate, b1t, b2t, eta_l, eta_u);
         deltaWeight.clear();
-    }
-
-    @Override
-    protected void updateWeight(CublasUtil.Matrix weight_gpu, CublasUtil.Matrix deltaWeight_gpu, CublasUtil.Matrix[] additionParam_gpu) {
-
     }
 }
