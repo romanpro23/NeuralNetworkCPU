@@ -13,6 +13,7 @@ import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -24,8 +25,8 @@ import static jcuda.jcublas.JCublas2.*;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
-import static utilities.GPUInit.cublasHandle;
-import static utilities.GPUInit.helperModule;
+import static utilities.GPUInit.*;
+import static utilities.GPUInit.allocatedUse;
 
 @NoArgsConstructor
 public class NNArray {
@@ -46,6 +47,8 @@ public class NNArray {
         } else {
             this.data_gpu = new Pointer();
             cudaMalloc(this.data_gpu, (long) size * Sizeof.FLOAT);
+
+            allocatedPut();
         }
     }
 
@@ -62,6 +65,8 @@ public class NNArray {
             this.data_gpu = new Pointer();
             cudaMalloc(data_gpu, (long) Sizeof.FLOAT * this.size);
             cudaMemcpy(data_gpu, Pointer.to(data), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
+
+            allocatedPut();
         }
     }
 
@@ -77,7 +82,17 @@ public class NNArray {
             this.data_gpu = new Pointer();
             cudaMalloc(data_gpu, (long) Sizeof.INT * this.size);
             cudaMemcpy(data_gpu, Pointer.to(data), (long) Sizeof.INT * this.size, cudaMemcpyHostToDevice);
+
+            allocatedPut();
         }
+    }
+
+    public void allocatedPut() {
+        Use U = new Use();
+        U.data_gpu = this.data_gpu;
+        U.HashCode = this.hashCode();
+        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
+        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     public int size() {
@@ -401,6 +416,8 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+
+            JCuda.cudaFree(dVar_Pointer);
         }
     }
 
@@ -1035,6 +1052,8 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+
+            JCuda.cudaFree(dVar_Pointer);
         }
     }
 
@@ -1111,7 +1130,7 @@ public class NNArray {
     }
 
     public void free() {
-        if (data_gpu != null) JCuda.cudaFree(data_gpu);
+        //if (data_gpu != null) JCuda.cudaFree(data_gpu);
     }
 
     public void MakeNullData()

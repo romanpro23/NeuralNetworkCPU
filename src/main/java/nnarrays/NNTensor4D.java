@@ -1,11 +1,16 @@
 package nnarrays;
 
 import lombok.Getter;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public class NNTensor4D extends NNArray {
     @Getter
@@ -46,6 +51,20 @@ public class NNTensor4D extends NNArray {
         for (int i = 0; i < row; i++) {
             rowIndex[i] = i * column;
         }
+
+        if (Use.GPU) {
+            allocatedPut();
+        }
+    }
+
+    public void allocatedPut() {
+        Use U = new Use();
+        U.data_gpu = this.data_gpu;
+        //U.rowsIndex_gpu = this.rowsIndex_gpu;
+        //U.columnsIndex_gpu = this.columnsIndex_gpu;
+        U.HashCode = this.hashCode();
+        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
+        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     @Override

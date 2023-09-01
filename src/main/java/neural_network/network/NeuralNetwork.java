@@ -1,5 +1,6 @@
 package neural_network.network;
 
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
@@ -15,13 +16,19 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
 import utilities.GPUInit;
+import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public class NeuralNetwork {
     @Getter

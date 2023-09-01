@@ -12,6 +12,7 @@ import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -20,8 +21,8 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.cudaMalloc;
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
-import static utilities.GPUInit.cublasHandle;
-import static utilities.GPUInit.helperModule;
+import static utilities.GPUInit.*;
+import static utilities.GPUInit.allocatedUse;
 
 public class NNMatrix extends NNArray {
     @Getter
@@ -47,6 +48,8 @@ public class NNMatrix extends NNArray {
             this.rowsIndex_gpu = new Pointer();
             cudaMalloc(this.rowsIndex_gpu, (long) row * Sizeof.INT);
             cudaMemcpy(this.rowsIndex_gpu, Pointer.to(rowIndex), (long) row * Sizeof.INT, cudaMemcpyHostToDevice);
+
+            allocatedPut();
         }
 
         countAxes = 2;
@@ -66,9 +69,20 @@ public class NNMatrix extends NNArray {
             this.rowsIndex_gpu = new Pointer();
             cudaMalloc(this.rowsIndex_gpu, (long) row * Sizeof.INT);
             cudaMemcpy(this.rowsIndex_gpu, Pointer.to(rowIndex), (long) row * Sizeof.INT, cudaMemcpyHostToDevice);
+
+            allocatedPut();
         }
 
         countAxes = 2;
+    }
+
+    public void allocatedPut() {
+        Use U = new Use();
+        U.data_gpu = this.data_gpu;
+        U.rowsIndex_gpu = this.rowsIndex_gpu;
+        U.HashCode = this.hashCode();
+        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
+        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     public NNMatrix(NNMatrix matrix) {
@@ -801,7 +815,7 @@ public class NNMatrix extends NNArray {
     }
 
     public void free() {
-        if (data_gpu != null) JCuda.cudaFree(data_gpu);
-        if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
+        //if (data_gpu != null) JCuda.cudaFree(data_gpu);
+        //if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
     }
 }

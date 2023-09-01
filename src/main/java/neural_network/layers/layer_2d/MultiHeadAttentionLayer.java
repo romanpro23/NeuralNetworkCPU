@@ -230,12 +230,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             for (int i = 0; i < input.length; i++) {
                 output[i] = attention(this.input[i], i);
             }
-
-            if (hasEncoderLayer) {
-                for (int i = 0; i < outputDecoder.length; i++) {
-                    outputDecoder[i].free();
-                }
-            }
         }
     }
 
@@ -288,8 +282,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             NNMatrix transpose = attention[i].transpose();
             NNMatrix temp = transpose.dot(error);
             derWeight.add(temp);
-            temp.free();
-            transpose.free();
         }
 
         NNMatrix errorInput = new NNMatrix(input);
@@ -302,8 +294,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             NNMatrix errorInAtt = errorOutAtt.dotT(value[i][j]);
             NNMatrix transpose = inputAtt[i][j].transpose();
             NNMatrix errorValue = transpose.dot(errorOutAtt);
-            transpose.free();
-            errorOutAtt.free();
 
             if (dropout != 0) {
                 errorInAtt.dropout(errorInAtt, dropout);
@@ -312,69 +302,41 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             NNMatrix errorScore = new NNMatrix(score[i][j]);
             errorScore.derSoftmax(inputAtt[i][j], errorInAtt);
             errorScore.div((float) Math.sqrt(sizeAttention));
-            errorInAtt.free();
 
             NNMatrix errorQuery = errorScore.dot(key[i][j]);
             NNMatrix ta = query[i][j].transpose();
             NNMatrix tt = ta.dotT(errorScore);
-            ta.free();
             NNMatrix errorKey = tt.transpose();
-            tt.free();
-            errorScore.free();
 
             if (hasEncoderLayer) {
                 NNMatrix temp = errorKey.dotT(weightKey[j]);
                 errorDecoder[i].add(temp);
-                temp.free();
                 NNMatrix temp2 = errorQuery.dotT(weightQuery[j]);
                 errorDecoder[i].add(temp2);
-                temp2.free();
             } else {
                 NNMatrix temp = errorKey.dotT(weightKey[j]);
                 errorInput.add(temp);
-                temp.free();
                 NNMatrix temp2 = errorQuery.dotT(weightQuery[j]);
                 errorInput.add(temp2);
-                temp2.free();
             }
             NNMatrix temp = errorValue.dotT(weightValue[j]);
             errorInput.add(temp);
-            temp.free();
 
             if (trainable) {
                 NNMatrix inputT = input.transpose();
 
                 NNMatrix temp2 = inputT.dot(errorKey);
                 derWeightKey[j].add(temp2);
-                temp2.free();
 
                 NNMatrix temp3 = inputT.dot(errorQuery);
                 derWeightQuery[j].add(temp3);
-                temp3.free();
 
                 NNMatrix temp4 = inputT.dot(errorValue);
                 derWeightValue[j].add(temp4);
-                temp4.free();
-
-                inputT.free();
             }
-            errorKey.free();
-            errorQuery.free();
-            errorValue.free();
         }
 
-        derAttention.free();
-
-        for (int j = 0; j < countHead; j++) {
-            inputAtt[i][j].free();
-            outputAtt[i][j].free();
-            score[i][j].free();
-
-            key[i][j].free();
-            value[i][j].free();
-            query[i][j].free();
-        }
-        attention[i].free();
+        CallGarbageCollector();
 
         return errorInput;
     }
@@ -413,10 +375,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         else {
             for (int i = 0; i < input.length; i++) {
                 error[i] = errorAttention(errorNL[i], input[i], i);
-
-                if (hasEncoderLayer) {
-                    errorDecoder[i].free();
-                }
             }
         }
 
@@ -429,6 +387,8 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 regularization.regularization(weightQuery[i]);
             }
         }
+
+        CallGarbageCollector();
     }
 
     public static MultiHeadAttentionLayer read(Scanner scanner) {

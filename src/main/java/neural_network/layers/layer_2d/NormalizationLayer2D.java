@@ -110,6 +110,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 findVariance(i);
                 normalization(i);
             }
+
+            CallGarbageCollector();
         }
     }
 
@@ -265,6 +267,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     derivativeWeight(errorNL[i], i);
                 }
             }
+
+            CallGarbageCollector();
         }
 
         if (trainable && regularization != null) {
@@ -377,6 +381,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     kernelParameters3, null // Kernel- and extra parameters
             );
 
+            JCuda.cudaFree(dVar_Pointer);
+            JCuda.cudaFree(varSqrt_Pointer);
         }
         return derVariance;
     }
@@ -455,6 +461,9 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters3, null // Kernel- and extra parameters
             );
+
+            JCuda.cudaFree(dMean_Pointer);
+            JCuda.cudaFree(dVar_Pointer);
         }
         return derMean;
     }
@@ -512,6 +521,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters2, null // Kernel- and extra parameters
             );
+
+            JCuda.cudaFree(dVar_Pointer);
         }
     }
 

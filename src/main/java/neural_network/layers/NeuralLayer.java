@@ -1,5 +1,6 @@
 package neural_network.layers;
 
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import neural_network.layers.capsule.*;
 import neural_network.layers.layer_2d.*;
@@ -19,11 +20,17 @@ import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.*;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public abstract class NeuralLayer {
     @Getter
@@ -145,5 +152,35 @@ public abstract class NeuralLayer {
 
     public void trainable(boolean trainable){
         this.trainable = trainable;
+    }
+
+    public void CallGarbageCollector()
+    {
+        System.gc();
+        Runtime.getRuntime().gc();
+
+        List<String> listString = new ArrayList<>();
+
+        allocated.forEach((key, value) ->
+        {
+            Object arr = ((WeakReference<Object>) value).get();
+            if (arr == null)
+            {
+                Use U = allocatedUse.get(key);
+                if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
+                if (U.rowsIndex_gpu != null) JCuda.cudaFree(U.rowsIndex_gpu);
+                if (U.columnsIndex_gpu != null) JCuda.cudaFree(U.columnsIndex_gpu);
+
+                listString.add(key);
+            }
+        });
+
+        listString.forEach((key) ->
+        {
+            allocated.remove(key);
+            allocatedUse.remove(key);
+        });
+
+        listString.clear();
     }
 }

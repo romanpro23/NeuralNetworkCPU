@@ -11,6 +11,7 @@ import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -20,7 +21,7 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
-import static utilities.GPUInit.helperModule;
+import static utilities.GPUInit.*;
 
 public class NNTensor extends NNArray {
     @Getter
@@ -73,7 +74,19 @@ public class NNTensor extends NNArray {
             this.columnsIndex_gpu = new Pointer();
             cudaMalloc(this.columnsIndex_gpu, (long) columns * Sizeof.INT);
             cudaMemcpy(this.columnsIndex_gpu, Pointer.to(columnsIndex), (long) columns * Sizeof.INT, cudaMemcpyHostToDevice);
+
+            allocatedPut();
         }
+    }
+
+    public void allocatedPut() {
+        Use U = new Use();
+        U.data_gpu = this.data_gpu;
+        U.rowsIndex_gpu = this.rowsIndex_gpu;
+        U.columnsIndex_gpu = this.columnsIndex_gpu;
+        U.HashCode = this.hashCode();
+        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
+        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     public void multiplyIndex(Pointer p, int n, int value) {
@@ -1328,8 +1341,8 @@ public class NNTensor extends NNArray {
     }
 
     public void free() {
-        if (data_gpu != null) JCuda.cudaFree(data_gpu);
-        if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
-        if (columnsIndex_gpu != null) JCuda.cudaFree(columnsIndex_gpu);
+        //if (data_gpu != null) JCuda.cudaFree(data_gpu);
+        //if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
+        //if (columnsIndex_gpu != null) JCuda.cudaFree(columnsIndex_gpu);
     }
 }
