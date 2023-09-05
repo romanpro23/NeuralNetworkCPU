@@ -62,8 +62,13 @@ public class FlattenLayer2D extends NeuralLayer {
         else
         {
             for (int i = 0; i < output.length; i++) {
+                input[i].IsNan(input[i]);
                 output[i] = new NNVector(input[i].size());
+                output[i].IsNan(output[i]);
                 output[i].copy(input[i]);
+
+                output[i].IsNan(output[i]);
+                input[i].IsNan(input[i]);
             }
         }
     }
@@ -85,7 +90,10 @@ public class FlattenLayer2D extends NeuralLayer {
             else
             {
                 error[i] = new NNMatrix(width, depth);
+                error[i].IsNan(error[i]);
                 error[i].copy(errorNL[i]);
+
+                error[i].IsNan(error[i]);
             }
         }
     }

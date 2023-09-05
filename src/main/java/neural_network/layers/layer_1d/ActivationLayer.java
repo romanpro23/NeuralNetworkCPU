@@ -34,8 +34,6 @@ public class ActivationLayer extends DenseNeuralLayer {
             this.output[i] = new NNVector(countNeuron);
             functionActivation.activation(input[i], output[i]);
         }
-
-        CallGarbageCollector();
     }
 
     @Override
@@ -47,8 +45,6 @@ public class ActivationLayer extends DenseNeuralLayer {
             this.error[i] = new NNVector(countNeuron);
             functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
         }
-
-        CallGarbageCollector();
     }
 
     @Override

@@ -33,7 +33,6 @@ public class DataTrainer {
             System.out.print(" [");
             for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
-
                 accuracy += network.train(data.getInput(), data.getOutput(), false);
                 counter += dataMetric.quality(data.getOutput(), network.getOutputs());
                 cu++;

@@ -28,8 +28,8 @@ public class GPUInit {
         helperModule = JCudaHelper.compile("la_helper_funs", NNArray.kernels);
         allocated = new LinkedHashMap<String, WeakReference<Object>>();
         allocatedUse = new LinkedHashMap<String, Use>();
-        JCublas2.cublasSetAtomicsMode(cublasHandle, cublasAtomicsMode.CUBLAS_ATOMICS_ALLOWED);
-        JCublas2.cublasSetPointerMode(cublasHandle, cublasPointerMode.CUBLAS_POINTER_MODE_HOST);
+        //JCublas2.cublasSetAtomicsMode(cublasHandle, cublasAtomicsMode.CUBLAS_ATOMICS_ALLOWED);
+        //JCublas2.cublasSetPointerMode(cublasHandle, cublasPointerMode.CUBLAS_POINTER_MODE_HOST);
         Use.GPU = true;
     }
 

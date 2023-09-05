@@ -2,6 +2,7 @@ package neural_network.layers.layer_1d;
 
 import jcuda.Pointer;
 import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -130,8 +131,13 @@ public class DenseLayer extends DenseNeuralLayer {
         else
         {
             for (int i = 0; i < inputs.length; i++) {
+                weight.IsNan(weight);
+                input[i].IsNan(input[i]);
                 output[i] = input[i].dot(weight);
+                output[i].IsNan(output[i]);
                 output[i].add(threshold);
+
+                output[i].IsNan(output[i]);
             }
         }
     }
@@ -161,9 +167,16 @@ public class DenseLayer extends DenseNeuralLayer {
         {
             for (int i = 0; i < input.length; i++) {
                 error[i] = errorNL[i].dotT(weight);
+                weight.IsNan(weight);
+                error[i].IsNan(error[i]);
+                errorNL[i].IsNan(errorNL[i]);
+
                 if (trainable) {
                     derivativeWeight(input[i], errorNL[i]);
                 }
+                error[i].IsNan(error[i]);
+                weight.IsNan(weight);
+                errorNL[i].IsNan(errorNL[i]);
             }
         }
 
@@ -199,6 +212,7 @@ public class DenseLayer extends DenseNeuralLayer {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
         derThreshold.add(error);
     }
