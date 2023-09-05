@@ -3,6 +3,7 @@ package nnarrays;
 import jcuda.Pointer;
 import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
 import jcuda.runtime.JCuda;
 import lombok.SneakyThrows;
@@ -13,11 +14,12 @@ import java.util.Arrays;
 import static java.lang.Math.log;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
-import static jcuda.runtime.JCuda.cudaMalloc;
-import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.jcublas.JCublas2.cublasSasum;
+import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
+import static utilities.GPUInit.cublasHandle;
 import static utilities.GPUInit.helperModule;
 
 public final class NNArrays {
@@ -352,13 +354,15 @@ public final class NNArrays {
         }
         else
         {
-            Pointer sum_gpu = new Pointer();
-            cudaMalloc(sum_gpu, (long) Sizeof.FLOAT);
-
             float[] sumArray = new float[1];
+            Pointer sum_gpu = new Pointer();
+            cublasSasum(cublasHandle, array.size, array.data_gpu, 1, sum_gpu);
+
+            /*cudaMalloc(sum_gpu, (long) Sizeof.FLOAT);
 
             int n = array.size;
             CUfunction function = new CUfunction();
+            cu
             cuModuleGetFunction(function, helperModule, "sum");
             Pointer kernelParameters = Pointer.to(Pointer.to(array.data_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
@@ -368,9 +372,10 @@ public final class NNArrays {
                     blockSize, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
-            );
+            );*/
             JCublas2.cublasGetVector(sumArray.length, Sizeof.FLOAT, sum_gpu, 1, Pointer.to(sumArray), 1);
             sum = sumArray[0];
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             JCuda.cudaFree(sum_gpu);
         }
 
@@ -403,6 +408,7 @@ public final class NNArrays {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
         return result;

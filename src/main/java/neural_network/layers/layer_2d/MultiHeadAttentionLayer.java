@@ -196,6 +196,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     @SneakyThrows
     @Override
     public void generateOutput(NNArray[] inputs) {
+        //long start = System.nanoTime();
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
@@ -213,6 +214,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         }
 
         if (!Use.GPU) {
+            //long start = System.nanoTime();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -224,17 +226,20 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            //System.out.println((System.nanoTime() - start) / 1000000);
         }
         else
         {
             for (int i = 0; i < input.length; i++) {
+                //long start = System.nanoTime();
                 output[i] = attention(this.input[i], i);
+                //System.out.println("(" + (System.nanoTime() - start) / 1000000 +") = " + String.valueOf(i));
             }
         }
+        //System.out.println("<"+ (System.nanoTime() - start) / 1000000 +">");
     }
 
     private NNMatrix attention(NNMatrix input, int i) {
-
         key[i] = new NNMatrix[countHead];
         query[i] = new NNMatrix[countHead];
         value[i] = new NNMatrix[countHead];
@@ -246,7 +251,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         attention[i] = new NNMatrix(width, countHead * sizeAttention);
 
         for (int j = 0; j < countHead; j++) {
-            if (hasEncoderLayer) {
+            if(hasEncoderLayer){
                 key[i][j] = outputDecoder[i].dot(weightKey[j]);
                 query[i][j] = outputDecoder[i].dot(weightQuery[j]);
             } else {
@@ -257,9 +262,8 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             value[i][j] = input.dot(weightValue[j]);
 
             score[i][j] = query[i][j].dotT(key[i][j]);
-
             score[i][j].div((float) Math.sqrt(sizeAttention));
-            if (useMask) {
+            if(useMask){
                 score[i][j].mask(mask, 0, -1000000000);
             }
 
@@ -270,30 +274,29 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             }
 
             outputAtt[i][j] = inputAtt[i][j].dot(value[i][j]);
+
             attention[i].addCopy(outputAtt[i][j], j);
         }
+
         return attention[i].dot(weight);
     }
 
     private NNMatrix errorAttention(NNMatrix error, NNMatrix input, int i)
     {
+        long start_ = System.nanoTime();
         NNMatrix derAttention = error.dotT(weight);
         if (trainable) {
-            NNMatrix transpose = attention[i].transpose();
-            NNMatrix temp = transpose.dot(error);
-            derWeight.add(temp);
+            derWeight.add(attention[i].transpose().dot(error));
         }
 
         NNMatrix errorInput = new NNMatrix(input);
 
         for (int j = 0; j < countHead; j++) {
-
             NNMatrix errorOutAtt = new NNMatrix(outputAtt[i][j]);
             errorOutAtt.addBackCopy(derAttention, j);
 
             NNMatrix errorInAtt = errorOutAtt.dotT(value[i][j]);
-            NNMatrix transpose = inputAtt[i][j].transpose();
-            NNMatrix errorValue = transpose.dot(errorOutAtt);
+            NNMatrix errorValue = inputAtt[i][j].transpose().dot(errorOutAtt);
 
             if (dropout != 0) {
                 errorInAtt.dropout(errorInAtt, dropout);
@@ -304,39 +307,24 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             errorScore.div((float) Math.sqrt(sizeAttention));
 
             NNMatrix errorQuery = errorScore.dot(key[i][j]);
-            NNMatrix ta = query[i][j].transpose();
-            NNMatrix tt = ta.dotT(errorScore);
-            NNMatrix errorKey = tt.transpose();
+            NNMatrix errorKey = query[i][j].transpose().dotT(errorScore).transpose();
 
-            if (hasEncoderLayer) {
-                NNMatrix temp = errorKey.dotT(weightKey[j]);
-                errorDecoder[i].add(temp);
-                NNMatrix temp2 = errorQuery.dotT(weightQuery[j]);
-                errorDecoder[i].add(temp2);
+            if(hasEncoderLayer){
+                errorDecoder[i].add(errorKey.dotT(weightKey[j]));
+                errorDecoder[i].add(errorQuery.dotT(weightQuery[j]));
             } else {
-                NNMatrix temp = errorKey.dotT(weightKey[j]);
-                errorInput.add(temp);
-                NNMatrix temp2 = errorQuery.dotT(weightQuery[j]);
-                errorInput.add(temp2);
+                errorInput.add(errorKey.dotT(weightKey[j]));
+                errorInput.add(errorQuery.dotT(weightQuery[j]));
             }
-            NNMatrix temp = errorValue.dotT(weightValue[j]);
-            errorInput.add(temp);
+            errorInput.add(errorValue.dotT(weightValue[j]));
 
             if (trainable) {
                 NNMatrix inputT = input.transpose();
-
-                NNMatrix temp2 = inputT.dot(errorKey);
-                derWeightKey[j].add(temp2);
-
-                NNMatrix temp3 = inputT.dot(errorQuery);
-                derWeightQuery[j].add(temp3);
-
-                NNMatrix temp4 = inputT.dot(errorValue);
-                derWeightValue[j].add(temp4);
+                derWeightKey[j].add(inputT.dot(errorKey));
+                derWeightQuery[j].add(inputT.dot(errorQuery));
+                derWeightValue[j].add(inputT.dot(errorValue));
             }
         }
-
-        CallGarbageCollector();
 
         return errorInput;
     }
@@ -349,10 +337,10 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     @SneakyThrows
     @Override
     public void generateError(NNArray[] errors) {
+        //long start = System.nanoTime();
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
-
-        if (hasEncoderLayer) {
+        if(hasEncoderLayer){
             errorDecoder = new NNMatrix[errors.length];
         }
 
@@ -374,6 +362,10 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         }
         else {
             for (int i = 0; i < input.length; i++) {
+                if (hasEncoderLayer) {
+                    errorDecoder[i] = new NNMatrix(outputDecoder[i]);
+                }
+
                 error[i] = errorAttention(errorNL[i], input[i], i);
             }
         }
@@ -388,7 +380,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             }
         }
 
-        CallGarbageCollector();
+        //System.out.println("="+ (System.nanoTime() - start) / 1000000 +"=");
     }
 
     public static MultiHeadAttentionLayer read(Scanner scanner) {

@@ -2,6 +2,7 @@ package nnarrays;
 
 import jcuda.Pointer;
 import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
 import lombok.SneakyThrows;
 import utilities.Use;
 
@@ -68,6 +69,9 @@ public class NNVector extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            matrix.IsNan(result);
         }
 
         return result;
@@ -193,7 +197,7 @@ public class NNVector extends NNArray {
             int row =  matrix.getRow();
             int column =  matrix.getColumn();
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
+            cuModuleGetFunction(function, helperModule, "dotT_VectorAndMatrix");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -206,6 +210,9 @@ public class NNVector extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            matrix.IsNan(result);
         }
 
         return result;
@@ -323,6 +330,9 @@ public class NNVector extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -379,7 +389,7 @@ public class NNVector extends NNArray {
             int column = matrix.getColumn();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "add_NNMatrix");
-            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.getData_gpu()), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
@@ -391,6 +401,9 @@ public class NNVector extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 

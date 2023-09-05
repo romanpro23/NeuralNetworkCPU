@@ -138,8 +138,6 @@ public class PositionLoader extends DataLoader3D {
                     train.add(new ImageData3D(ImageTensor, output));
                     test.add(new ImageData3D(ImageTensor, output));
 
-                    inputsData.MakeNullData();
-
                     if (wwq % 100 == 0) {
                         System.out.println(wwq);
                     }

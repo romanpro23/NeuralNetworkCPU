@@ -36,7 +36,7 @@ public class JCudaHelper {
         String ptxFileName = kernelName+".ptx";
         File ptxFile = new File(ptxFileName);
 
-        long start = System.nanoTime();
+        //long start = System.nanoTime();
         File cuFile = new File(kernelName+".cu");
         BufferedWriter out = null;
         try {

@@ -3,6 +3,7 @@ package nnarrays;
 import jcuda.Pointer;
 import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
 import jcuda.jcublas.cublasOperation;
 import jcuda.runtime.JCuda;
@@ -23,7 +24,6 @@ import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.jcublas.JCublas2.*;
 import static jcuda.runtime.JCuda.*;
-import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
@@ -47,6 +47,7 @@ public class NNArray {
         } else {
             this.data_gpu = new Pointer();
             cudaMalloc(this.data_gpu, (long) size * Sizeof.FLOAT);
+            cudaMemset(this.data_gpu, 0, (long) size * Sizeof.FLOAT);
 
             allocatedPut();
         }
@@ -114,6 +115,7 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            //if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
     }
 
@@ -139,6 +141,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            IsNan();
         }
     }
 
@@ -169,6 +174,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
 
         return this;
@@ -216,6 +224,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
 
         return this;
@@ -274,6 +285,8 @@ public class NNArray {
             System.arraycopy(array.data, 0, data, 0, size);
         } else {
             JCublas2.cublasScopy(cublasHandle, this.size, array.data_gpu, 1, this.data_gpu, 1);
+
+            IsNan();
         }
     }
 
@@ -307,6 +320,9 @@ public class NNArray {
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
         );
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        IsNan();
     }
 
     public void add(float val) {
@@ -351,6 +367,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -387,6 +406,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -402,9 +424,6 @@ public class NNArray {
         {
             int p = size;
 
-            Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) Sizeof.FLOAT * p);
-
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derGelu");
             Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(error.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{p}));
@@ -416,8 +435,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
-            JCuda.cudaFree(dVar_Pointer);
+            IsNan();
         }
     }
 
@@ -582,6 +602,8 @@ public class NNArray {
         else
         {
             this.copy(input);
+
+            IsNan();
         }
     }
 
@@ -669,15 +691,19 @@ public class NNArray {
         }
         else
         {
+            IsNan();
+
             int[] maxIndex = new int[1];
             Pointer maxIndex_gpu = new Pointer();
             cudaMalloc(maxIndex_gpu, (long) Sizeof.INT);
             cudaMemcpy(maxIndex_gpu, Pointer.to(maxIndex), (long) size * Sizeof.INT, cudaMemcpyHostToDevice);
-            cublasIdamax(cublasHandle, size, data_gpu, 1, Pointer.to(maxIndex));
-            JCublas2.cublasGetVector(maxIndex.length, Sizeof.FLOAT, Pointer.to(maxIndex), 1, Pointer.to(maxIndex), 1);
+            cublasIdamax(cublasHandle, size, data_gpu, 1, Pointer.to(maxIndex_gpu));
+            JCublas2.cublasGetVector(maxIndex.length, Sizeof.FLOAT, maxIndex_gpu, 1, Pointer.to(maxIndex), 1);
             index = maxIndex[0];
 
             JCuda.cudaFree(maxIndex_gpu);
+
+            IsNan();
         }
 
         return index;
@@ -763,6 +789,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -821,6 +850,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -861,6 +893,9 @@ public class NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+            IsNan();
         }
     }
 
@@ -1022,6 +1057,8 @@ public class NNArray {
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
         );
+
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
     }
 
     public void dropoutBack(NNArray output, NNArray error, double chanceDrop) {
@@ -1040,6 +1077,7 @@ public class NNArray {
 
             Pointer dVar_Pointer = new Pointer();
             cudaMalloc(dVar_Pointer, (long) Sizeof.FLOAT * p);
+            cudaMemset(dVar_Pointer, 0, (long) Sizeof.FLOAT * p);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dropoutBack");
@@ -1053,7 +1091,11 @@ public class NNArray {
                     kernelParameters, null // Kernel- and extra parameters
             );
 
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             JCuda.cudaFree(dVar_Pointer);
+
+
+            IsNan();
         }
     }
 
@@ -1102,6 +1144,32 @@ public class NNArray {
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
         );
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+    }
+
+    public Pointer sum_gpu(NNArray array) {
+        Pointer sum_gpu = new Pointer();
+        cudaMalloc(sum_gpu, (long) Sizeof.FLOAT);
+        cudaMemset(sum_gpu, 0, (long) Sizeof.FLOAT);
+        cublasSasum(cublasHandle, array.size, array.data_gpu, 1,  Pointer.to(sum_gpu));
+
+        /*int n = array.size;
+        CUfunction function = new CUfunction();
+
+        cuModuleGetFunction(function, helperModule, "sum");
+        Pointer kernelParameters = Pointer.to(Pointer.to(array.data_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{n}));
+        int blockSize = Math.min(n, BLOCK_SIZE);
+        int gridSizeX = (int) Math.ceil((double) n / blockSize);
+        cuLaunchKernel(function,
+                gridSizeX, 1, 1,      // Grid dimension
+                blockSize, 1, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );*/
+
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        return sum_gpu;
     }
 
     public float[] toArray() {
@@ -1133,9 +1201,64 @@ public class NNArray {
         //if (data_gpu != null) JCuda.cudaFree(data_gpu);
     }
 
-    public void MakeNullData()
+    public boolean IsNan(NNArray data)
     {
-        data = null;
+        /*int p = data.size;
+
+        int[] result = new int[1];
+        Pointer result_gpu = new Pointer();
+        cudaMalloc(result_gpu, (long) Sizeof.INT);
+        cudaMemset(result_gpu, 0, Sizeof.INT);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "isnan");
+        Pointer kernelParameters = Pointer.to(Pointer.to(data.data_gpu), Pointer.to(result_gpu), Pointer.to(new int[]{p}));
+        int blockSize = Math.min(p, BLOCK_SIZE);
+        int gridSizeX = (int) Math.ceil((double) p / blockSize);
+        cuLaunchKernel(function,
+                gridSizeX, 1, 1,      // Grid dimension
+                blockSize, 1, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+
+        JCublas2.cublasGetVector(result.length, Sizeof.FLOAT, result_gpu, 1, Pointer.to(result), 1);
+        if (result[0] == 1)
+        {
+            System.out.println("Error!!");
+            return true;
+        }*/
+        return false;
+    }
+
+    public boolean IsNan()
+    {
+        /*int p = size;
+
+        int[] result = new int[1];
+        Pointer result_gpu = new Pointer();
+        cudaMalloc(result_gpu, (long) Sizeof.INT);
+        cudaMemset(result_gpu, 0, Sizeof.INT);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "isnan");
+        Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result_gpu), Pointer.to(new int[]{p}));
+        int blockSize = Math.min(p, BLOCK_SIZE);
+        int gridSizeX = (int) Math.ceil((double) p / blockSize);
+        cuLaunchKernel(function,
+                gridSizeX, 1, 1,      // Grid dimension
+                blockSize, 1, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+
+        JCublas2.cublasGetVector(result.length, Sizeof.FLOAT, result_gpu, 1, Pointer.to(result), 1);
+        if (result[0] == 1)
+        {
+            System.out.println("Error!!");
+            return true;
+        }*/
+        return false;
     }
 
     public static final String kernels =
@@ -1155,7 +1278,7 @@ public class NNArray {
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements)\n" +
                     "    {\n" +
-                    "        C[i] = (float) (0.5f * A[i] * (1 + tanhf(0.7978846 * A[i] + 0.0356774 * powf(A[i], 3))));\n" +
+                    "        C[i] = (float) (0.5f * A[i] * (1 + tanh((double)(0.7978846 * A[i] + 0.0356774 * pow((double)A[i], 3.0)))));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1176,7 +1299,7 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void imageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel, const int* __restrict__ rowIndex, const int* __restrict__ columnIndex)\n" +
+                    "__global__ void imageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
                     "    int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
@@ -1189,7 +1312,7 @@ public class NNArray {
                     "    {\n" +
                     "        for (int j = 0; j < sizeKernel; j++) {\n" +
                     "            for (int k = 0; k < sizeKernel; k++) {\n" +
-                    "                indexInput = rowIndex[h + j] + columnIndex[w + k];\n" +
+                    "                indexInput = (h + j) * depth * columns + (w + k) * depth;\n" +
                     "                for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
                     "                     C[index] = A[indexInput];\n" +
                     "                }\n" +
@@ -1199,7 +1322,7 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel, const int* __restrict__ rowIndex, const int* __restrict__ columnIndex)\n" +
+                    "__global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
                     "    int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
@@ -1212,7 +1335,7 @@ public class NNArray {
                     "    {\n" +
                     "        for (int j = 0; j < sizeKernel; j++) {\n" +
                     "            for (int k = 0; k < sizeKernel; k++) {\n" +
-                    "                indexInput = rowIndex[h + j] + columnIndex[w + k];\n" +
+                    "                indexInput = (h + j) * depth * columns + (w + k) * depth;\n" +
                     "                for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
                     "                     C[indexInput] = A[index];\n" +
                     "                }\n" +
@@ -1242,6 +1365,18 @@ public class NNArray {
                     "    if ((h < rows) && (w < columns))\n" +
                     "    {\n" +
                     "          C[h] += A[w] * B[index];\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void dotT_VectorAndMatrix(const float* __restrict__ data, const float* __restrict__ matrix, float* result, int rows, int columns)\n" +
+                    "{\n" +
+                    "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    int index = h + w * blockDim.x * gridDim.x;\n" +
+                    "    if ((h < rows) && (w < columns))\n" +
+                    "    {\n" +
+                    "          result[w] += data[h] * matrix[index];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1332,15 +1467,15 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void findVariance_part(const float* __restrict__ A, const float* __restrict__ mean, float* C, int width, int depth)\n" +
+                    "__global__ void findVariance_part(const float* __restrict__ input, const float* __restrict__ mean, float* var, int width, int depth)\n" +
                     "{\n" +
                     "    int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int k = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    int index = j + k * blockDim.x * gridDim.x;\n" +
                     "    if ((j < width) && (k < depth))\n" +
                     "    {\n" +
-                    "        float sub = A[index] - mean[j];\n" +
-                    "        C[j] += sub * sub;\n" +
+                    "        float sub = input[index] - mean[j];\n" +
+                    "        var[j] += sub * sub;\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1370,7 +1505,7 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void reverse(float* A, int rows, int columns, int depth, const int* __restrict__ rowIndex, const int* __restrict__ columnIndex)\n" +
+                    "__global__ void reverse(float* A, int rows, int columns, int depth)\n" +
                     "{\n" +
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int j = blockDim.y * blockIdx.y + threadIdx.y;\n" +
@@ -1378,17 +1513,17 @@ public class NNArray {
                     "    if ((i < (rows / 2 + 1)) && (j < columns) && (k < depth))\n" +
                     "    {\n" +
                     "       int index = rows - 1 - i;\n" +
-                    "       float valf = A[rowIndex[i] + columnIndex[j] + k];\n" +
-                    "       float vals = A[rowIndex[index] + columnIndex[j] + k];\n" +
-                    "       A[rowIndex[i] + columnIndex[j] + k] = valf;\n" +
-                    "       A[rowIndex[index] + columnIndex[j] + k] = vals;\n" +
+                    "       float valf = A[i * depth * columns + j * depth + k];\n" +
+                    "       float vals = A[index  * depth * columns + j * depth + k];\n" +
+                    "       A[i  * depth * columns + j * depth + k] = valf;\n" +
+                    "       A[index  * depth * columns + j * depth + k] = vals;\n" +
                     "    }\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void set2(float* A, int i, int j, int k, float value, const int* __restrict__ rowIndex, const int* __restrict__ columnIndex)\n" +
+                    "__global__ void set2(float* A, int i, int j, int k, int columns, int depth, float value)\n" +
                     "{\n" +
-                    "    A[rowIndex[i] + columnIndex[j] + k] = value;\n" +
+                    "    A[i * depth * columns + j * depth + k] = value;\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
@@ -1421,7 +1556,7 @@ public class NNArray {
                     "    }\n" +
                     "}\n" +
 
-                    "extern \"C\"\n"+
+                    /*"extern \"C\"\n"+
                     "__global__ void Softmax(const float* __restrict__ A, float* auxE, int sample_dim, float* N, int numElements)\n"+
                     "{\n"+
                     //This way of programing allow no warp syncronization as we only need kernel optimization.
@@ -1457,10 +1592,10 @@ public class NNArray {
                     "           N[thread_id_x * sample_dim + cA] = auxE[thread_id_x * sample_dim + cA] / C_value;\n"+
                     "       }\n"+
                     "   }\n"+
-                    "}\n" +
+                    "}\n" +*/
 
                     "extern \"C\"\n"+
-                    "__global__ void addCopy(float* A, float* C, int A_col, int C_col, int start, int n) \n"+
+                    "__global__ void addCopy(const float* __restrict__ A, float* C, int A_col, int C_col, int start, int n) \n"+
                     "{\n"+
                     "   int index = threadIdx.x + (blockIdx.x * blockDim.x);\n"+
                     "   if (index >= n)\n"+
@@ -1479,7 +1614,7 @@ public class NNArray {
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements)\n" +
                     "    {\n" +
-                    "       A[i] = (float) (sqrt(var[i] + epsilon));\n" +
+                    "       A[i] = (float) (sqrt((double)(var[i] + epsilon)));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1533,7 +1668,7 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       dVar[idx] = (float) (-0.5 * powf(var[idx] + epsilon, -1.5));\n" +
+                    "       dVar[idx] = (float) (-0.5 * pow((double)(var[idx] + epsilon), -1.5));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1553,7 +1688,7 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       dMean[idx] = (float) (-1.0 / sqrtf(var[idx] + epsilon));\n" +
+                    "       dMean[idx] = (float) (-1.0 / sqrt((double)(var[idx] + epsilon)));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1574,7 +1709,7 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       dVar[idx] = (float) (1.0 / sqrtf(var[idx] + epsilon));\n" +
+                    "       dVar[idx] = (float) (1.0 / sqrt((double)(var[idx] + epsilon)));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1584,18 +1719,40 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       data[idx] *= data[idx];\n" +
+                    "       data[idx] = data[idx] * data[idx];\n" +
                     "    }\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void sum(float* data, float* sum, int numElements)\n" +
+                    "__global__ void sum(const float* __restrict__ data, float* sum, int numElements)\n" +
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
                     "       sum[0] += data[idx];\n" +
                     "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void isnan(const float* __restrict__ data, int* result, int numElements)\n" +
+                    "{\n" +
+                    "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (idx < numElements)\n" +
+                    "    {\n" +
+                    "       if (result[0] == 0)\n" +
+                    "       {\n" +
+                    "           if (isnan(data[idx]))\n" +
+                    "           {\n" +
+                    "               result[0] = 1;\n" +
+                    "           }\n" +
+                    "       }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void divide_add(float A, const float B, const float C)\n" +
+                    "{\n" +
+                    "   A += B / C;\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
@@ -1624,17 +1781,17 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       data[idx] -= (lr / (normN + 0.0000001)) * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.0000001);\n" +
+                    "       data[idx] -= (float)((lr / (normN + 0.0000001)) * (nominator[idx]) / (sqrt((double)(denominator[idx] / normD)) + 0.0000001));\n" +
                     "    }\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void addBackCopy(const float* __restrict__ rowsIndex_gpu, const float* __restrict__ matrix, int column, int start, float* data, int numElements)\n" +
+                    "__global__ void addBackCopy(const float* __restrict__ matrix, int m_column, int column, int start, float* data, int numElements)\n" +
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
-                    "       int indexOut = rowsIndex_gpu[idx] + start * column;\n" +
+                    "       int indexOut = idx * m_column + start * column;\n" +
                     "       for (int j = 0; j < column; j++, indexOut++) {\n" +
                     "           data[idx] = matrix[indexOut];\n" +
                     "       };\n" +
@@ -1654,14 +1811,83 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
+                    "__global__ void mask(const float* __restrict__ A, float val, float newVal, float* C, int numElements)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < numElements)\n" +
+                    "    {\n" +
+                    "       if (A[i] == val)\n" +
+                    "       {\n" +
+                    "           C[i] = newVal;\n" +
+                    "       }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void fillUnderDiagonal(int column, float val, float* data, int numElements)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < numElements)\n" +
+                    "    {\n" +
+                    "        for (int j = 0; j < i + 1; j++) {\n" +
+                    "            data[i * column + j] = val;\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
                     "__global__ void derGelu(const float* __restrict__ input, const float* __restrict__ error, float* data, int numElements)\n" +
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements)\n" +
                     "    {\n" +
                     "        float x = input[idx];\n" +
-                    "        float val = (float) tanhf(0.7978846 * x + 0.0356774 * powf(x, 3));\n" +
-                    "        data[idx] = error[idx] * 0.5 * (1 + val + x * (1 - val * val) * (0.79788846 + 0.1070322 * x * x));\n" +
+                    "        float val = (float) tanh((double)(0.7978846 * x + 0.0356774 * pow((double)x, 3.0)));\n" +
+                    "        data[idx] = error[idx] * 0.5 * (1.0 + val + x * (1.0 - val * val) * (0.79788846 + 0.1070322 * x * x));\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void matrixMultiplicationKernel(const float* __restrict__ A, const float* __restrict__ B, float* C, int width, int P, int Q) {\n" +
+                    "    int r = blockIdx.y * blockDim.y + threadIdx.y;\n" +
+                    "    int c = blockIdx.x * blockDim.x + threadIdx.x;\n" +
+                    "    if( r < P && c < Q){\n" +
+                    "        float value = 0;\n" +
+                    "        for(int k = 0; k < width; k++){\n" +
+                    "            value += A[r * width + k] * B[k * Q + c];\n" +
+                    "        }\n" +
+                    "        C[r * Q + c] = value;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void Softmax(const float* __restrict__ input, float* data, int column, int numElements)\n" +
+                    "{\n" +
+                    "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (k < numElements)\n" +
+                    "    {\n" +
+                    "       float sum = 0;\n" +
+                    "       int index = k * column;\n" +
+                    "       float max = input[index];\n" +
+                    "       for (int i = 1; i < column; i++, index++) {\n" +
+                    "           if (max < input[index])\n" +
+                    "               max = input[index];\n" +
+                    "       }\n" +
+                    "       index = k * column;\n" +
+                    "       double E = 2.718281828459045;\n" +
+                    "       for (int i = 0; i < column; i++, index++) {\n" +
+                    "           data[index] = (float)(pow(E, (double)(input[index] - max)));\n" +
+                    //"           if (sum + data[index] + 0.00000001 > Float.MAX_VALUE) {\n" +
+                    //"               sum = Float.MAX_VALUE;\n" +
+                    //"           } else {\n" +
+                    "               sum += data[index];\n" +
+                    //"           }\n" +
+                    "       }\n" +
+                    "       sum += 0.00000001;\n" +
+                    "       index = k * column;\n" +
+                    "       for (int i = 0; i < column; i++, index++) {\n" +
+                    "           data[index] /= sum;\n" +
+                    "       }\n" +
                     "    }\n" +
                     "}\n" +
 

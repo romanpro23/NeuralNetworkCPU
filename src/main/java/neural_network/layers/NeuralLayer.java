@@ -1,5 +1,6 @@
 package neural_network.layers;
 
+import jcuda.Pointer;
 import jcuda.runtime.JCuda;
 import lombok.Getter;
 import neural_network.layers.capsule.*;
@@ -156,31 +157,30 @@ public abstract class NeuralLayer {
 
     public void CallGarbageCollector()
     {
-        System.gc();
-        Runtime.getRuntime().gc();
+        if (Use.GPU) {
+            System.gc();
+            Runtime.getRuntime().gc();
 
-        List<String> listString = new ArrayList<>();
+            List<String> listString = new ArrayList<>();
 
-        allocated.forEach((key, value) ->
-        {
-            Object arr = ((WeakReference<Object>) value).get();
-            if (arr == null)
+            allocated.forEach((key, value) ->
             {
-                Use U = allocatedUse.get(key);
-                if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
-                if (U.rowsIndex_gpu != null) JCuda.cudaFree(U.rowsIndex_gpu);
-                if (U.columnsIndex_gpu != null) JCuda.cudaFree(U.columnsIndex_gpu);
+                Object arr = ((WeakReference<Object>) value).get();
+                if (arr == null) {
+                    Use U = allocatedUse.get(key);
+                    if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
 
-                listString.add(key);
-            }
-        });
+                    listString.add(key);
+                }
+            });
 
-        listString.forEach((key) ->
-        {
-            allocated.remove(key);
-            allocatedUse.remove(key);
-        });
+            listString.forEach((key) ->
+            {
+                allocated.remove(key);
+                allocatedUse.remove(key);
+            });
 
-        listString.clear();
+            listString.clear();
+        }
     }
 }
