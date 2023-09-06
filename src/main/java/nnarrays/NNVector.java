@@ -53,6 +53,8 @@ public class NNVector extends NNArray {
         }
         else
         {
+            IsNan();
+
             int row =  matrix.getRow();
             int column =  matrix.getColumn();
             CUfunction function = new CUfunction();
@@ -71,7 +73,12 @@ public class NNVector extends NNArray {
             );
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
+            IsNan();
+            IsNan(matrix);
             matrix.IsNan(result);
+            IsNan();
+
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
         return result;
@@ -318,6 +325,9 @@ public class NNVector extends NNArray {
         }
         else
         {
+            IsNan();
+            IsNan(vector);
+
             int n = size;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "MatAdd");

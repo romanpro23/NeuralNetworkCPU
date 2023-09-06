@@ -58,20 +58,6 @@ public class NNTensor extends NNArray {
                 columnsIndex[i] = i * depth;
             }
         }
-        else
-        {
-            allocatedPut();
-        }
-    }
-
-    public void allocatedPut() {
-        Use U = new Use();
-        U.data_gpu = this.data_gpu;
-        //U.rowsIndex_gpu = this.rowsIndex_gpu;
-        //U.columnsIndex_gpu = this.columnsIndex_gpu;
-        U.HashCode = this.hashCode();
-        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
-        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     public void multiplyIndex(Pointer p, int n, int value) {
@@ -187,10 +173,10 @@ public class NNTensor extends NNArray {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "reverse");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}));
-            int blockSizeX = (int) Math.min(rows / 2 + 1, Math.pow(BLOCK_SIZE, (double) 1 / 3));
-            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 3));
-            int blockSizeZ = (int) Math.min(depth, Math.pow(BLOCK_SIZE, (double) 1 / 3));
-            int gridSizeX = (int) Math.ceil((double) (rows / 2 + 1) / blockSizeX);
+            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(depth, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
             int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
             int gridSizeZ = (int) Math.ceil((double) depth / blockSizeZ);
 
@@ -696,16 +682,16 @@ public class NNTensor extends NNArray {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
-            int rows_ = rows / sizeKernel;
-            int columns_ = columns / sizeKernel;
-            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int gridSizeX = (int) Math.ceil((double) rows_ / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) columns_ / blockSizeY);
+            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
+            int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
 
             cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
@@ -739,16 +725,16 @@ public class NNTensor extends NNArray {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "backImageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(error.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
-            int rows_ = rows / sizeKernel;
-            int columns_ = columns / sizeKernel;
-            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int gridSizeX = (int) Math.ceil((double) rows_ / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) columns_ / blockSizeY);
+            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
+            int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
 
             cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );

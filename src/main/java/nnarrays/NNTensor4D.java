@@ -40,31 +40,19 @@ public class NNTensor4D extends NNArray {
         depthIndex = new int[depth];
         lengthIndex = new int[length];
         rowIndex = new int[row];
-        int sq = column * row * length;
-        int sql = column * row;
-        for (int i = 0; i < depth; i++) {
-            depthIndex[i] = i * sq;
+        if (!Use.GPU) {
+            int sq = column * row * length;
+            int sql = column * row;
+            for (int i = 0; i < depth; i++) {
+                depthIndex[i] = i * sq;
+            }
+            for (int i = 0; i < length; i++) {
+                lengthIndex[i] = i * sql;
+            }
+            for (int i = 0; i < row; i++) {
+                rowIndex[i] = i * column;
+            }
         }
-        for (int i = 0; i < length; i++) {
-            lengthIndex[i] = i * sql;
-        }
-        for (int i = 0; i < row; i++) {
-            rowIndex[i] = i * column;
-        }
-
-        if (Use.GPU) {
-            allocatedPut();
-        }
-    }
-
-    public void allocatedPut() {
-        Use U = new Use();
-        U.data_gpu = this.data_gpu;
-        //U.rowsIndex_gpu = this.rowsIndex_gpu;
-        //U.columnsIndex_gpu = this.columnsIndex_gpu;
-        U.HashCode = this.hashCode();
-        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
-        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     @Override

@@ -41,10 +41,6 @@ public class NNMatrix extends NNArray {
                 rowIndex[i] = i * column;
             }
         }
-        else
-        {
-            allocatedPut();
-        }
 
         countAxes = 2;
     }
@@ -60,20 +56,8 @@ public class NNMatrix extends NNArray {
                 rowIndex[i] = i * column;
             }
         }
-        else
-        {
-            allocatedPut();
-        }
 
         countAxes = 2;
-    }
-
-    public void allocatedPut() {
-        Use U = new Use();
-        U.data_gpu = this.data_gpu;
-        U.HashCode = this.hashCode();
-        allocated.put(String.valueOf(this.hashCode()), new WeakReference<>(this));
-        allocatedUse.put(String.valueOf(this.hashCode()), U);
     }
 
     public NNMatrix(NNMatrix matrix) {
@@ -168,15 +152,17 @@ public class NNMatrix extends NNArray {
         }
         else
         {
-            int n = row;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "addCopy");
-            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{start}), Pointer.to(new int[]{n}));
-            int blockSize = Math.min(n, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{start}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(matrix.column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) matrix.column / blockSizeY);
+
             cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
@@ -201,12 +187,15 @@ public class NNMatrix extends NNArray {
             int n = row;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "addBackCopy");
-            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{start}), Pointer.to(this.data_gpu), Pointer.to(new int[]{n}));
-            int blockSize = Math.min(n, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{this.row}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{start}), Pointer.to(this.data_gpu));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
             cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
@@ -805,27 +794,37 @@ public class NNMatrix extends NNArray {
         }
         else
         {
-            derSoftmax(output, error, this);
+            IsNan();
+            IsNan(output);
+            IsNan(error);
+
+            IsNan();
+            IsNan(output);
+            IsNan(error);
+
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "derSoftmax");
+            Pointer kernelParameters = Pointer.to(Pointer.to(output.data_gpu), Pointer.to(error.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+            int gridSizeZ = (int) Math.ceil((double) column / blockSizeZ);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+
+            IsNan();
+            IsNan(output);
+            IsNan(error);
+
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
-    }
-
-    private static void derSoftmax(NNMatrix A, NNMatrix auxE, NNMatrix C) {
-        int n = A.row;
-        CUfunction function = new CUfunction();
-        cuModuleGetFunction(function, helperModule, "derSoftmax");
-        Pointer kernelParameters = Pointer.to(Pointer.to(A.data_gpu), Pointer.to(auxE.data_gpu), Pointer.to(new int[]{A.column}), Pointer.to(C.data_gpu), Pointer.to(new int[]{n}));
-        int blockSize = Math.min(n, BLOCK_SIZE);
-        int gridSizeX = (int) Math.ceil((double) n / blockSize);
-
-        cuLaunchKernel(function,
-                gridSizeX, 1, 1,      // Grid dimension
-                blockSize, 1, 1,      // Block dimension
-                0, null,               // Shared memory size and stream
-                kernelParameters, null // Kernel- and extra parameters
-        );
-        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-        A.IsNan(C);
     }
 
     @Override

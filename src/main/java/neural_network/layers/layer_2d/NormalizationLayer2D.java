@@ -19,8 +19,8 @@ import java.util.concurrent.Executors;
 
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
-import static jcuda.runtime.JCuda.cudaMalloc;
-import static jcuda.runtime.JCuda.cudaMemset;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 
@@ -143,8 +143,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
             int p = var[n].size();
             Pointer varSqrt_Pointer = new Pointer();
-            cudaMalloc(varSqrt_Pointer, (long) Sizeof.FLOAT * p);
-            cudaMemset(varSqrt_Pointer, 0, (long) Sizeof.FLOAT * p);
+            float[] init = new float[p];
+            cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.FLOAT);
+            cudaMemcpy(varSqrt_Pointer, Pointer.to(init), (long) p * Sizeof.FLOAT, cudaMemcpyHostToDevice);
+
+
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "normalization_part_1");
             Pointer kernelParameters = Pointer.to(Pointer.to(varSqrt_Pointer), Pointer.to(var[n].getData_gpu()), Pointer.to(new float[]{epsilon}), Pointer.to(new int[]{p}));
@@ -370,8 +373,9 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         else
         {
             Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) Sizeof.FLOAT * var[n].size());
-            cudaMemset(dVar_Pointer, 0, (long) Sizeof.FLOAT * var[n].size());
+            float[] init = new float[var[n].size()];
+            cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.FLOAT);
+            cudaMemcpy(dVar_Pointer, Pointer.to(init), (long) var[n].size() * Sizeof.FLOAT, cudaMemcpyHostToDevice);
 
             int p = var[n].size();
             CUfunction function = new CUfunction();
@@ -461,12 +465,14 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int p = var[n].size();
 
             Pointer dMean_Pointer = new Pointer();
-            cudaMalloc(dMean_Pointer, (long) Sizeof.FLOAT * mean[n].size());
-            cudaMemset(dMean_Pointer, 0, (long) Sizeof.FLOAT * mean[n].size());
+            float[] init = new float[mean[n].size()];
+            cudaMalloc(dMean_Pointer, (long) mean[n].size() * Sizeof.FLOAT);
+            cudaMemcpy(dMean_Pointer, Pointer.to(init), (long) mean[n].size() * Sizeof.FLOAT, cudaMemcpyHostToDevice);
 
             Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) Sizeof.FLOAT * p);
-            cudaMemset(dVar_Pointer, 0, (long) Sizeof.FLOAT * p);
+            float[] init2 = new float[var[n].size()];
+            cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.FLOAT);
+            cudaMemcpy(dVar_Pointer, Pointer.to(init2), (long) var[n].size() * Sizeof.FLOAT, cudaMemcpyHostToDevice);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derMean_part_1");
@@ -546,8 +552,9 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int p = var[n].size();
 
             Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) Sizeof.FLOAT * p);
-            cudaMemset(dVar_Pointer, 0, (long) Sizeof.FLOAT * p);
+            float[] init2 = new float[p];
+            cudaMalloc(dVar_Pointer, (long) p * Sizeof.FLOAT);
+            cudaMemcpy(dVar_Pointer, Pointer.to(init2), (long) p * Sizeof.FLOAT, cudaMemcpyHostToDevice);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derNorm_part_1");

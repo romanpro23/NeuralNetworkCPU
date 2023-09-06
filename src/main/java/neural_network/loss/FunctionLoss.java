@@ -14,8 +14,8 @@ import utilities.Use;
 import static java.lang.Math.log;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
-import static jcuda.runtime.JCuda.cudaMalloc;
-import static jcuda.runtime.JCuda.cudaMemset;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 
@@ -55,8 +55,9 @@ public interface FunctionLoss {
             else
             {
                 Pointer accuracy_gpu = new Pointer();
-                cudaMalloc(accuracy_gpu, (long) Sizeof.FLOAT);
-                cudaMemset(accuracy_gpu, 0, (long) Sizeof.FLOAT);
+                float[] init = new float[1];
+                cudaMalloc(accuracy_gpu, (long) 1 * Sizeof.FLOAT);
+                cudaMemcpy(accuracy_gpu, Pointer.to(init), (long) 1 * Sizeof.FLOAT, cudaMemcpyHostToDevice);
 
                 for (int r = 0; r < outputs.length; r++) {
                     Pointer sum_gpu = idealOutputs[r].sum_gpu(NNArrays.sub(idealOutputs[r], outputs[r]).pow2());

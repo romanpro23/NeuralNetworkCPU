@@ -283,7 +283,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
     private NNMatrix errorAttention(NNMatrix error, NNMatrix input, int i)
     {
-        long start_ = System.nanoTime();
         NNMatrix derAttention = error.dotT(weight);
         if (trainable) {
             derWeight.add(attention[i].transpose().dot(error));
@@ -303,7 +302,9 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             }
 
             NNMatrix errorScore = new NNMatrix(score[i][j]);
+            //long start = System.nanoTime();
             errorScore.derSoftmax(inputAtt[i][j], errorInAtt);
+            //System.out.println("!" + (System.nanoTime() - start) / 1000000 + "!");
             errorScore.div((float) Math.sqrt(sizeAttention));
 
             NNMatrix errorQuery = errorScore.dot(key[i][j]);

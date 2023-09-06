@@ -132,6 +132,7 @@ public class DenseLayer extends DenseNeuralLayer {
         {
             for (int i = 0; i < inputs.length; i++) {
                 weight.IsNan(weight);
+                threshold.IsNan(threshold);
                 input[i].IsNan(input[i]);
                 output[i] = input[i].dot(weight);
                 output[i].IsNan(output[i]);
