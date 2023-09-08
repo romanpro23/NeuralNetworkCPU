@@ -25,6 +25,7 @@ import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
+import static utilities.JCudaHelper.CONTEXT;
 
 public class DenseLayer extends DenseNeuralLayer {
     //trainable parts
@@ -115,31 +116,21 @@ public class DenseLayer extends DenseNeuralLayer {
         this.input = NNArrays.isVector(inputs);
         this.output = new NNVector[input.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
-            for (int t = 0; t < inputs.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    output[i] = input[i].dot(weight);
-                    output[i].add(threshold);
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < inputs.length; i++) {
-                weight.IsNan(weight);
-                threshold.IsNan(threshold);
-                input[i].IsNan(input[i]);
-                output[i] = input[i].dot(weight);
-                output[i].IsNan(output[i]);
-                output[i].add(threshold);
 
-                output[i].IsNan(output[i]);
-            }
+        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+        for (int t = 0; t < inputs.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
+                output[i] = input[i].dot(weight);
+                output[i].add(threshold);
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
     }
 
@@ -149,36 +140,22 @@ public class DenseLayer extends DenseNeuralLayer {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNVector[errors.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    error[i] = errorNL[i].dotT(weight);
-                    if (trainable) {
-                        derivativeWeight(input[i], errorNL[i]);
-                    }
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
-                error[i] = errorNL[i].dotT(weight);
-                weight.IsNan(weight);
-                error[i].IsNan(error[i]);
-                errorNL[i].IsNan(errorNL[i]);
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
 
+                error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derivativeWeight(input[i], errorNL[i]);
                 }
-                error[i].IsNan(error[i]);
-                weight.IsNan(weight);
-                errorNL[i].IsNan(errorNL[i]);
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
 
         if (trainable && regularization != null) {
@@ -188,15 +165,15 @@ public class DenseLayer extends DenseNeuralLayer {
     }
 
     private void derivativeWeight(NNVector input, NNVector error) {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int j = 0, index = 0; j < error.size(); j++) {
                 for (int k = 0; k < input.size(); k++, index++) {
                     derWeight.getData()[index] += error.getData()[j] * input.getData()[k];
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int row = error.size();
             int column = input.size();
             CUfunction function = new CUfunction();

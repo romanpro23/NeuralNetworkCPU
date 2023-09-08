@@ -1,5 +1,6 @@
 package neural_network.layers.layer_2d;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
@@ -16,6 +17,8 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
 
 public class DenseLayer2D extends NeuralLayer2D {
     //trainable parts
@@ -112,25 +115,20 @@ public class DenseLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    output[i] = input[i].dot(weight);
-                    output[i].add(threshold);
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
                 output[i] = input[i].dot(weight);
                 output[i].add(threshold);
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
     }
 
@@ -140,31 +138,23 @@ public class DenseLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    error[i] = errorNL[i].dotT(weight);
-                    if (trainable) {
-                        derWeight.add(input[i].transpose().dot(errorNL[i]));
-                        derThreshold.add(errorNL[i]);
-                    }
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
                 error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derWeight.add(input[i].transpose().dot(errorNL[i]));
                     derThreshold.add(errorNL[i]);
                 }
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
 
         if (trainable && regularization != null) {

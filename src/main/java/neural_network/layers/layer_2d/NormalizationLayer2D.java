@@ -23,6 +23,7 @@ import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
+import static utilities.JCudaHelper.CONTEXT;
 
 public class NormalizationLayer2D extends NeuralLayer2D {
     //trainable parts
@@ -80,51 +81,36 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
     @Override
     public void generateOutput(NNArray[] input) {
-
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
         this.normOutput = new NNMatrix[input.length];
         this.mean = new NNVector[input.length];
         this.var = new NNVector[input.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    normOutput[i] = new NNMatrix(outWidth, outDepth);
-                    output[i] = new NNMatrix(outWidth, outDepth);
-                    findMean(i);
-                    findVariance(i);
-                    normalization(i);
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
-                input[i].IsNan(input[i]);
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
 
                 normOutput[i] = new NNMatrix(outWidth, outDepth);
                 output[i] = new NNMatrix(outWidth, outDepth);
-                output[i].IsNan(output[i]);
                 findMean(i);
                 findVariance(i);
                 normalization(i);
-
-                input[i].IsNan(input[i]);
-                output[i].IsNan(output[i]);
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
 
         CallGarbageCollector();
     }
 
     private void normalization(int n) {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             float[] varSqrt = new float[var[n].size()];
             for (int i = 0; i < var[n].size(); i++) {
                 varSqrt[i] = (float) (Math.sqrt(var[n].getData()[i] + epsilon));
@@ -137,16 +123,14 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             output[0].IsNan(output[0]);
 
             int p = var[n].size();
             Pointer varSqrt_Pointer = new Pointer();
-            float[] init = new float[p];
             cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.FLOAT);
-            cudaMemcpy(varSqrt_Pointer, Pointer.to(init), (long) p * Sizeof.FLOAT, cudaMemcpyHostToDevice);
-
+            cudaMemset(varSqrt_Pointer, 0, (long) p * Sizeof.FLOAT);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "normalization_part_1");
@@ -185,7 +169,9 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
             mean[n].IsNan(mean[n]);
             normOutput[n].IsNan(normOutput[n]);
+
             JCuda.cudaFree(varSqrt_Pointer);
+
             gamma.IsNan(gamma);
             betta.IsNan(betta);
             output[n].IsNan(output[n]);
@@ -195,7 +181,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     private void findMean(int n) {
         mean[n] = new NNVector(width);
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -203,8 +189,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "findMean_part");
             Pointer kernelParameters = Pointer.to(Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()),  Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
@@ -226,7 +211,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
     private void findVariance(int n) {
         var[n] = new NNVector(width);
-        if (!Use.GPU) {
+        if (Use.CPU) {
             float sub;
             int index = 0;
             for (int j = 0; j < width; j++) {
@@ -236,8 +221,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "findVariance_part");
             Pointer kernelParameters = Pointer.to(Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(var[n].getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
@@ -262,31 +246,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    error[i] = new NNMatrix(outWidth, outDepth);
-                    NNMatrix errorNorm = generateErrorNorm(i);
-                    NNVector errorVariance = derVar(errorNorm, i);
-                    NNVector errorMean = derMean(errorNorm, errorVariance, i);
-
-                    derNorm(errorNorm, errorMean, errorVariance, i);
-
-                    if (trainable) {
-                        derivativeWeight(errorNL[i], i);
-                    }
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
-                input[i].IsNan(input[i]);
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
 
                 error[i] = new NNMatrix(outWidth, outDepth);
                 NNMatrix errorNorm = generateErrorNorm(i);
@@ -295,30 +261,25 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
                 derNorm(errorNorm, errorMean, errorVariance, i);
 
-                input[i].IsNan(input[i]);
-                errorNorm.IsNan(errorNorm);
-                errorMean.IsNan(errorMean);
-                errorVariance.IsNan(errorVariance);
-
                 if (trainable) {
                     derivativeWeight(errorNL[i], i);
                 }
-                errorNL[i].IsNan(errorNL[i]);
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
 
         if (trainable && regularization != null) {
             regularization.regularization(betta);
             regularization.regularization(gamma);
         }
-
-        CallGarbageCollector();
     }
 
     private NNMatrix generateErrorNorm(int n) {
         NNMatrix errorNorm = new NNMatrix(outWidth, outDepth);
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -326,8 +287,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int row = width;
             int column = depth;
             CUfunction function = new CUfunction();
@@ -353,7 +314,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     private NNVector derVar(NNMatrix error, int n) {
         NNVector derVariance = new NNVector(var[n].size());
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             float[] dVar = new float[var[n].size()];
             for (int i = 0; i < var[n].size(); i++) {
                 dVar[i] = (float) (-0.5 * Math.pow(var[n].get(i) + epsilon, -1.5));
@@ -370,8 +331,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 derVariance.getData()[i] *= dVar[i];
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             Pointer dVar_Pointer = new Pointer();
             float[] init = new float[var[n].size()];
             cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.FLOAT);
@@ -440,7 +401,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     private NNVector derMean(NNMatrix error, NNVector derVar, int n) {
         NNVector derMean = new NNVector(mean[n].size());
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             float[] dMean = new float[mean[n].size()];
             float[] dVar = new float[var[n].size()];
             for (int i = 0; i < var[n].size(); i++) {
@@ -460,8 +421,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 derMean.getData()[i] += (-2.0f * derVar.get(i) * dVar[i]) / (depth);
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int p = var[n].size();
 
             Pointer dMean_Pointer = new Pointer();
@@ -533,7 +494,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         errorMean.div(depth);
         errorVar.mul(2.0f / (depth));
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             float[] dVar = new float[var[n].size()];
             for (int i = 0; i < var[n].size(); i++) {
                 dVar[i] = (float) (1.0 / Math.sqrt(var[n].getData()[i] + epsilon));
@@ -547,8 +508,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int p = var[n].size();
 
             Pointer dVar_Pointer = new Pointer();
@@ -598,7 +559,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     private void derivativeWeight(NNMatrix error, int n) {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
@@ -607,8 +568,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 }
             }
         }
-        else
-        {
+        if (Use.GPU) {
             int row = width;
             int column = depth;
             CUfunction function = new CUfunction();

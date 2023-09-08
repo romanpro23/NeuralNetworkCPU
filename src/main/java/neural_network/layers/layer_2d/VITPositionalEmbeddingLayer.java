@@ -1,5 +1,6 @@
 package neural_network.layers.layer_2d;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Getter;
 import lombok.Setter;
 import neural_network.initialization.Initializer;
@@ -9,10 +10,15 @@ import neural_network.regularization.Regularization;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
 
 public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     //trainable parts
@@ -43,10 +49,21 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        for (int i = 0; i < output.length; i++) {
-            this.output[i] = new NNMatrix(this.input[i]);
-            this.output[i].copy(this.input[i]);
-            this.output[i].add(weight);
+        ExecutorService executor = Executors.newFixedThreadPool(output.length);
+        for (int t = 0; t < output.length; t++) {
+            final int i = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
+                this.output[i] = new NNMatrix(this.input[i]);
+                this.output[i].copy(this.input[i]);
+                this.output[i].add(weight);
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
     }
 
@@ -54,8 +71,18 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         if(trainable){
-            for (int i = 0; i < errors.length; i++) {
-                derWeight.add(errorNL[i]);
+            ExecutorService executor = Executors.newFixedThreadPool(errors.length);
+            for (int t = 0; t < errors.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    if (Use.GPU) {
+                        JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                    }
+                    derWeight.add(errorNL[i]);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
             }
 
             if(regularization != null){

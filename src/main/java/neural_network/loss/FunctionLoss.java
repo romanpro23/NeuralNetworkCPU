@@ -47,13 +47,13 @@ public interface FunctionLoss {
         public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
             float accuracy = 0;
 
-            if (!Use.GPU) {
+            if (Use.CPU) {
                 for (int i = 0; i < outputs.length; i++) {
                     accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / outputs[i].size();
                 }
             }
-            else
-            {
+
+            if (Use.GPU) {
                 Pointer accuracy_gpu = new Pointer();
                 float[] init = new float[1];
                 cudaMalloc(accuracy_gpu, (long) 1 * Sizeof.FLOAT);

@@ -54,13 +54,13 @@ public class FlattenLayer2D extends NeuralLayer {
         input = NNArrays.isMatrix(inputs);
         output = new NNVector[inputs.length];
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0; i < output.length; i++) {
                 output[i] = new NNVector(input[i].getData());
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
                 input[i].IsNan(input[i]);
                 output[i] = new NNVector(input[i].size());
@@ -84,11 +84,11 @@ public class FlattenLayer2D extends NeuralLayer {
         error = new NNMatrix[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
-            if (!Use.GPU) {
+            if (Use.CPU) {
                 error[i] = new NNMatrix(width, depth, errorNL[i].getData());
             }
-            else
-            {
+
+            if (Use.GPU) {
                 error[i] = new NNMatrix(width, depth);
                 error[i].IsNan(error[i]);
                 error[i].copy(errorNL[i]);

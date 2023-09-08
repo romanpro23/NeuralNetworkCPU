@@ -1,5 +1,6 @@
 package neural_network.optimizers;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -12,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
 
 @Data
 public abstract class Optimizer {
@@ -71,31 +74,23 @@ public abstract class Optimizer {
             return;
         }
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
-            for (int t = 0; t < optimizeData.size(); t++) {
-                final int finalT = t;
-                executor.execute(() -> {
-                    DataOptimize data = optimizeData.get(finalT);
-                    if (clipValue != 0) {
-                        data.getDerWeight().clip(clipValue);
-                    }
-                    updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else
-        {
-            for (int i = 0; i < optimizeData.size(); i++) {
-                DataOptimize data = optimizeData.get(i);
+        ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
+        for (int t = 0; t < optimizeData.size(); t++) {
+            final int finalT = t;
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
+                DataOptimize data = optimizeData.get(finalT);
                 if (clipValue != 0) {
                     data.getDerWeight().clip(clipValue);
                 }
                 updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
     }
 

@@ -40,7 +40,8 @@ public class NNTensor4D extends NNArray {
         depthIndex = new int[depth];
         lengthIndex = new int[length];
         rowIndex = new int[row];
-        if (!Use.GPU) {
+
+        if (Use.CPU) {
             int sq = column * row * length;
             int sql = column * row;
             for (int i = 0; i < depth; i++) {

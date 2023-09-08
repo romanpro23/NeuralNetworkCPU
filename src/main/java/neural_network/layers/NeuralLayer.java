@@ -158,7 +158,7 @@ public abstract class NeuralLayer {
     public void CallGarbageCollector()
     {
         if (Use.GPU) {
-            System.gc();
+            //System.gc();
             Runtime.getRuntime().gc();
 
             List<String> listString = new ArrayList<>();
@@ -168,7 +168,9 @@ public abstract class NeuralLayer {
                 Object arr = ((WeakReference<Object>) value).get();
                 if (arr == null) {
                     Use U = allocatedUse.get(key);
-                    if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
+                    if (U != null) {
+                        if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
+                    }
 
                     listString.add(key);
                 }

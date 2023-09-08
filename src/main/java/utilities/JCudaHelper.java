@@ -5,7 +5,7 @@ import java.io.*;
 
 import static jcuda.driver.JCudaDriver.cuModuleLoad;
 public class JCudaHelper {
-    private static CUcontext CONTEXT;
+    public static CUcontext CONTEXT;
     private static CUdevice device;
 
     public static void init() {

@@ -61,7 +61,7 @@ public class PositionLoader extends DataLoader3D {
         int wwq = 0;
         for (File afile : listOfFiles) {
             if (afile.isFile()) {
-
+                Use.CPU = true;
                 BufferedImage img = null;
                 try {
                     img = ImageIO.read(new File(folder.toPath() + "\\" + afile.getName()));
@@ -134,6 +134,7 @@ public class PositionLoader extends DataLoader3D {
                     NNVector output = codeString(label);
 
                     NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
+                    Use.CPU = false;
 
                     train.add(new ImageData3D(ImageTensor, output));
                     test.add(new ImageData3D(ImageTensor, output));

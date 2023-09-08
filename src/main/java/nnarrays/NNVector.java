@@ -44,15 +44,14 @@ public class NNVector extends NNArray {
     public NNVector dot(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getRow());
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0, index = 0; i < matrix.getRow(); i++) {
                 for (int j = 0; j < matrix.getColumn(); j++, index++) {
                     result.data[i] += data[j] * matrix.data[index];
                 }
             }
         }
-        else
-        {
+        if (Use.GPU) {
             IsNan();
 
             int row =  matrix.getRow();
@@ -192,15 +191,14 @@ public class NNVector extends NNArray {
     public NNVector dotT(NNMatrix matrix) {
         NNVector result = new NNVector(matrix.getColumn());
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0, index = 0; i < matrix.getRow(); i++) {
                 for (int j = 0; j < matrix.getColumn(); j++, index++) {
                     result.data[j] += data[i] * matrix.data[index];
                 }
             }
         }
-        else
-        {
+        if (Use.GPU) {
             int row =  matrix.getRow();
             int column =  matrix.getColumn();
             CUfunction function = new CUfunction();
@@ -318,13 +316,13 @@ public class NNVector extends NNArray {
             throw new Exception("Vector has difference size");
         }
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0; i < size; i++) {
                 data[i] += vector.data[i];
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             IsNan();
             IsNan(vector);
 
@@ -385,7 +383,7 @@ public class NNVector extends NNArray {
             throw new Exception("Vector has difference size");
         }
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0;
             for (int i = 0; i < matrix.getRow(); i++) {
                 for (int k = 0; k < matrix.getColumn(); k++, index++) {
@@ -393,8 +391,8 @@ public class NNVector extends NNArray {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int row = matrix.getRow();
             int column = matrix.getColumn();
             CUfunction function = new CUfunction();

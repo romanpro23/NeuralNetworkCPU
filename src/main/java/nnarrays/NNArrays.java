@@ -31,11 +31,11 @@ public final class NNArrays {
     public static NNVector[] toVector(NNArray[] batch) {
         NNVector[] arr = new NNVector[batch.length];
         for (int i = 0; i < arr.length; i++) {
-            if (!Use.GPU) {
+            if (Use.CPU) {
                 arr[i] = new NNVector(batch[i]);
             }
-            else
-            {
+
+            if (Use.GPU) {
                 arr[i] = new NNVector(batch[i].size);
                 arr[i].copy(batch[i]);
             }
@@ -347,13 +347,14 @@ public final class NNArrays {
 
     public static float sum(NNArray array) {
         float sum = 0;
-        if (!Use.GPU) {
+
+        if (Use.CPU) {
             for (int i = 0; i < array.size; i++) {
                 sum += array.data[i];
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             float[] sumArray = new float[1];
             Pointer sum_gpu = new Pointer();
             cublasSasum(cublasHandle, array.size, array.data_gpu, 1, sum_gpu);
@@ -389,13 +390,13 @@ public final class NNArrays {
         }
         NNArray result = new NNArray(first.size);
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0; i < result.size; i++) {
                 result.data[i] = first.data[i] - second.data[i];
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             int n = result.size;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "sub");

@@ -1,5 +1,6 @@
 package neural_network.layers.layer_2d;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
@@ -14,6 +15,8 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
 
 public class MultiHeadAttentionLayer extends NeuralLayer2D {
     //trainable parts
@@ -213,30 +216,21 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             outputDecoder = NNArrays.isMatrix(encoderLayer.getOutput());
         }
 
-        if (!Use.GPU) {
-            //long start = System.nanoTime();
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
 
-                executor.execute(() -> {
-                    output[i] = attention(this.input[i], i);
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-            //System.out.println((System.nanoTime() - start) / 1000000);
-        }
-        else
-        {
-            for (int i = 0; i < input.length; i++) {
-                //long start = System.nanoTime();
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
                 output[i] = attention(this.input[i], i);
-                //System.out.println("(" + (System.nanoTime() - start) / 1000000 +") = " + String.valueOf(i));
-            }
+            });
         }
-        //System.out.println("<"+ (System.nanoTime() - start) / 1000000 +">");
+        executor.shutdown();
+        while (!executor.isTerminated()) {
+        }
     }
 
     private NNMatrix attention(NNMatrix input, int i) {
@@ -262,13 +256,16 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             value[i][j] = input.dot(weightValue[j]);
 
             score[i][j] = query[i][j].dotT(key[i][j]);
+
             score[i][j].div((float) Math.sqrt(sizeAttention));
             if(useMask){
                 score[i][j].mask(mask, 0, -1000000000);
             }
 
             inputAtt[i][j] = new NNMatrix(score[i][j]);
+
             inputAtt[i][j].softmax(score[i][j]);
+
             if (dropout != 0) {
                 inputAtt[i][j].dropout(inputAtt[i][j], dropout);
             }
@@ -302,9 +299,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             }
 
             NNMatrix errorScore = new NNMatrix(score[i][j]);
-            //long start = System.nanoTime();
             errorScore.derSoftmax(inputAtt[i][j], errorInAtt);
-            //System.out.println("!" + (System.nanoTime() - start) / 1000000 + "!");
             errorScore.div((float) Math.sqrt(sizeAttention));
 
             NNMatrix errorQuery = errorScore.dot(key[i][j]);
@@ -338,37 +333,29 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     @SneakyThrows
     @Override
     public void generateError(NNArray[] errors) {
-        //long start = System.nanoTime();
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
-        if(hasEncoderLayer){
+        if (hasEncoderLayer) {
             errorDecoder = new NNMatrix[errors.length];
         }
 
-        if (!Use.GPU) {
-            ExecutorService executor = Executors.newFixedThreadPool(input.length);
-            for (int t = 0; t < input.length; t++) {
-                final int i = t;
+        ExecutorService executor = Executors.newFixedThreadPool(input.length);
+        for (int t = 0; t < input.length; t++) {
+            final int i = t;
 
-                executor.execute(() -> {
-                    if (hasEncoderLayer) {
-                        errorDecoder[i] = new NNMatrix(outputDecoder[i]);
-                    }
-                    error[i] = errorAttention(errorNL[i], input[i], i);
-                });
-            }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
-            }
-        }
-        else {
-            for (int i = 0; i < input.length; i++) {
+            executor.execute(() -> {
+                if (Use.GPU) {
+                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
+                }
+
                 if (hasEncoderLayer) {
                     errorDecoder[i] = new NNMatrix(outputDecoder[i]);
                 }
-
                 error[i] = errorAttention(errorNL[i], input[i], i);
-            }
+            });
+        }
+        executor.shutdown();
+        while (!executor.isTerminated()) {
         }
 
         if (trainable && regularization != null) {
@@ -380,8 +367,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 regularization.regularization(weightQuery[i]);
             }
         }
-
-        //System.out.println("="+ (System.nanoTime() - start) / 1000000 +"=");
     }
 
     public static MultiHeadAttentionLayer read(Scanner scanner) {

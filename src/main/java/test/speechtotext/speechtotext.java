@@ -48,7 +48,7 @@ public class speechtotext {
                 .addLayer(new AdditionBlock()
                         .addLayer(new MultiHeadAttentionLayer(4, 64).setMask())
                 )
-                .addLayer(new NormalizationLayer2D())
+                /*.addLayer(new NormalizationLayer2D())
                 .addLayer(new AdditionBlock()
                         .addLayer(new DenseLayer2D(128))
                         .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
@@ -76,7 +76,7 @@ public class speechtotext {
                         .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
                         .addLayer(new DenseLayer2D(64))
                         //.addLayer(new DropoutLayer2D(0.00001))
-                )
+                )*/
                 .addLayer(new NormalizationLayer2D())
                 .addLayer(new FlattenLayer2D())
                 .addLayer(new DenseLayer(175))

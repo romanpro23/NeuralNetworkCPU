@@ -47,7 +47,7 @@ public class NNTensor extends NNArray {
     }
 
     private void initialize() {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             rowsIndex = new int[rows];
             columnsIndex = new int[columns];
             int sq = depth * columns;
@@ -95,11 +95,11 @@ public class NNTensor extends NNArray {
     }
 
     public void set(int i, int j, int k, float value) {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             data[rowsIndex[i] + columnsIndex[j] + k] = value;
         }
-        else
-        {
+
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "set2");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new float[]{value}));
@@ -158,7 +158,7 @@ public class NNTensor extends NNArray {
     }
 
     public NNTensor reverse() {
-        if (!Use.GPU) {
+        if (Use.CPU) {
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {
                     for (int k = 0; k < depth; k++) {
@@ -169,7 +169,8 @@ public class NNTensor extends NNArray {
                 }
             }
         }
-        else {
+
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "reverse");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}));
@@ -661,7 +662,7 @@ public class NNTensor extends NNArray {
         int col = sizeKernel * sizeKernel * depth;
         NNMatrix result = new NNMatrix(row, col);
 
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0, indexInput;
 
             for (int h = 0; h < rows; h += sizeKernel) {
@@ -677,16 +678,16 @@ public class NNTensor extends NNArray {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
-            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
-            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeX = (int) Math.min(rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
             int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
-            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX / sizeKernel);
+            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY / sizeKernel);
             int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
 
             cuLaunchKernel(function,
@@ -704,7 +705,7 @@ public class NNTensor extends NNArray {
 
     public NNTensor backImageVector(NNMatrix error ,int sizeKernel) {
         NNTensor result = new NNTensor(rows, columns, depth);
-        if (!Use.GPU) {
+        if (Use.CPU) {
             int index = 0, indexInput;
 
             for (int h = 0; h < rows; h += sizeKernel) {
@@ -720,8 +721,8 @@ public class NNTensor extends NNArray {
                 }
             }
         }
-        else
-        {
+
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "backImageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(error.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
