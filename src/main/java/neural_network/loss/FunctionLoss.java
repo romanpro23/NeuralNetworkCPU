@@ -15,6 +15,7 @@ import static java.lang.Math.log;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
@@ -48,23 +49,32 @@ public interface FunctionLoss {
             float accuracy = 0;
 
             if (Use.CPU) {
+                boolean GPU = false;
+                if (Use.GPU) {
+                    Use.GPU = false;
+                    GPU = true;
+                }
+
                 for (int i = 0; i < outputs.length; i++) {
                     accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / outputs[i].size();
+                }
+
+                if (GPU) {
+                    Use.GPU = true;
                 }
             }
 
             if (Use.GPU) {
                 Pointer accuracy_gpu = new Pointer();
-                float[] init = new float[1];
-                cudaMalloc(accuracy_gpu, (long) 1 * Sizeof.FLOAT);
-                cudaMemcpy(accuracy_gpu, Pointer.to(init), (long) 1 * Sizeof.FLOAT, cudaMemcpyHostToDevice);
+                cudaMalloc(accuracy_gpu, (long) Sizeof.FLOAT);
+                cudaMemset(accuracy_gpu, 0, Sizeof.FLOAT);
 
                 for (int r = 0; r < outputs.length; r++) {
                     Pointer sum_gpu = idealOutputs[r].sum_gpu(NNArrays.sub(idealOutputs[r], outputs[r]).pow2());
 
                     CUfunction function = new CUfunction();
                     cuModuleGetFunction(function, helperModule, "divide_add");
-                    Pointer kernelParameters = Pointer.to(Pointer.to(accuracy_gpu), Pointer.to(sum_gpu), Pointer.to(Pointer.to(new int[]{outputs[r].size()})));
+                    Pointer kernelParameters = Pointer.to(Pointer.to(accuracy_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{outputs[r].size()}));
                     cuLaunchKernel(function,
                             1, 1, 1,      // Grid dimension
                             1, 1, 1,      // Block dimension
@@ -76,7 +86,7 @@ public interface FunctionLoss {
                 }
 
                 float[] accuracyArray = new float[1];
-                JCublas2.cublasGetVector(1, Sizeof.FLOAT, Pointer.to(accuracy_gpu), 1, Pointer.to(accuracyArray), 1);
+                cudaMemcpy(Pointer.to(accuracyArray), accuracy_gpu, (long) Sizeof.FLOAT, cudaMemcpyDeviceToHost);
                 accuracy = accuracyArray[0];
             }
 

@@ -348,36 +348,8 @@ public final class NNArrays {
     public static float sum(NNArray array) {
         float sum = 0;
 
-        if (Use.CPU) {
-            for (int i = 0; i < array.size; i++) {
-                sum += array.data[i];
-            }
-        }
-
-        if (Use.GPU) {
-            float[] sumArray = new float[1];
-            Pointer sum_gpu = new Pointer();
-            cublasSasum(cublasHandle, array.size, array.data_gpu, 1, sum_gpu);
-
-            /*cudaMalloc(sum_gpu, (long) Sizeof.FLOAT);
-
-            int n = array.size;
-            CUfunction function = new CUfunction();
-            cu
-            cuModuleGetFunction(function, helperModule, "sum");
-            Pointer kernelParameters = Pointer.to(Pointer.to(array.data_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{n}));
-            int blockSize = Math.min(n, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) n / blockSize);
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );*/
-            JCublas2.cublasGetVector(sumArray.length, Sizeof.FLOAT, sum_gpu, 1, Pointer.to(sumArray), 1);
-            sum = sumArray[0];
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-            JCuda.cudaFree(sum_gpu);
+        for (int i = 0; i < array.size; i++) {
+            sum += array.data[i];
         }
 
         return sum;

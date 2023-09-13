@@ -16,8 +16,14 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static utilities.GPUInit.helperModule;
 
 public class NNVector extends NNArray {
+
     public NNVector(int length) {
         super(length);
+        countAxes = 1;
+    }
+
+    public NNVector(int length, boolean DoublePrecision) {
+        super(length, DoublePrecision);
         countAxes = 1;
     }
 
@@ -52,21 +58,17 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            IsNan();
-
             int row =  matrix.getRow();
             int column =  matrix.getColumn();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, 1));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
 
             cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSizeX, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
@@ -199,25 +201,22 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            int row =  matrix.getRow();
-            int column =  matrix.getColumn();
+            NNMatrix M = matrix.transpose();
+            int row = M.getRow();
+            int column = M.getColumn();
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "dotT_VectorAndMatrix");
-            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(M.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, 1));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
 
             cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSizeX, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            matrix.IsNan(result);
         }
 
         return result;

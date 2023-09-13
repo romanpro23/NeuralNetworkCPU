@@ -481,9 +481,11 @@ public class NNMatrix extends NNArray {
 
             for (int n = 0, indR = 0; n < row; n++) {
                 for (int i = 0, index = 0; i < m.getRow(); i++, indR++) {
+                    double r = result.data[indR];
                     for (int j = 0, indI = rowIndex[n]; j < m.getColumn(); j++, index++, indI++) {
-                        result.data[indR] += ((double) data[indI]) * ((double) m.data[index]);
+                        r += ((double) data[indI]) * ((double) m.data[index]);
                     }
+                    result.data[indR] = (float)r;
                 }
             }
         }
