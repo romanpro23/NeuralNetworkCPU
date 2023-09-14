@@ -53,9 +53,7 @@ public class NNArray {
         if (Use.GPU) {
             this.data_gpu = new Pointer();
             cudaMalloc(this.data_gpu, (long) size * Sizeof.FLOAT);
-            float[] init = new float[size];
-            cudaMemcpy(this.data_gpu, Pointer.to(init), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
-            //cudaMemset(this.data_gpu, 0, (long) size * Sizeof.FLOAT);
+            cudaMemset(this.data_gpu, 0, (long) size * Sizeof.FLOAT);
 
             allocatedPut();
         }
@@ -381,6 +379,9 @@ public class NNArray {
     }
 
     public void MatAdd(NNArray matrix) {
+
+        //JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[]{alpha}), data_d, rows, Pointer.to(new float[]{beta}), that.data_d, that.rows, result.data_d, result.rows);
+
         int n = size;
         CUfunction function = new CUfunction();
         cuModuleGetFunction(function, helperModule, "MatAdd");
@@ -1372,7 +1373,8 @@ public class NNArray {
                     "{\n" +
                     "    const int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements) {\n" +
-                    "        C[i] = (float) (0.5 * A[i] * (1.0 + tanh((float)(0.7978846 * A[i] + 0.0356774 * pow(A[i], (float)(3.0))))));\n" +
+                    "        float a = A[i];\n" +
+                    "        C[i] = (float) (0.5 * a * (1.0 + tanh((float)(0.7978846 * a + 0.0356774 * (a * a * a)))));\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1587,13 +1589,16 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void add_NNMatrix(const float* __restrict__ matrix, float* data, int width, int depth)\n" +
                     "{\n" +
-                    "    const int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    const int k = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    const int index = j * blockDim.y * gridDim.y + k;\n" +
-                    "    if (index < width * depth) {\n" +
-                    "        data[k] += matrix[index];\n" +
+                    "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (k < depth) {\n" +
+                    "       double d = (double)data[k];\n" +
+                    "       for (int i = 0; i < width; i++) { \n" +
+                    "           int	index = floorf(i * depth + k);\n" +
+                    "           d += matrix[index];\n" +
+                    "       }\n" +
+                    "       data[k] = (float)d;\n" +
                     "    }\n" +
-                    "}\n" +
+                    "  }\n" +
 
                     "extern \"C\"\n" +
                     "__global__ void reverse(float* A, int rows, int columns, int depth)\n" +
@@ -1623,8 +1628,7 @@ public class NNArray {
                     "{\n" +
                     "    const int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (k < numElements) {\n" +
-                    "       float s = A[k] + B[k];\n" +
-                    "       A[k] = s;\n" +
+                    "       atomicAdd(&A[k], B[k]);\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1739,7 +1743,7 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void sub(const float* __restrict__ first, const float* __restrict__ second, float* result, int numElements)\n" +
+                    "__global__ void sub_gpu(const float* __restrict__ first, const float* __restrict__ second, float* result, int numElements)\n" +
                     "{\n" +
                     "    const int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
@@ -1919,7 +1923,7 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
                     "        float x = input[idx];\n" +
-                    "        float val = tanh((float)(0.7978846 * x + 0.0356774 * pow((float)x, (float)(3.0))));\n" +
+                    "        float val = tanh((float)(0.7978846 * x + 0.0356774 * (x * x * x)));\n" +
                     "        data[idx] = (float)(error[idx] * 0.5 * (1.0 + val + x * (1.0 - val * val) * (0.79788846 + 0.1070322 * x * x)));\n" +
                     "    }\n" +
                     "}\n" +
@@ -2023,7 +2027,7 @@ public class NNArray {
                     int id = block_offset + thread_offset;*/
 
                     "extern \"C\"\n" +
-                    "__global__ void derSoftmax(const float* A, const float* error, float* r, int row, int column)\n" +
+                    "__global__ void derSoftmax(const float* __restrict__ A, const float* __restrict__ error, float* r, int row, int column)\n" +
                     "{\n" +
                     "    unsigned int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    unsigned int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +

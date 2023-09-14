@@ -397,14 +397,12 @@ public class NNVector extends NNArray {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "add_NNMatrix");
             Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+            int blockSizeX = (int) Math.min(column, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) column / blockSizeX);
 
             cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSizeX, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );

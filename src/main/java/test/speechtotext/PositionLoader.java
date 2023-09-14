@@ -129,9 +129,9 @@ public class PositionLoader extends DataLoader3D {
                         label += " ";
                     }
 
-                    NNVector output = codeString(label);
-
                     Use.GPU = true;
+
+                    NNVector output = codeString(label);
 
                     NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
                     Use.CPU = false;

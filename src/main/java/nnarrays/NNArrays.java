@@ -371,7 +371,7 @@ public final class NNArrays {
         if (Use.GPU) {
             int n = result.size;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "sub");
+            cuModuleGetFunction(function, helperModule, "sub_gpu");
             Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);

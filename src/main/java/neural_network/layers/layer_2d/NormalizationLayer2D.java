@@ -125,8 +125,6 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         }
 
         if (Use.GPU) {
-            output[0].IsNan(output[0]);
-
             int p = var[n].size();
             Pointer varSqrt_Pointer = new Pointer();
             cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.FLOAT);
@@ -544,7 +542,6 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         if (Use.GPU) {
             int row = width;
             int column = depth;
-            int size = row * column;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derivativeWeight_2");
             Pointer kernelParameters = Pointer.to(Pointer.to(error.getData_gpu()), Pointer.to(output[n].getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(gamma.getData_gpu()), Pointer.to(derBetta.getData_gpu()), Pointer.to(derGamma.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
