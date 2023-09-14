@@ -115,20 +115,25 @@ public class DenseLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    output[i] = input[i].dot(weight);
+                    output[i].add(threshold);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 output[i] = input[i].dot(weight);
                 output[i].add(threshold);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
@@ -138,23 +143,31 @@ public class DenseLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
+                        derWeight.add(input[i].transpose().dot(errorNL[i]));
+                        derThreshold.add(errorNL[i]);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derWeight.add(input[i].transpose().dot(errorNL[i]));
                     derThreshold.add(errorNL[i]);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

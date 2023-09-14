@@ -87,26 +87,34 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         this.mean = new NNVector[input.length];
         this.var = new NNVector[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    normOutput[i] = new NNMatrix(outWidth, outDepth);
+                    output[i] = new NNMatrix(outWidth, outDepth);
+                    findMean(i);
+                    findVariance(i);
+                    normalization(i);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 normOutput[i] = new NNMatrix(outWidth, outDepth);
                 output[i] = new NNMatrix(outWidth, outDepth);
                 findMean(i);
                 findVariance(i);
                 normalization(i);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
+            }
 
-        CallGarbageCollector();
+            CallGarbageCollector();
+        }
     }
 
     private void normalization(int n) {
@@ -231,14 +239,31 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = new NNMatrix(outWidth, outDepth);
+                    NNMatrix errorNorm = generateErrorNorm(i);
+                    NNVector errorVariance = derVar(errorNorm, i);
+                    NNVector errorMean = derMean(errorNorm, errorVariance, i);
 
+                    derNorm(errorNorm, errorMean, errorVariance, i);
+
+                    if (trainable) {
+                        derivativeWeight(errorNL[i], i);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
+
+        if (Use.GPU)
+        {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = new NNMatrix(outWidth, outDepth);
                 NNMatrix errorNorm = generateErrorNorm(i);
                 NNVector errorVariance = derVar(errorNorm, i);
@@ -249,10 +274,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 if (trainable) {
                     derivativeWeight(errorNL[i], i);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

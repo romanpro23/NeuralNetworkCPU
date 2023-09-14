@@ -27,20 +27,25 @@ public class ActivationLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    this.output[i] = new NNMatrix(width, depth);
+                    functionActivation.activation(input[i], output[i]);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 this.output[i] = new NNMatrix(width, depth);
                 functionActivation.activation(input[i], output[i]);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
@@ -49,20 +54,25 @@ public class ActivationLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(error);
         this.error = new NNMatrix[errorNL.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    this.error[i] = new NNMatrix(width, depth);
+                    functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 this.error[i] = new NNMatrix(width, depth);
                 functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 

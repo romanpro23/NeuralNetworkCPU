@@ -802,7 +802,6 @@ public class NNMatrix extends NNArray {
         }
 
         if (Use.GPU) {
-            int p = row * column;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derSoftmax");
             Pointer kernelParameters = Pointer.to(Pointer.to(output.data_gpu), Pointer.to(error.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));

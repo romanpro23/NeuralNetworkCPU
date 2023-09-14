@@ -49,21 +49,27 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(output.length);
-        for (int t = 0; t < output.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(output.length);
+            for (int t = 0; t < output.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    this.output[i] = new NNMatrix(this.input[i]);
+                    this.output[i].copy(this.input[i]);
+                    this.output[i].add(weight);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < output.length; i++) {
                 this.output[i] = new NNMatrix(this.input[i]);
                 this.output[i].copy(this.input[i]);
                 this.output[i].add(weight);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
@@ -71,21 +77,25 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         if(trainable){
-            ExecutorService executor = Executors.newFixedThreadPool(errors.length);
-            for (int t = 0; t < errors.length; t++) {
-                final int i = t;
-                executor.execute(() -> {
-                    if (Use.GPU) {
-                        JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                    }
-                    derWeight.add(errorNL[i]);
-                });
+            if (Use.CPU) {
+                ExecutorService executor = Executors.newFixedThreadPool(errors.length);
+                for (int t = 0; t < errors.length; t++) {
+                    final int i = t;
+                    executor.execute(() -> {
+                        derWeight.add(errorNL[i]);
+                    });
+                }
+                executor.shutdown();
+                while (!executor.isTerminated()) {
+                }
             }
-            executor.shutdown();
-            while (!executor.isTerminated()) {
+            if (Use.GPU) {
+                for (int i = 0; i < errors.length; i++) {
+                    derWeight.add(errorNL[i]);
+                }
             }
 
-            if(regularization != null){
+            if (regularization != null) {
                 regularization.regularization(weight);
             }
         }

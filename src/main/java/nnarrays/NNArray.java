@@ -380,9 +380,9 @@ public class NNArray {
 
     public void MatAdd(NNArray matrix) {
 
-        //JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, rows, cols, Pointer.to(new float[]{alpha}), data_d, rows, Pointer.to(new float[]{beta}), that.data_d, that.rows, result.data_d, result.rows);
+        JCublas2.cublasSaxpy(cublasHandle, this.size, Pointer.to(new int[]{1}), matrix.data_gpu, 1, this.data_gpu, 1);
 
-        int n = size;
+        /*int n = size;
         CUfunction function = new CUfunction();
         cuModuleGetFunction(function, helperModule, "MatAdd");
         Pointer kernelParameters = Pointer.to(Pointer.to(this.data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(new int[]{n}));
@@ -393,7 +393,7 @@ public class NNArray {
                 blockSize, 1, 1,      // Block dimension
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
-        );
+        );*/
         if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
         IsNan();
@@ -2029,15 +2029,15 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void derSoftmax(const float* __restrict__ A, const float* __restrict__ error, float* r, int row, int column)\n" +
                     "{\n" +
-                    "    unsigned int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    unsigned int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    unsigned int indexI = x * blockDim.y * gridDim.y + y;\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (x < row && y < column)\n" +
                     "    {\n" +
+                    "        int indexI = x * column + y;\n" +
                     "        float value = 0.0;\n" +
                     "        float AindexI = A[indexI];\n" +
-                    "        for (int j = 0; j < column; j++) {\n" +
-                    "           unsigned int indexJ = x * blockDim.y * gridDim.y + j;\n" +
+                    "        int indexJ = x * column;\n" +
+                    "        for (int j = 0; j < column; j++, indexJ++) {\n" +
                     "           if (y != j) {\n" +
                     "               value += error[indexJ] * (AindexI * -A[indexJ]);\n" +
                     "           } \n" +

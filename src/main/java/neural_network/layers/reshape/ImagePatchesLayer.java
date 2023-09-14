@@ -76,20 +76,25 @@ public class ImagePatchesLayer extends NeuralLayer {
         this.output = new NNMatrix[input.length];
         this.patches = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
-        for (int t = 0; t < inputs.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
+            for (int t = 0; t < inputs.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    patches[i] = input[i].imageVector(sizeKernel);
+                    output[i] = patches[i].dot(weight);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < inputs.length; i++) {
                 patches[i] = input[i].imageVector(sizeKernel);
                 output[i] = patches[i].dot(weight);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
@@ -104,14 +109,27 @@ public class ImagePatchesLayer extends NeuralLayer {
         if (returnGradient)
             error = new NNTensor[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    if (returnGradient) {
+                        NNMatrix errorImg = errorNL[i].dotT(weight);
+                        error[i] = input[i].backImageVector(errorImg, sizeKernel);
+                    }
+                    if (trainable) {
+                        derWeight.add(patches[i].transpose().dot(errorNL[i]));
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 if (returnGradient) {
                     NNMatrix errorImg = errorNL[i].dotT(weight);
                     error[i] = input[i].backImageVector(errorImg, sizeKernel);
@@ -119,10 +137,7 @@ public class ImagePatchesLayer extends NeuralLayer {
                 if (trainable) {
                     derWeight.add(patches[i].transpose().dot(errorNL[i]));
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

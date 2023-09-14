@@ -216,20 +216,24 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             outputDecoder = NNArrays.isMatrix(encoderLayer.getOutput());
         }
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
 
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
-
-                output[i] = attention(this.input[i], i);
-            });
+                executor.execute(() -> {
+                    output[i] = attention(this.input[i], i);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
+                output[i] = attention(this.input[i], i);
+            }
         }
     }
 
@@ -339,23 +343,30 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             errorDecoder = new NNMatrix[errors.length];
         }
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
 
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+                executor.execute(() -> {
+                    if (hasEncoderLayer) {
+                        errorDecoder[i] = new NNMatrix(outputDecoder[i]);
+                    }
+                    error[i] = errorAttention(errorNL[i], input[i], i);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 if (hasEncoderLayer) {
                     errorDecoder[i] = new NNMatrix(outputDecoder[i]);
                 }
                 error[i] = errorAttention(errorNL[i], input[i], i);
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

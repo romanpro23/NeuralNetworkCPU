@@ -74,23 +74,31 @@ public abstract class Optimizer {
             return;
         }
 
-        ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
-        for (int t = 0; t < optimizeData.size(); t++) {
-            final int finalT = t;
-            executor.execute(() -> {
-                if (Use.GPU) {
-                    JCudaDriver.cuCtxSetCurrent(CONTEXT);
-                }
+        if (Use.CPU) {
+            ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
+            for (int t = 0; t < optimizeData.size(); t++) {
+                final int finalT = t;
+                executor.execute(() -> {
+                    DataOptimize data = optimizeData.get(finalT);
+                    if (clipValue != 0) {
+                        data.getDerWeight().clip(clipValue);
+                    }
+                    updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+        }
 
-                DataOptimize data = optimizeData.get(finalT);
+        if (Use.GPU) {
+            for (int i = 0; i < optimizeData.size(); i++) {
+                DataOptimize data = optimizeData.get(i);
                 if (clipValue != 0) {
                     data.getDerWeight().clip(clipValue);
                 }
                 updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
