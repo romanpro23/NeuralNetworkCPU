@@ -1359,6 +1359,8 @@ public class NNArray {
     }
 
     public static final String kernels =
+                    "const __device__ float epsilon = ((float)0.001);\n" +
+
                     "extern \"C\"\n" +
                     "__global__ void fill(float* A, float alpha, int numElements)\n" +
                     "{\n" +
@@ -1438,10 +1440,10 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void add3(const float* __restrict__ A, float* C, int rows, int columns)\n" +
                     "{\n" +
-                    "    const int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    const int w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    const int index = h * blockDim.y * gridDim.y + w;\n" +
-                    "    if (index < rows * columns) {\n" +
+                    "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (h < rows && w < columns) {\n" +
+                    "         int index = h * blockDim.y * gridDim.y + w;\n" +
                     "         C[index] += A[w];\n" +
                     "    }\n" +
                     "}\n" +
@@ -1711,11 +1713,41 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void normalization_part_1(float* A, const float* __restrict__ var, float epsilon, int numElements)\n" +
+                    "__global__ void normalization_part_1(float* A, const float* __restrict__ var, int numElements)\n" +
                     "{\n" +
                     "    const int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements) {\n" +
                     "       A[i] = (float)sqrt(((float)var[i] + epsilon));\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void NormalizationLayerForward2D(float*** P, const float* __restrict__ gamma, const float* __restrict__ betta, int width, int depth, int n)\n" +
+                    "{\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (x < n && y < width) {\n" +
+                    "       double mean = P[3][x][y];\n" +
+                    "       for (int index = y * depth, int k = 0; k < depth; k++, index++) {\n" +
+                    "           mean += (double)P[2][x][index];\n" +
+                    "       }\n" +
+                    "       P[3][x][y] = mean;\n" +
+
+                    "       float var = P[4][x][y];\n" +
+                    "       float sub;\n" +
+                    "       for (int index = y * depth, int k = 0; k < depth; k++, index++) {\n" +
+                    "           sub = (float)(P[2][x][index] - mean);\n" +
+                    "           var += sub * sub;\n" +
+                    "       }\n" +
+                    "       var = var / depth;\n" +
+                    "       P[4][x][y] = var;\n" +
+
+                    "       float varSqrt = (float) (sqrt(var + epsilon));\n" +
+                    "       for (int index = y * depth, int k = 0; k < depth; k++, index++) {\n" +
+                    "           float nO = ((float)(P[2][x][index] - mean)) / varSqrt;\n" +
+                    "           P[0][x][index] = nO;\n" +
+                    "           P[1][x][index] = nO * gamma[k] + betta[k];\n" +
+                    "       }\n" +
                     "    }\n" +
                     "}\n" +
 

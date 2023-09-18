@@ -222,7 +222,9 @@ public class NeuralNetwork {
     public NNArray[] queryTrain(NNArray[] input) {
         layers.get(0).generateTrainOutput(input);
         for (int i = 1; i < layers.size(); i++) {
+            long start = System.nanoTime();
             layers.get(i).generateTrainOutput(layers.get(i - 1).getOutput());
+            System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
         }
 
         return getOutputs();
@@ -254,7 +256,9 @@ public class NeuralNetwork {
     }
 
     public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
+        //long start = System.nanoTime();
         queryTrain(input);
+        //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! ");
         backpropagation(findDerivative(idealOutput, lambda));
         if (update) {
             update();

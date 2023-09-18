@@ -2,8 +2,7 @@ package neural_network.layers.layer_2d;
 
 import jcuda.Pointer;
 import jcuda.Sizeof;
-import jcuda.driver.CUfunction;
-import jcuda.driver.JCudaDriver;
+import jcuda.driver.*;
 import jcuda.runtime.JCuda;
 import lombok.Setter;
 import neural_network.optimizers.Optimizer;
@@ -13,12 +12,15 @@ import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static jcuda.driver.JCudaDriver.cuLaunchKernel;
-import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.driver.JCudaDriver.*;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
@@ -105,15 +107,65 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         }
 
         if (Use.GPU) {
-            for (int i = 0; i < input.length; i++) {
+            /*for (int i = 0; i < input.length; i++) {
                 normOutput[i] = new NNMatrix(outWidth, outDepth);
                 output[i] = new NNMatrix(outWidth, outDepth);
                 findMean(i);
                 findVariance(i);
                 normalization(i);
-            }
+            }*/
+            NormalizationLayerForward2D();
+        }
+    }
 
-            CallGarbageCollector();
+    private void NormalizationLayerForward2D()
+    {
+        int numSteps = input.length;
+        Pointer[][] P = new Pointer[5][numSteps];
+
+        for(int k = 0; k < numSteps; k++)
+        {
+            normOutput[k] = new NNMatrix(outWidth, outDepth);
+            output[k] = new NNMatrix(outWidth, outDepth);
+            mean[k] = new NNVector(width, true);
+            var[k] = new NNVector(width);
+            P[0][k] = normOutput[k].getData_gpu();
+            P[1][k] = output[k].getData_gpu();
+            P[2][k] = input[k].getData_gpu();
+            P[3][k] = mean[k].getData_gpu();
+            P[4][k] = var[k].getData_gpu();
+        }
+
+        Pointer[] Array = new Pointer[P.length];
+        for(int k = 0; k < P.length; k++) {
+            Array[k] = new Pointer();
+            cudaMalloc(Array[k], (long) numSteps * Sizeof.POINTER);
+            cudaMemcpy(Array[k], Pointer.to(P[k]), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+        }
+
+        Pointer PArray = new Pointer();
+        cudaMalloc(PArray, (long) numSteps * Sizeof.POINTER);
+        cudaMemcpy(PArray, Pointer.to(Array), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "NormalizationLayerForward2D");
+        Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{numSteps}));
+        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int blockSizeY = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
+        int gridSizeY = (int) Math.ceil((double) width / blockSizeY);
+
+        cuLaunchKernel(function,
+                gridSizeX, gridSizeY, 1,      // Grid dimension
+                blockSizeX, blockSizeY, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        JCuda.cudaFree(PArray);
+        for(int k = 0; k < P.length; k++) {
+            JCuda.cudaFree(Array[k]);
         }
     }
 
@@ -140,7 +192,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "normalization_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(varSqrt_Pointer), Pointer.to(var[n].getData_gpu()), Pointer.to(new float[]{epsilon}), Pointer.to(new int[]{p}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(varSqrt_Pointer), Pointer.to(var[n].getData_gpu()), Pointer.to(new int[]{p}));
             int blockSize = Math.min(p, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) p / blockSize);
             cuLaunchKernel(function,

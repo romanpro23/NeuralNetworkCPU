@@ -646,8 +646,6 @@ public class NNMatrix extends NNArray {
             );
 
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            IsNan();
         }
     }
 

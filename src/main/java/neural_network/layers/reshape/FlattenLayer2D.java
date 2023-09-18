@@ -92,6 +92,8 @@ public class FlattenLayer2D extends NeuralLayer {
                 error[i].copy(errorNL[i]);
 
                 error[i].IsNan(error[i]);
+
+                CallGarbageCollector();
             }
         }
     }
