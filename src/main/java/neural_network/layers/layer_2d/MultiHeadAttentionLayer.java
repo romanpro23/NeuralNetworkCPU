@@ -17,6 +17,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class MultiHeadAttentionLayer extends NeuralLayer2D {
     //trainable parts
@@ -217,6 +219,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         }
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -228,6 +231,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
@@ -344,6 +348,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         }
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -358,6 +363,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {

@@ -1,8 +1,10 @@
 package neural_network.layers.layer_1d;
 
 import jcuda.Pointer;
+import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -23,9 +25,14 @@ import java.util.concurrent.Executors;
 
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.cudaMalloc;
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class DenseLayer extends DenseNeuralLayer {
     //trainable parts
@@ -117,6 +124,7 @@ public class DenseLayer extends DenseNeuralLayer {
         this.output = new NNVector[input.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
             for (int t = 0; t < inputs.length; t++) {
                 final int i = t;
@@ -128,6 +136,7 @@ public class DenseLayer extends DenseNeuralLayer {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
@@ -135,6 +144,55 @@ public class DenseLayer extends DenseNeuralLayer {
                 output[i] = input[i].dot(weight);
                 output[i].add(threshold);
             }
+
+            //DenseLayerForward();
+        }
+    }
+
+    private void DenseLayerForward()
+    {
+        int numSteps = input.length;
+        Pointer[][] P = new Pointer[2][numSteps];
+        int row = weight.getRow();
+        int column = weight.getColumn();
+
+        for(int k = 0; k < numSteps; k++)
+        {
+            output[k] = new NNVector(row);
+            P[0][k] = input[k].getData_gpu();
+            P[1][k] = output[k].getData_gpu();
+        }
+
+        Pointer[] Array = new Pointer[P.length];
+        for(int k = 0; k < P.length; k++) {
+            Array[k] = new Pointer();
+            cudaMalloc(Array[k], (long) numSteps * Sizeof.POINTER);
+            cudaMemcpy(Array[k], Pointer.to(P[k]), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+        }
+
+        Pointer PArray = new Pointer();
+        cudaMalloc(PArray, (long) numSteps * Sizeof.POINTER);
+        cudaMemcpy(PArray, Pointer.to(Array), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "DenseLayerForward");
+        Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(weight.getData_gpu()), Pointer.to(threshold.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}), Pointer.to(new int[]{numSteps}));
+        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int blockSizeY = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
+        int gridSizeY = (int) Math.ceil((double) row / blockSizeY);
+
+        cuLaunchKernel(function,
+                gridSizeX, gridSizeY, 1,      // Grid dimension
+                blockSizeX, blockSizeY, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        JCuda.cudaFree(PArray);
+        for(int k = 0; k < P.length; k++) {
+            JCuda.cudaFree(Array[k]);
         }
     }
 
@@ -145,6 +203,7 @@ public class DenseLayer extends DenseNeuralLayer {
         this.error = new NNVector[errors.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -158,6 +217,7 @@ public class DenseLayer extends DenseNeuralLayer {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {

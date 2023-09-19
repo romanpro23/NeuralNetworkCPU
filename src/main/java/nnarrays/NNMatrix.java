@@ -490,9 +490,9 @@ public class NNMatrix extends NNArray {
             }
         }
 
-        /*if (Use.GPU) {
+        if (Use.GPU) {
             gemm(1.0f, this, matrix, 0.0f, result);
-        }*/
+        }
         return result;
     }
 

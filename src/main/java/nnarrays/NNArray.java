@@ -83,10 +83,10 @@ public class NNArray {
                 this.data_gpu = new Pointer();
                 cudaMalloc(this.data_gpu, (long) size * Sizeof.DOUBLE);
                 cudaMemset(this.data_gpu, 0, (long) size * Sizeof.DOUBLE);
+
+                allocatedPut();
             }
         }
-
-        allocatedPut();
     }
 
     public int[] shape() {
@@ -379,10 +379,7 @@ public class NNArray {
     }
 
     public void MatAdd(NNArray matrix) {
-
-        JCublas2.cublasSaxpy(cublasHandle, this.size, Pointer.to(new int[]{1}), matrix.data_gpu, 1, this.data_gpu, 1);
-
-        /*int n = size;
+        int n = size;
         CUfunction function = new CUfunction();
         cuModuleGetFunction(function, helperModule, "MatAdd");
         Pointer kernelParameters = Pointer.to(Pointer.to(this.data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(new int[]{n}));
@@ -393,10 +390,8 @@ public class NNArray {
                 blockSize, 1, 1,      // Block dimension
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
-        );*/
+        );
         if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-        IsNan();
     }
 
     public void add(float val) {
@@ -1262,6 +1257,12 @@ public class NNArray {
         return data_h[0];
     }
 
+    public static float[] GetFirstSingleValueFloatStatic(Pointer data_gpu, int n) {
+        float[] data_h = new float[n];
+        cudaMemcpy(Pointer.to(data_h), data_gpu, (long) n * Sizeof.FLOAT, cudaMemcpyDeviceToHost);
+        return data_h;
+    }
+
     public float[] GetFirstSingleValueFloat(Pointer data_gpu, int n) {
         float[] data_h = new float[n];
         cudaMemcpy(Pointer.to(data_h), data_gpu, (long) n * Sizeof.FLOAT, cudaMemcpyDeviceToHost);
@@ -1451,14 +1452,28 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void dot_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)\n" +
                     "{\n" +
-                    "    unsigned int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (h < rows) {\n" +
                     "       float s = 0;\n" +
                     "       int index = h * columns;\n" +
                     "       for (int j = 0; j < columns; j++, index++) {\n" +
-                    "          s += A[j] * B[index];\n" +
+                    "           s += A[j] * B[index];\n" +
                     "       }\n" +
                     "       C[h] = s;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void dotT_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)\n" +
+                    "{\n" +
+                    "    int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (j < columns) {\n" +
+                    "       float sum = 0;\n" +
+                    "       for (int i = 0; i < rows; i++) {\n" +
+                    "            int index = floorf(i * columns + j);\n" +
+                    "            sum += A[i] * B[index];\n" +
+                    "       }\n" +
+                    "       C[j] = sum;\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1752,6 +1767,22 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
+                    "__global__ void DenseLayerForward(float*** P, float* weight, const float* __restrict__ threshold, int row, int column, int n)\n" +
+                    "{\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (x < n && y < row) {\n" +
+                    "       int index = y * column;\n" +
+                    "       float sum = P[1][x][y];\n" +
+                    "       for (int j = 0; j < column; j++, index++) {\n" +
+                    "           P[1][x][y] += P[0][x][j] * weight[index];\n" +
+                    "       }\n" +
+                    "       P[1][x][y] = sum;\n" +
+                    "       atomicAdd(&P[1][x][y], threshold[y]);\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
                     "__device__ void dot(float* const __restrict__ a, const float* __restrict__ b, float* result, int row1, int col1, int row2, int col2)\n" +
                     "{\n" +
                     "    for (int i = 0; i < row1; i++) {\n" +
@@ -1784,30 +1815,36 @@ public class NNArray {
                     "    free(result);\n" +
                     "}\n" +*/
 
-                    "extern \"C\"\n" +
+                    /*"extern \"C\"\n" +
                     "__global__ void ImagePatchesLayerForward(float*** P, const float* __restrict__ weight, int row, int col, int depth, int patch_row, int patch_col, int weight_row, int weight_col, int sizeKernel, int n)\n" +
                     "{\n" +
                     "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    if (x < n) {\n" +
+                    "    int h = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (x < n && h < row) {\n" +
                     "        int indexInput;\n" +
-                    "        int index = 0;\n" +
-                    "        for (int h = 0; h < row; h += sizeKernel) {\n" +
+                    "        int index_h = h * sizeKernel;\n" +
+                    "        if (index_h < row) {\n" +
                     "           for (int w = 0; w < col; w += sizeKernel) {\n" +
+                    "               int index_w = j * sizeKernel + index_h;\n" +
                     "               for (int j = 0; j < sizeKernel; j++) {\n" +
                     "                   int rI = (h + j) * depth * col;\n" +
+                    "                   int index_j = j * sizeKernel + index_w;\n" +
                     "                   for (int k = 0; k < sizeKernel; k++) {\n" +
                     "                       int cI = (w + k) * depth;\n" +
                     "                       indexInput = rI + cI;\n" +
-                    "                       for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
+                    "                       int index_k = k * depth + index_j;\n" +
+                    "                       for (int c = 0; c < depth; c++, indexInput++) {\n" +
+                    "                           int index_c = c + index_k;\n" +
                     "                           P[1][x][index] = P[0][x][indexInput];\n" +
                     "                       }\n" +
                     "                   }\n" +
                     "               }\n" +
                     "           }\n" +
                     "        }\n" +
+                    "        __syncthreads();\n" +
                     "        dot(P[1][x], weight, P[2][x], patch_row, patch_col, weight_row, weight_col);\n" +
                     "    }\n" +
-                    "}\n" +
+                    "}\n" +*/
 
                     "__device__ size_t getGlobalIdx_3D_3D()\n" +
                     "{\n" +

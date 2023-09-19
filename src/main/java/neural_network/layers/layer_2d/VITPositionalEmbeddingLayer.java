@@ -19,6 +19,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     //trainable parts
@@ -50,6 +52,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
         this.output = new NNMatrix[input.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(output.length);
             for (int t = 0; t < output.length; t++) {
                 final int i = t;
@@ -62,6 +65,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
@@ -78,6 +82,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         if(trainable){
             if (Use.CPU) {
+                GPU_Sleep();
                 ExecutorService executor = Executors.newFixedThreadPool(errors.length);
                 for (int t = 0; t < errors.length; t++) {
                     final int i = t;
@@ -88,6 +93,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
                 executor.shutdown();
                 while (!executor.isTerminated()) {
                 }
+                GPU_WakeUp();
             }
             if (Use.GPU) {
                 for (int i = 0; i < errors.length; i++) {

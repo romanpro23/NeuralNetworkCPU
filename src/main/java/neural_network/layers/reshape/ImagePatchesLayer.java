@@ -28,6 +28,8 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class ImagePatchesLayer extends NeuralLayer {
     //trainable parts
@@ -88,6 +90,7 @@ public class ImagePatchesLayer extends NeuralLayer {
         this.patches = new NNMatrix[input.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
             for (int t = 0; t < inputs.length; t++) {
                 final int i = t;
@@ -99,17 +102,16 @@ public class ImagePatchesLayer extends NeuralLayer {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
-            /*for (int i = 0; i < inputs.length; i++) {
+            for (int i = 0; i < inputs.length; i++) {
                 patches[i] = input[i].imageVector(sizeKernel);
                 output[i] = patches[i].dot(weight);
-            }*/
+            }
 
-            //dotT(patches[0], weight, patches[0].getRow(), patches[0].getColumn(), weight.getRow(), weight.getColumn());
-
-            ImagePatchesLayerForward();
+            //ImagePatchesLayerForward();
         }
     }
 
@@ -175,8 +177,10 @@ public class ImagePatchesLayer extends NeuralLayer {
         CUfunction function = new CUfunction();
         cuModuleGetFunction(function, helperModule, "ImagePatchesLayerForward");
         Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(weight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{col}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{patch_row}), Pointer.to(new int[]{patch_col}), Pointer.to(new int[]{weight.getRow()}), Pointer.to(new int[]{weight.getColumn()}), Pointer.to(new int[]{sizeKernel}), Pointer.to(new int[]{numSteps}));
-        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, 1));
+        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int blockSizeY = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
+        int gridSizeY = (int) Math.ceil((double) row / blockSizeY);
 
         cuLaunchKernel(function,
                 gridSizeX, 1, 1,      // Grid dimension
@@ -205,6 +209,7 @@ public class ImagePatchesLayer extends NeuralLayer {
             error = new NNTensor[errors.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -221,6 +226,7 @@ public class ImagePatchesLayer extends NeuralLayer {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {

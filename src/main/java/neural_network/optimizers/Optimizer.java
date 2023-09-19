@@ -15,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 @Data
 public abstract class Optimizer {
@@ -75,6 +77,7 @@ public abstract class Optimizer {
         }
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
             for (int t = 0; t < optimizeData.size(); t++) {
                 final int finalT = t;
@@ -89,6 +92,7 @@ public abstract class Optimizer {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {

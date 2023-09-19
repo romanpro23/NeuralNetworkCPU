@@ -14,6 +14,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class ActivationLayer2D extends NeuralLayer2D {
     private final FunctionActivation functionActivation;
@@ -28,6 +30,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
         this.output = new NNMatrix[input.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -39,6 +42,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
@@ -55,6 +59,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
         this.error = new NNMatrix[errorNL.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -66,6 +71,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {

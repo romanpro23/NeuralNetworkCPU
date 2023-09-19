@@ -26,6 +26,8 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class NormalizationLayer2D extends NeuralLayer2D {
     //trainable parts
@@ -90,6 +92,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         this.var = new NNVector[input.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -104,17 +107,18 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
-            /*for (int i = 0; i < input.length; i++) {
+            for (int i = 0; i < input.length; i++) {
                 normOutput[i] = new NNMatrix(outWidth, outDepth);
                 output[i] = new NNMatrix(outWidth, outDepth);
                 findMean(i);
                 findVariance(i);
                 normalization(i);
-            }*/
-            NormalizationLayerForward2D();
+            }
+            //NormalizationLayerForward2D();
         }
     }
 
@@ -292,6 +296,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         this.error = new NNMatrix[errors.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
@@ -311,6 +316,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             executor.shutdown();
             while (!executor.isTerminated()) {
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU)

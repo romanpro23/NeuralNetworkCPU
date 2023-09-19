@@ -679,12 +679,12 @@ public class NNTensor extends NNArray {
             }
         }
 
-        /*if (Use.GPU) {
+        if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
-            int blockSizeX = (int) Math.min(rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
-            int blockSizeY = (int) Math.min(columns / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeX = (int) Math.min((double) rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min((double) columns / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
             int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
             int gridSizeX = (int) Math.ceil((double) rows / blockSizeX / sizeKernel);
             int gridSizeY = (int) Math.ceil((double) columns / blockSizeY / sizeKernel);
@@ -699,7 +699,7 @@ public class NNTensor extends NNArray {
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             IsNan(result);
-        }*/
+        }
         return result;
     }
 

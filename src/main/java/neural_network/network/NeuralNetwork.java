@@ -220,13 +220,13 @@ public class NeuralNetwork {
     }
 
     public NNArray[] queryTrain(NNArray[] input) {
-        long start0 = System.nanoTime();
+        //long start0 = System.nanoTime();
         layers.get(0).generateTrainOutput(input);
-        System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
+        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
         for (int i = 1; i < layers.size(); i++) {
-            long start = System.nanoTime();
+            //long start = System.nanoTime();
             layers.get(i).generateTrainOutput(layers.get(i - 1).getOutput());
-            System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
+            //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
         }
 
         return getOutputs();
@@ -343,9 +343,13 @@ public class NeuralNetwork {
     }
 
     protected void backpropagation(NNArray[] error) {
+        //long start0 = System.nanoTime();
         layers.get(layers.size() - 1).generateError(error);
+        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
         for (int i = layers.size() - 2; i >= stopGradient; i--) {
+            //long start = System.nanoTime();
             layers.get(i).generateError(layers.get(i + 1).getError());
+            //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
         }
     }
 
