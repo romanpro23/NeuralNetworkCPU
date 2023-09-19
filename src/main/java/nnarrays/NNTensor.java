@@ -679,7 +679,7 @@ public class NNTensor extends NNArray {
             }
         }
 
-        if (Use.GPU) {
+        /*if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
@@ -699,7 +699,7 @@ public class NNTensor extends NNArray {
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             IsNan(result);
-        }
+        }*/
         return result;
     }
 

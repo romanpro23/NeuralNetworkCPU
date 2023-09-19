@@ -1,6 +1,10 @@
 package neural_network.layers.reshape;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
+import jcuda.runtime.JCuda;
 import lombok.Setter;
 import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
@@ -16,6 +20,13 @@ import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.cudaMalloc;
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.BLOCK_SIZE;
+import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
 
 public class ImagePatchesLayer extends NeuralLayer {
@@ -91,11 +102,95 @@ public class ImagePatchesLayer extends NeuralLayer {
         }
 
         if (Use.GPU) {
-            for (int i = 0; i < inputs.length; i++) {
+            /*for (int i = 0; i < inputs.length; i++) {
                 patches[i] = input[i].imageVector(sizeKernel);
                 output[i] = patches[i].dot(weight);
+            }*/
+
+            //dotT(patches[0], weight, patches[0].getRow(), patches[0].getColumn(), weight.getRow(), weight.getColumn());
+
+            ImagePatchesLayerForward();
+        }
+    }
+
+    public NNMatrix dotT(NNMatrix a, NNMatrix b, int row1, int col1, int row2, int col2)
+    {
+        NNMatrix results = new NNMatrix(row1, col2);
+        for (int i = 0; i < row1; i++) {
+            for (int j = 0; j < col2; j++) {
+                float sum = 0;
+                for (int k = 0; k < col1; k++)
+                    sum = sum + a.getData()[i * col1 + k] * b.getData()[k * col2 + j];
+                results.getData()[i * col2 + j] = sum;
             }
         }
+        return results;
+    }
+
+    public NNMatrix transpose(NNMatrix data, int row, int col)
+    {
+        NNMatrix results = new NNMatrix(col, row);
+        int index;
+        for (int i = 0; i < row; i++) {
+            index = i * col;
+            for (int j = 0; j < col; j++, index++) {
+                results.getData()[i + j * col] = data.getData()[index];
+            }
+        }
+        return results;
+    }
+
+    private void ImagePatchesLayerForward()
+    {
+        int numSteps = this.input.length;
+        Pointer[][] P = new Pointer[3][numSteps];
+
+        int row = this.input[0].getRows();
+        int col = this.input[0].getColumns();
+        int depth = this.input[0].getDepth();
+
+        int patch_row = (row / sizeKernel) * (col / sizeKernel);
+        int patch_col = sizeKernel * sizeKernel * depth;
+
+        for(int k = 0; k < numSteps; k++)
+        {
+            this.patches[k] = new NNMatrix(patch_row, patch_col);
+            this.output[k] = new NNMatrix(row, weight.getColumn());
+            P[0][k] = this.input[k].getData_gpu();
+            P[1][k] = this.patches[k].getData_gpu();
+            P[2][k] = this.output[k].getData_gpu();
+        }
+
+        Pointer[] Array = new Pointer[P.length];
+        for(int k = 0; k < P.length; k++) {
+            Array[k] = new Pointer();
+            cudaMalloc(Array[k], (long) numSteps * Sizeof.POINTER);
+            cudaMemcpy(Array[k], Pointer.to(P[k]), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+        }
+
+        Pointer PArray = new Pointer();
+        cudaMalloc(PArray, (long) numSteps * Sizeof.POINTER);
+        cudaMemcpy(PArray, Pointer.to(Array), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "ImagePatchesLayerForward");
+        Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(weight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{col}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{patch_row}), Pointer.to(new int[]{patch_col}), Pointer.to(new int[]{weight.getRow()}), Pointer.to(new int[]{weight.getColumn()}), Pointer.to(new int[]{sizeKernel}), Pointer.to(new int[]{numSteps}));
+        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, 1));
+        int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
+
+        cuLaunchKernel(function,
+                gridSizeX, 1, 1,      // Grid dimension
+                blockSizeX, 1, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        JCuda.cudaFree(PArray);
+        for(int k = 0; k < P.length; k++) {
+            JCuda.cudaFree(Array[k]);
+        }
+        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
     }
 
     @Override

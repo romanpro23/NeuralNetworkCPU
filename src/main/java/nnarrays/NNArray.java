@@ -1751,6 +1751,64 @@ public class NNArray {
                     "    }\n" +
                     "}\n" +
 
+                    "extern \"C\"\n" +
+                    "__device__ void dot(float* const __restrict__ a, const float* __restrict__ b, float* result, int row1, int col1, int row2, int col2)\n" +
+                    "{\n" +
+                    "    for (int i = 0; i < row1; i++) {\n" +
+                    "        for (int j = 0; j < col2; j++) {\n" +
+                    "            float sum = 0;\n" +
+                    "            for (int k = 0; k < col1; k++)\n" +
+                    "                sum = sum + a[i * col1 + k] * b[k * col2 + j];\n" +
+                    "            result[i * col2 + j] = sum;\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
+                    "{\n" +
+                    "    int index;\n" +
+                    "    for (int i = 0; i < row; i++) {\n" +
+                    "        index = i * col;\n" +
+                    "        for (int j = 0; j < col; j++, index++) {\n" +
+                    "            result[i + j * col] = data[index];\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    /*"extern \"C\"\n" +
+                    "__device__ void dot(float* const __restrict__ a, const float* __restrict__ b, float* result, int row, int col, int row2, int col2)\n" +
+                    "{\n" +
+                    "    float* T = new float[row * col2];\n" +
+                    "    transpose(b, T, row2, col2);\n" +
+                    "    dotT(a, T, result, row, col, row2, col2);\n" +
+                    "    free(result);\n" +
+                    "}\n" +*/
+
+                    "extern \"C\"\n" +
+                    "__global__ void ImagePatchesLayerForward(float*** P, const float* __restrict__ weight, int row, int col, int depth, int patch_row, int patch_col, int weight_row, int weight_col, int sizeKernel, int n)\n" +
+                    "{\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (x < n) {\n" +
+                    "        int indexInput;\n" +
+                    "        int index = 0;\n" +
+                    "        for (int h = 0; h < row; h += sizeKernel) {\n" +
+                    "           for (int w = 0; w < col; w += sizeKernel) {\n" +
+                    "               for (int j = 0; j < sizeKernel; j++) {\n" +
+                    "                   int rI = (h + j) * depth * col;\n" +
+                    "                   for (int k = 0; k < sizeKernel; k++) {\n" +
+                    "                       int cI = (w + k) * depth;\n" +
+                    "                       indexInput = rI + cI;\n" +
+                    "                       for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
+                    "                           P[1][x][index] = P[0][x][indexInput];\n" +
+                    "                       }\n" +
+                    "                   }\n" +
+                    "               }\n" +
+                    "           }\n" +
+                    "        }\n" +
+                    "        dot(P[1][x], weight, P[2][x], patch_row, patch_col, weight_row, weight_col);\n" +
+                    "    }\n" +
+                    "}\n" +
+
                     "__device__ size_t getGlobalIdx_3D_3D()\n" +
                     "{\n" +
                     "    size_t blockId = blockIdx.x + blockIdx.y * gridDim.x\n" +

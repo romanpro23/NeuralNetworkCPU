@@ -220,7 +220,9 @@ public class NeuralNetwork {
     }
 
     public NNArray[] queryTrain(NNArray[] input) {
+        long start0 = System.nanoTime();
         layers.get(0).generateTrainOutput(input);
+        System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
         for (int i = 1; i < layers.size(); i++) {
             long start = System.nanoTime();
             layers.get(i).generateTrainOutput(layers.get(i - 1).getOutput());

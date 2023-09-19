@@ -48,7 +48,7 @@ public class speechtotext {
                 //.addLayer(new AdditionBlock()
                 //        .addLayer(new MultiHeadAttentionLayer(4, 64).setMask())
                 //)
-                .addLayer(new NormalizationLayer2D())
+                //.addLayer(new NormalizationLayer2D())
                 /*.addLayer(new AdditionBlock()
                         .addLayer(new DenseLayer2D(128))
                         .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
@@ -93,7 +93,7 @@ public class speechtotext {
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 24, 1, new DataMetric.Top1());
+            trainer.train(network, 30, 1, new DataMetric.Top1());
 
   //          network.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt"));
   //          optimizer.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt"));
