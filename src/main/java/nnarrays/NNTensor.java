@@ -18,6 +18,8 @@ import java.util.Scanner;
 
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
 
 public class NNTensor extends NNArray {
@@ -1292,11 +1294,22 @@ public class NNTensor extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
+        float[] hostData = null;
+        if (Use.GPU) {
+            hostData = GetFirstSingleValueFloat(data_gpu, size);
+        }
+
         writer.write(rows + " " + columns + " " + depth + "\n");
         for (int d = 0; d < rows; d++) {
             for (int i = 0; i < columns; i++) {
                 for (int j = 0; j < depth; j++) {
-                    writer.write(get(d, i, j) + " ");
+                    if (Use.CPU) {
+                        writer.write(get(d, i, j) + " ");
+                    }
+                    else
+                    {
+                        writer.write(hostData[d * depth * columns + i * depth + j] + " ");
+                    }
                 }
             }
             writer.write("\n");
@@ -1307,13 +1320,29 @@ public class NNTensor extends NNArray {
     public static NNTensor read(Scanner scanner) {
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
         NNTensor tensor = new NNTensor(size[0], size[1], size[2]);
-        int index = 0;
-        for (int d = 0; d < tensor.rows; d++) {
-            double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
-            for (double v : arr) {
-                tensor.data[index] = (float) v;
-                index++;
+        if (Use.CPU) {
+            int index = 0;
+            for (int d = 0; d < tensor.rows; d++) {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                for (double v : arr) {
+                    tensor.data[index] = (float) v;
+                    index++;
+                }
             }
+        }
+
+        if (Use.CPU) {
+            int index = 0;
+            float[] hostdata = new float[tensor.size];
+            for (int d = 0; d < tensor.rows; d++) {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                for (double v : arr) {
+                    hostdata[index] = (float) v;
+                    index++;
+                }
+            }
+
+            cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.FLOAT * tensor.size, cudaMemcpyHostToDevice);
         }
 
         return tensor;

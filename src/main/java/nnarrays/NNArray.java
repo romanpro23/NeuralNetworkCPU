@@ -1172,6 +1172,11 @@ public class NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
+        float[] hostData = null;
+        if (Use.GPU) {
+            hostData = GetFirstSingleValueFloat(data_gpu, size);
+        }
+
         writer.write(size + "\n");
         int row = (int) Math.ceil(size / 1024.0);
         int column = 1024;
@@ -1181,7 +1186,13 @@ public class NNArray {
                 column = size - i_index;
             }
             for (int j = 0; j < column; j++, i_index++) {
-                writer.write(data[i_index] + " ");
+                if (Use.CPU) {
+                    writer.write(data[i_index] + " ");
+                }
+                else
+                {
+                    writer.write(hostData[i_index] + " ");
+                }
             }
             writer.write("\n");
             writer.flush();
@@ -1192,12 +1203,26 @@ public class NNArray {
     public static NNArray read(Scanner scanner) {
         NNArray array = new NNArray(Integer.parseInt(scanner.nextLine()));
         int row = (int) Math.ceil(array.size / 1024.0);
-        for (int i = 0; i < row; i++) {
-            int i_index = i * 1024;
-            double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
-            for (int j = 0; j < arr.length; j++, i_index++) {
-                array.data[i_index] = (float) arr[j];
+        if (Use.CPU) {
+            for (int i = 0; i < row; i++) {
+                int i_index = i * 1024;
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                for (int j = 0; j < arr.length; j++, i_index++) {
+                    array.data[i_index] = (float) arr[j];
+                }
             }
+        }
+        else
+        {
+            float[] hostdata = new float[array.size];
+            for (int i = 0; i < row; i++) {
+                int i_index = i * 1024;
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                for (int j = 0; j < arr.length; j++, i_index++) {
+                    hostdata[i_index] = (float) arr[j];
+                }
+            }
+            cudaMemcpy(array.data_gpu, Pointer.to(hostdata), (long) Sizeof.FLOAT * array.size, cudaMemcpyHostToDevice);
         }
         return array;
     }
@@ -1279,6 +1304,16 @@ public class NNArray {
         int[] data_h = new int[n];
         JCublas2.cublasGetVector(n, Sizeof.INT, data_gpu, 1, Pointer.to(data_h), 1);
         return data_h;
+    }
+
+    public static float[] toFloatArray(double[] arr) {
+        if (arr == null) return null;
+        int n = arr.length;
+        float[] ret = new float[n];
+        for (int i = 0; i < n; i++) {
+            ret[i] = (float)arr[i];
+        }
+        return ret;
     }
 
     public void free() {

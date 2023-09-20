@@ -1,6 +1,7 @@
 package nnarrays;
 
 import jcuda.Pointer;
+import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
 import lombok.SneakyThrows;
@@ -13,6 +14,9 @@ import java.util.Scanner;
 
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNVector.toFloatArray;
 import static utilities.GPUInit.helperModule;
 
 public class NNVector extends NNArray {
@@ -415,9 +419,20 @@ public class NNVector extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
+        float[] hostData = null;
+        if (Use.GPU) {
+            hostData = GetFirstSingleValueFloat(data_gpu, size);
+        }
+
         writer.write(size + "\n");
         for (int i = 0; i < size; i++) {
-            writer.write(data[i] + " ");
+            if (Use.CPU) {
+                writer.write(data[i] + " ");
+            }
+            else
+            {
+                writer.write(hostData[i] + " ");
+            }
             if (i % 1000 == 0) {
                 writer.flush();
             }
@@ -429,9 +444,15 @@ public class NNVector extends NNArray {
     public static NNVector read(Scanner scanner) {
         NNVector vector = new NNVector(Integer.parseInt(scanner.nextLine()));
         double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
-        for (int j = 0; j < vector.size; j++) {
-            vector.data[j] = (float) arr[j];
+        if (Use.CPU) {
+            for (int j = 0; j < vector.size; j++) {
+                vector.data[j] = (float) arr[j];
+            }
         }
+        else {
+            cudaMemcpy(vector.data_gpu, Pointer.to(toFloatArray(arr)), (long) Sizeof.FLOAT * vector.size, cudaMemcpyHostToDevice);
+        }
+
         return vector;
     }
 }
