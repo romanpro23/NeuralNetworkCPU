@@ -18,6 +18,7 @@ import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 import static nnarrays.NNArray.GetFirstSingleValueFloatStatic;
@@ -29,7 +30,7 @@ public class speechtotext {
         GPUInit.startup();
 
         PositionLoader loader = new PositionLoader(45);
-        //loader.setUseReverse(true);
+        loader.setUseReverse(true);
 
         Optimizer optimizer = new AdamOptimizer();
         network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt")))
@@ -95,7 +96,7 @@ public class speechtotext {
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 6, 1, new DataMetric.Top1());
+            trainer.train(network, 4, 1, new DataMetric.Top1());
 
             network.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetwork/data/ka_speech_recognation_optimizer.txt"));
@@ -106,8 +107,8 @@ public class speechtotext {
                 float[] result = GetFirstSingleValueFloatStatic(network.query(loader.getNextTestData(1).getInput())[0].getData_gpu(), 175);
                 String Text = loader.decodeString(result);
 
-                byte[] charset = Text.getBytes("UTF-8");
-                String newstr = new String(charset, "UTF-8");
+                byte[] charset = Text.getBytes(StandardCharsets.UTF_8);
+                String newstr = new String(charset, StandardCharsets.UTF_8);
                 System.out.println(newstr);
             }
         }

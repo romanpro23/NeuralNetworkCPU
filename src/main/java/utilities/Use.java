@@ -11,6 +11,7 @@ public class Use {
     public static boolean DEBUG_SYNC = false;
 
     private static boolean mGPU = false;
+
     public static void GPU_Sleep() {
         if (Use.GPU) {
             Use.GPU = false;

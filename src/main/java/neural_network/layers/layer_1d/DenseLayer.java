@@ -31,8 +31,7 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
-import static utilities.Use.GPU_Sleep;
-import static utilities.Use.GPU_WakeUp;
+import static utilities.Use.*;
 
 public class DenseLayer extends DenseNeuralLayer {
     //trainable parts

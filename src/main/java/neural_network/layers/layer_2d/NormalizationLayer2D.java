@@ -26,8 +26,7 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
 import static utilities.JCudaHelper.CONTEXT;
-import static utilities.Use.GPU_Sleep;
-import static utilities.Use.GPU_WakeUp;
+import static utilities.Use.*;
 
 public class NormalizationLayer2D extends NeuralLayer2D {
     //trainable parts
@@ -131,7 +130,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         {
             normOutput[k] = new NNMatrix(outWidth, outDepth);
             output[k] = new NNMatrix(outWidth, outDepth);
-            mean[k] = new NNVector(width, true);
+            mean[k] = new NNVector(width);
             var[k] = new NNVector(width);
             P[0][k] = normOutput[k].getData_gpu();
             P[1][k] = output[k].getData_gpu();
@@ -182,7 +181,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
-                    normOutput[n].getData()[index] = ((float)(input[n].getData()[index] - mean[n].get_double(j))) / varSqrt[j];
+                    normOutput[n].getData()[index] = ((float)(input[n].getData()[index] - mean[n].get(j))) / varSqrt[j];
                     output[n].getData()[index] = normOutput[n].getData()[index] * gamma.get(k) + betta.get(k);
                 }
             }
@@ -231,13 +230,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     private void findMean(int n) {
-        mean[n] = new NNVector(width, true);
+        mean[n] = new NNVector(width);
 
         if (Use.CPU) {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
-                    mean[n].getData_double()[j] += input[n].getData()[index];
+                    mean[n].getData()[j] += input[n].getData()[index];
                 }
             }
         }
@@ -257,7 +256,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             );
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
-        mean[n].div_DoublePrecision(depth);
+        mean[n].div(depth);
     }
 
     private void findVariance(int n) {
@@ -267,7 +266,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
-                    sub = (float)(input[n].getData()[index] - mean[n].getData_double()[j]);
+                    sub = (float)(input[n].getData()[index] - mean[n].getData()[j]);
                     var[n].getData()[j] += sub * sub;
                 }
             }
@@ -388,7 +387,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int index = 0;
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
-                    derVariance.getData()[j] += (float)(error.get(index) * (input[n].get(index) - mean[n].get_double(j)));
+                    derVariance.getData()[j] += (float)(error.get(index) * (input[n].get(index) - mean[n].get(j)));
                 }
             }
 
@@ -472,7 +471,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
                     derMean.getData()[j] += error.get(index);
-                    dVar[j] += ((double)input[n].get(index)) - (mean[n].get_double(j));
+                    dVar[j] += ((double)input[n].get(index)) - (mean[n].get(j));
                 }
             }
 
@@ -555,7 +554,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
                     error[n].getData()[index] = errors.getData()[index] * dVar[j] + errorVar.get(j) *
-                            ((float)(input[n].get(index) - mean[n].get_double(j))) + errorMean.get(j);
+                            ((float)(input[n].get(index) - mean[n].get(j))) + errorMean.get(j);
                 }
             }
         }
@@ -616,6 +615,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 for (int k = 0; k < depth; k++, index++) {
                     derBetta.getData()[k] += error.getData()[index];
                     derGamma.getData()[k] += error.getData()[index] * ((output[n].getData()[index] - betta.get(k)) / gamma.get(k));
+                    //derGamma.getData()[k] += error.getData()[index] * ((output[n].getData()[index] - mean[n].getData()[j]) * var[n].getData()[j]);
                 }
             }
         }

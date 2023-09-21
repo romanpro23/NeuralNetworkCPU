@@ -26,11 +26,6 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector(int length, boolean DoublePrecision) {
-        super(length, DoublePrecision);
-        countAxes = 1;
-    }
-
     public NNVector(NNVector vector) {
         super(vector.size);
         countAxes = 1;
