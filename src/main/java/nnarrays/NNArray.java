@@ -704,9 +704,25 @@ public class NNArray {
             Pointer maxIndex_gpu = new Pointer();
             cudaMalloc(maxIndex_gpu, (long) Sizeof.INT);
             cudaMemset(maxIndex_gpu, 0, (long) Sizeof.INT);
-            cublasIdamax(cublasHandle, size, data_gpu, 1, Pointer.to(maxIndex_gpu));
-            JCublas2.cublasGetVector(maxIndex.length, Sizeof.INT, maxIndex_gpu, 1, Pointer.to(maxIndex), 1);
+            Pointer maxValue_gpu = new Pointer();
+            cudaMalloc(maxValue_gpu, (long) Sizeof.INT);
+            cudaMemset(maxValue_gpu, 0, (long) Sizeof.INT);
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "indexMaxElement");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(maxValue_gpu), Pointer.to(maxIndex_gpu), Pointer.to(new int[]{size}));
+            int blockSize = Math.min(size, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) size / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+
+            cudaMemcpy(Pointer.to(maxIndex), maxIndex_gpu, (long) Sizeof.INT, cudaMemcpyDeviceToHost);
             index = maxIndex[0];
+
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
             JCuda.cudaFree(maxIndex_gpu);
 
@@ -1846,6 +1862,18 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
                     "       result[idx] *= val;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void indexMaxElement(float* data, float* max_value, int* result, int numElements)\n" +
+                    "{\n" +
+                    "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (idx < numElements) {\n" +
+                    "        if (data[idx] > *max_value) {\n" +
+                    "            *max_value = data[idx];\n" +
+                    "            *result = idx;\n" +
+                    "        }\n" +
                     "    }\n" +
                     "}\n" +
 
