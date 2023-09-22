@@ -166,12 +166,12 @@ public abstract class NeuralLayer {
         }
     }
 
-    public void CallGarbageCollector()
+    public static void CallGarbageCollector()
     {
         if (Use.GPU) {
             //System.gc();
-            //Runtime.getRuntime().gc();
-            runGarbageCollection();
+            Runtime.getRuntime().gc();
+            //runGarbageCollection();
 
             List<String> listString = new ArrayList<>();
 

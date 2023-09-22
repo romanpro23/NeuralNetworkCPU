@@ -143,7 +143,7 @@ public class PositionLoader extends DataLoader3D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 100) {
+                    if (wwq == 200) {
                         return;
                     }
 
