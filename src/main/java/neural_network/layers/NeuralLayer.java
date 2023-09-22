@@ -159,8 +159,7 @@ public abstract class NeuralLayer {
     {
         for( WeakReference<Object> ref = new WeakReference<>( new Object() ); ; )
         {
-            //System.gc(); //optional
-            Runtime.getRuntime().gc(); //optional
+            Runtime.getRuntime().gc();
             if( ref.get() == null )
                 break;
             Thread.yield();
