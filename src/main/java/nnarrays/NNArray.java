@@ -1941,7 +1941,7 @@ public class NNArray {
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
-                    "       data[idx] = (float)(decay * data[idx] + array[idx] * (1.0 - decay));\n" +
+                    "       data[idx] = decay * data[idx] + array[idx] * (((float)1) - decay);\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1950,7 +1950,7 @@ public class NNArray {
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
-                    "       data[idx] = (float)(decay * data[idx] + (1.0 - decay) * vector[idx] * vector[idx]);\n" +
+                    "       data[idx] = decay * data[idx] + (((float)1) - decay) * vector[idx] * vector[idx];\n" +
                     "    }\n" +
                     "}\n" +
 
