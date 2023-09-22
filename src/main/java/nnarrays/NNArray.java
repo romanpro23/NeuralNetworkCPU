@@ -264,8 +264,7 @@ public class NNArray {
             }
         }
         if (Use.GPU) {
-            float[] init2 = new float[size];
-            cudaMemcpy(data_gpu, Pointer.to(init2), (long) size * Sizeof.FLOAT, cudaMemcpyHostToDevice);
+            cudaMemset(data_gpu, 0, (long) size * Sizeof.FLOAT);
         }
     }
 
@@ -704,7 +703,7 @@ public class NNArray {
             int[] maxIndex = new int[1];
             Pointer maxIndex_gpu = new Pointer();
             cudaMalloc(maxIndex_gpu, (long) Sizeof.INT);
-            cudaMemcpy(maxIndex_gpu, Pointer.to(maxIndex), (long) Sizeof.INT, cudaMemcpyHostToDevice);
+            cudaMemset(maxIndex_gpu, 0, (long) Sizeof.INT);
             cublasIdamax(cublasHandle, size, data_gpu, 1, Pointer.to(maxIndex_gpu));
             JCublas2.cublasGetVector(maxIndex.length, Sizeof.INT, maxIndex_gpu, 1, Pointer.to(maxIndex), 1);
             index = maxIndex[0];
@@ -1085,9 +1084,8 @@ public class NNArray {
             int p = size;
 
             Pointer dVar_Pointer = new Pointer();
-            float[] init = new float[p];
             cudaMalloc(dVar_Pointer, (long) p * Sizeof.FLOAT);
-            cudaMemcpy(dVar_Pointer, Pointer.to(init), (long) p * Sizeof.FLOAT, cudaMemcpyHostToDevice);
+            cudaMemset(dVar_Pointer, 0, (long) p * Sizeof.FLOAT);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dropoutBack");
@@ -1959,7 +1957,7 @@ public class NNArray {
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
-                    "       data[idx] -= (float)((lr / (normN + 0.0000001)) * (nominator[idx]) / (sqrt((float)(denominator[idx] / normD)) + 0.0000001));\n" +
+                    "        atomicAdd(&data[idx], -(lr / (normN + ((float)0.0000001))) * (nominator[idx]) / (sqrt(denominator[idx] / normD) + (float(0.0000001))));\n" +
                     "    }\n" +
                     "}\n" +
 
