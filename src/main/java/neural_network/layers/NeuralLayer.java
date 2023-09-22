@@ -155,11 +155,24 @@ public abstract class NeuralLayer {
         this.trainable = trainable;
     }
 
+    private static void runGarbageCollection()
+    {
+        for( WeakReference<Object> ref = new WeakReference<>( new Object() ); ; )
+        {
+            //System.gc(); //optional
+            Runtime.getRuntime().gc(); //optional
+            if( ref.get() == null )
+                break;
+            Thread.yield();
+        }
+    }
+
     public void CallGarbageCollector()
     {
         if (Use.GPU) {
             //System.gc();
-            Runtime.getRuntime().gc();
+            //Runtime.getRuntime().gc();
+            runGarbageCollection();
 
             List<String> listString = new ArrayList<>();
 
