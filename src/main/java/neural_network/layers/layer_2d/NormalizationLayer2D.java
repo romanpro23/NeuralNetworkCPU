@@ -291,6 +291,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
     @Override
     public void generateError(NNArray[] errors) {
+        //long start0 = System.nanoTime();
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
@@ -338,6 +339,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             regularization.regularization(betta);
             regularization.regularization(gamma);
         }
+        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
     }
 
     private NNMatrix generateErrorNorm(int n) {

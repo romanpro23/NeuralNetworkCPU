@@ -260,11 +260,13 @@ public class NeuralNetwork {
     public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
         //long start = System.nanoTime();
         queryTrain(input);
-        //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! ");
+
         backpropagation(findDerivative(idealOutput, lambda));
         if (update) {
             update();
         }
+
+        //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! ");
         return lambda * functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 

@@ -19,7 +19,7 @@ import java.util.Scanner;
 
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
-import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
@@ -514,8 +514,8 @@ public class NNMatrix extends NNArray {
         JCublas2.cublasSgemm(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, B.column, A.row, B.row, Pointer.to(new float[]{alpha}), B.data_gpu, B.column, A.data_gpu, B.row, Pointer.to(new float[]{beta}), C.data_gpu, B.column);
 
         /*CUfunction function = new CUfunction();
-        cuModuleGetFunction(function, helperModule, "matrixMultiplicationKernel");
-        Pointer kernelParameters = Pointer.to(Pointer.to(A.data_gpu), Pointer.to(B.data_gpu), Pointer.to(C.data_gpu), Pointer.to(new int[]{A.column}), Pointer.to(new int[]{C.row}), Pointer.to(new int[]{C.column}));
+        cuModuleGetFunction(function, helperModule, "dot");
+        Pointer kernelParameters = Pointer.to(Pointer.to(A.data_gpu), Pointer.to(B.data_gpu), Pointer.to(C.data_gpu), Pointer.to(new int[]{A.row}), Pointer.to(new int[]{A.column}), Pointer.to(new int[]{B.row}), Pointer.to(new int[]{B.column}));
         int blockSizeX = (int) Math.min(C.row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int blockSizeY = (int) Math.min(C.column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int gridSizeX = (int) Math.ceil((double) C.row / blockSizeX);
@@ -796,9 +796,42 @@ public class NNMatrix extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
+
+            /*int TILE_DIM_X = 32;
+            int TILE_DIM_Y = 32;
+
+            Pointer sums = new Pointer();
+            cudaMalloc(sums, (long) row * Sizeof.FLOAT);
+            cudaMemset(sums, 0, (long) row * Sizeof.FLOAT);
+
+            int blockSizeX = 32;
+            int blockSizeY = 32;
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "softmaxKernel2D_rows");
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(sums), Pointer.to(new int[]{input.row}), Pointer.to(new int[]{input.column}));
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+
+            CUfunction function2 = new CUfunction();
+            cuModuleGetFunction(function2, helperModule, "softmaxKernel2D_elementwise");
+            Pointer kernelParameters2 = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(sums), Pointer.to(data_gpu), Pointer.to(new int[]{input.row}), Pointer.to(new int[]{input.column}));
+            cuLaunchKernel(function2,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters2, null // Kernel- and extra parameters
+            );*/
+
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
 
-            IsNan();
+        //    IsNan();
         }
     }
 
@@ -836,17 +869,11 @@ public class NNMatrix extends NNArray {
             cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
+                    0 /*110 * 110 * Sizeof.FLOAT*/, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
 
-            //Use.GPU = false;
-            //data = new float[183 * 183];
-            //derSoftmax(new NNMatrix(output.row, output.column, this.GetFirstSingleValueFloat(output.data_gpu, output.size)), new NNMatrix(error.row, error.column, this.GetFirstSingleValueFloat(error.data_gpu, error.size)));
-            //Use.GPU = true;
-
             IsNan();
-
 
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
