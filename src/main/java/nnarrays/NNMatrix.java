@@ -20,6 +20,7 @@ import java.util.Scanner;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaFuncCache.cudaFuncCachePreferShared;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
@@ -657,7 +658,7 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "add3");
-            Pointer kernelParameters = Pointer.to(Pointer.to(vector.data_gpu), Pointer.to(data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(vector.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
@@ -666,7 +667,7 @@ public class NNMatrix extends NNArray {
             cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
+                    SharedMemorySizeGPU, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
 
@@ -869,7 +870,7 @@ public class NNMatrix extends NNArray {
             cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
-                    0 /*110 * 110 * Sizeof.FLOAT*/, null,               // Shared memory size and stream
+                    SharedMemorySizeGPU, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
 

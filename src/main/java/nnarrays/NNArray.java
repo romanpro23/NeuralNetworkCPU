@@ -40,6 +40,7 @@ public class NNArray {
     @Getter
     protected int countAxes;
     public static int BLOCK_SIZE = 1024;
+    public static int SharedMemorySizeGPU = 110 * 110 * Sizeof.FLOAT;
 
     public NNArray(int size) {
         this.size = size;
@@ -1343,6 +1344,8 @@ public class NNArray {
                     "const __device__ float epsilon = 0.001f;\n" +
                     "#define MAX_FLOAT_EXP 		80\n" +
 
+                    "__device__ float SharedMemorySize = 110 * 110;\n" +
+
                     "extern \"C\"\n" +
                     "__global__ void fill(float* A, float alpha, int numElements)\n" +
                     "{\n" +
@@ -1422,11 +1425,21 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void add3(const float* __restrict__ A, float* C, int rows, int columns)\n" +
                     "{\n" +
+                    "    __device__ extern __shared__ float shared[];\n" +
                     "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (h < rows && w < columns) {\n" +
-                    "         int index = h * blockDim.y * gridDim.y + w;\n" +
-                    "         C[index] += A[w];\n" +
+                    "       if (w < SharedMemorySize) {\n" +
+                    "           shared[w] = A[w];\n" +
+                    "       }\n" +
+                    "       __syncthreads();\n" +
+                    "       int index = h * blockDim.y * gridDim.y + w;\n" +
+                    "       if (w < SharedMemorySize) {\n" +
+                    "           C[index] += shared[w];\n" +
+                    "       }\n" +
+                    "       else {\n" +
+                    "          C[index] += A[w];\n" +
+                    "       }\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1436,13 +1449,70 @@ public class NNArray {
                     "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (h < rows) {\n" +
                     "       float s = 0.0f;\n" +
-                    "       int index = h * columns;\n" +
-                    "       for (int j = 0; j < columns; j++, index++) {\n" +
-                    "           s += A[j] * B[index];\n" +
+                    "       for (int j = 0; j < columns; j++) {\n" +
+                    "           s += B[j] * A[h * columns + j];\n" +
                     "       }\n" +
                     "       C[h] = s;\n" +
                     "    }\n" +
                     "}\n" +
+
+                    /*"extern \"C\"\n" +
+                    "__global__ void gpu_coalescing_shared_multipication(float* a, float* x, float* res, int n, int m) {\n" +
+                    "    __shared__ float xx[1024];\n" +
+                    "    int idx = blockIdx.x * blockDim.x + threadIdx.x;\n" +
+                    "    if (idx < n) res[idx] = 0;\n" +
+                    "    for (int i = 0; i < m; i += blockDim.x) {\n" +
+                    "        if (i + threadIdx.x < m)\n" +
+                    "            xx[threadIdx.x] = x[i + threadIdx.x];\n" +
+                    "        __syncthreads();\n" +
+                    "        if (idx < n)\n" +
+                    "            for (int j = 0; j < blockDim.x && i + j < m; j++)\n" +
+                    "                res[idx] += a[idx + (i + j)*n] * xx[j];\n" +
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+                    "}\n" +*/
+
+                    /*"extern \"C\"\n" +
+                    "__global__ void dot_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ x, float* y, int m, int n) {\n" +
+                    "    const int TILE_SIZE = 32;\n" +
+                    "    __shared__ float shared_A[TILE_SIZE][TILE_SIZE];\n" +
+                    "    __shared__ float shared_x[TILE_SIZE];\n" +
+
+                    "    int tile_id = blockIdx.x;\n" +
+                    "    int row = threadIdx.x;\n" +
+
+                    "    float sum = 0.0f;\n" +
+                    "    int num_tiles = (n - 1) / TILE_SIZE + 1;\n" +
+
+                    "    for (int i = 0; i < num_tiles; i++) {\n" +
+                    "        int tile_start = i * TILE_SIZE;\n" +
+                    "        int tile_end = min(tile_start + TILE_SIZE, n);\n" +
+
+                    "        if (tile_start + row < m) {\n" +
+                    "            shared_x[row] = x[tile_start + row];\n" +
+                    "        }\n" +
+
+                    "        for (int j = 0; j < TILE_SIZE; j++) {\n" +
+                    "            if (tile_start + j < tile_end && tile_start + row < m) {\n" +
+                    "                shared_A[row][j] = A[(tile_start + row) * n + tile_start + j];\n" +
+                    "            }\n" +
+                    "        }\n" +
+
+                    "        __syncthreads();\n" +
+
+                    "        for (int j = 0; j < TILE_SIZE; j++) {\n" +
+                    "            if (tile_start + j < tile_end && tile_start + row < m) {\n" +
+                    "                sum += shared_A[row][j] * shared_x[j];\n" +
+                    "            }\n" +
+                    "        }\n" +
+
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+
+                    "    if (TILE_SIZE * tile_id + row < m) {\n" +
+                    "        y[TILE_SIZE * tile_id + row] = sum;\n" +
+                    "    }\n" +
+                    "}\n" +*/
 
                     "extern \"C\"\n" +
                     "__global__ void dotT_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)\n" +
@@ -2248,20 +2318,19 @@ public class NNArray {
                     "   }\n" +
                     "}\n";*/
 
-                    //"__device__ float SharedMemorySize = 110 * 110;\n" +
-                    //"__device__ extern __shared__ float shared[];\n" +
                     "extern \"C\"\n" +
                     "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)\n" +
                     "{\n" +
+                    "    __device__ extern __shared__ float shared[];\n" +
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int i = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (k < row && i < column)\n" +
                     "    {\n" +
-                    /*"       int idx = k * blockDim.y * gridDim.y + i;\n" +
+                    "       int idx = k * blockDim.y * gridDim.y + i;\n" +
                     "       if (idx < SharedMemorySize) {\n" +
                     "           shared[idx] = error[idx];\n" +
                     "       }\n" +
-                    "       __syncthreads();\n" +*/
+                    "       __syncthreads();\n" +
                     "       float value;\n" +
                     "       int index = k * column;\n" +
                     "       int indexI = index + i;\n" +
@@ -2275,12 +2344,12 @@ public class NNArray {
                     "           } else {\n" +
                     "               value = o * (1.0f - o);\n" +
                     "           }\n" +
-                    //"         if (indexJ < SharedMemorySize) {\n" +
-                    //"             sum += shared[indexJ] * value;\n" +
-                    //"         }\n" +
-                    //"         else {\n" +
-                    "               sum += error[indexJ] * value;\n" +
-                    //"         }\n" +
+                    "         if (indexJ < SharedMemorySize) {\n" +
+                    "             sum += shared[indexJ] * value;\n" +
+                    "         }\n" +
+                    "         else {\n" +
+                    "             sum += error[indexJ] * value;\n" +
+                    "         }\n" +
                     "        }\n" +
                     "        data[indexI] = sum;\n" +
                     "    }\n" +

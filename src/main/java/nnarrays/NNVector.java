@@ -4,6 +4,8 @@ import jcuda.Pointer;
 import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
+import jcuda.jcublas.JCublas2;
+import jcuda.jcublas.cublasOperation;
 import lombok.SneakyThrows;
 import utilities.Use;
 
@@ -17,6 +19,7 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNVector.toFloatArray;
+import static utilities.GPUInit.cublasHandle;
 import static utilities.GPUInit.helperModule;
 
 public class NNVector extends NNArray {
@@ -57,11 +60,16 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            int row =  matrix.getRow();
+            //long start0 = System.nanoTime();
+
+            NNMatrix m = matrix.transpose();
+            JCublas2.cublasSgemv(cublasHandle, cublasOperation.CUBLAS_OP_N, m.getColumn(), m.getRow(), Pointer.to(new float[]{1.0f}), m.data_gpu, m.getColumn(), data_gpu, 1, Pointer.to(new float[]{0.0f}), result.data_gpu, 1);
+
+            /*int row =  matrix.getRow();
             int column =  matrix.getColumn();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
-            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, 1));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
 
@@ -70,8 +78,9 @@ public class NNVector extends NNArray {
                     blockSizeX, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
-            );
+            );*/
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! " + 0);
         }
 
         return result;
@@ -193,7 +202,10 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            int row = matrix.getRow();
+            //long start0 = System.nanoTime();
+            JCublas2.cublasSgemv(cublasHandle, cublasOperation.CUBLAS_OP_N, matrix.getColumn(), matrix.getRow(), Pointer.to(new float[]{1.0f}), matrix.data_gpu, matrix.getColumn(), data_gpu, 1, Pointer.to(new float[]{0.0f}), result.data_gpu, 1);
+
+            /*int row = matrix.getRow();
             int column = matrix.getColumn();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "dotT_VectorAndMatrix");
@@ -206,8 +218,9 @@ public class NNVector extends NNArray {
                     blockSizeX, 1, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
-            );
+            );*/
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! " + 0);
         }
 
         return result;

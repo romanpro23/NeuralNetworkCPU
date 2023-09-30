@@ -4,6 +4,9 @@ import jcuda.driver.*;
 import java.io.*;
 
 import static jcuda.driver.JCudaDriver.cuModuleLoad;
+import static jcuda.runtime.JCuda.cudaDeviceSetCacheConfig;
+import static jcuda.runtime.cudaFuncCache.cudaFuncCachePreferShared;
+
 public class JCudaHelper {
     public static CUcontext CONTEXT;
     private static CUdevice device;
@@ -17,6 +20,8 @@ public class JCudaHelper {
 
         CONTEXT = new CUcontext();
         JCudaDriver.cuCtxCreate(CONTEXT, 0, device);
+
+        cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
     }
 
     public static void destroy() {
