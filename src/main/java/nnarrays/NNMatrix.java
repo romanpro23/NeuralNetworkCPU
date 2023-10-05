@@ -10,6 +10,7 @@ import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import utilities.Use;
+import jcuda.runtime.*;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -866,7 +867,6 @@ public class NNMatrix extends NNArray {
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
             int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
-
             cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension

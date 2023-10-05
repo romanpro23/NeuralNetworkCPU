@@ -270,8 +270,9 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             }
 
             inputAtt[i][j] = new NNMatrix(score[i][j]);
-
+            //long start0 = System.nanoTime();
             inputAtt[i][j].softmax(score[i][j]);
+            //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! ");
 
             if (dropout != 0) {
                 inputAtt[i][j].dropout(inputAtt[i][j], dropout);
