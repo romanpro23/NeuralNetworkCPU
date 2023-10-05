@@ -10,6 +10,7 @@ import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
+import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;
@@ -35,6 +36,8 @@ public class NNArray {
     @Getter
     protected float data[];
     @Getter
+    protected short sdata[];
+    @Getter
     protected Pointer data_gpu;
     protected int size;
     @Getter
@@ -47,6 +50,7 @@ public class NNArray {
 
         if (Use.CPU) {
             this.data = new float[size];
+            this.sdata = new short[size];
         }
 
         if (Use.GPU) {
@@ -67,6 +71,23 @@ public class NNArray {
 
         if (Use.CPU) {
             this.data = data;
+        }
+
+        if (Use.GPU) {
+            this.data_gpu = new Pointer();
+            cudaMalloc(this.data_gpu, (long) Sizeof.FLOAT * this.size);
+            cudaMemcpy(this.data_gpu, Pointer.to(sdata), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
+
+            allocatedPut();
+        }
+    }
+
+    public NNArray(float[] data, short[] sdata) {
+        this.size = data.length;
+
+        if (Use.CPU) {
+            this.data = data;
+            this.sdata = sdata;
         }
 
         if (Use.GPU) {
@@ -1071,6 +1092,11 @@ public class NNArray {
             randomArray[i] = (float) Math.random();
         }
 
+        short[] randomArray_short = new short[n];
+        for (int i = 0; i < n; i++) {
+            randomArray_short[i] = Ieee754Binary16.floatToBinary16ShortBits((float) Math.random());
+        }
+
         NNArray randomArrayGPU = new NNArray(randomArray);
 
         cuModuleGetFunction(function, helperModule, "dropout");
@@ -1264,6 +1290,33 @@ public class NNArray {
         return ret;
     }
 
+    public static int fromFloat( float fval )
+    {
+        int fbits = Float.floatToIntBits( fval );
+        int sign = fbits >>> 16 & 0x8000;          // sign only
+        int val = ( fbits & 0x7fffffff ) + 0x1000; // rounded value
+
+        if( val >= 0x47800000 )               // might be or become NaN/Inf
+        {                                     // avoid Inf due to rounding
+            if( ( fbits & 0x7fffffff ) >= 0x47800000 )
+            {                                 // is or must become NaN/Inf
+                if( val < 0x7f800000 )        // was value but too large
+                    return sign | 0x7c00;     // make it +/-Inf
+                return sign | 0x7c00 |        // remains +/-Inf or NaN
+                        ( fbits & 0x007fffff ) >>> 13; // keep NaN (and Inf) bits
+            }
+            return sign | 0x7bff;             // unrounded not quite Inf
+        }
+        if( val >= 0x38800000 )               // remains normalized value
+            return sign | val - 0x38000000 >>> 13; // exp - 127 + 15
+        if( val < 0x33000000 )                // too small for subnormal
+            return sign;                      // becomes +/-0
+        val = ( fbits & 0x7fffffff ) >>> 23;  // tmp exp for subnormal calc
+        return sign | ( ( fbits & 0x7fffff | 0x800000 ) // add subnormal bit
+                + ( 0x800000 >>> val - 102 )     // round depending on cut off
+                >>> 126 - val );   // div by 2^(1-(exp-127+15)) and >> 13 | exp=0
+    }
+
     public void free() {
         //if (data_gpu != null) JCuda.cudaFree(data_gpu);
     }
@@ -1343,6 +1396,7 @@ public class NNArray {
     public static final String kernels =
                     "const __device__ float epsilon = 0.001f;\n" +
                     "#define MAX_FLOAT_EXP 		80\n" +
+                    "#include <cuda_fp16.h>\n" +
 
                     "__device__ float SharedMemorySize = 110 * 110;\n" +
 
@@ -1382,6 +1436,27 @@ public class NNArray {
 
                     "extern \"C\"\n" +
                     "__global__ void imageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
+                    "{\n" +
+                    "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
+                    "    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
+                    "    const int z = blockDim.z * blockIdx.z + threadIdx.z;\n" +
+                    "    if (h < rows && w < columns && z < sizeKernel)\n" +
+                    "    {\n" +
+                    "        int sizeKernel_X_depth = sizeKernel * depth;\n" +
+                    "        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;\n" +
+                    "        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;\n" +
+                    "        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;\n" +
+                    "        for (int k = 0; k < sizeKernel; k++) {\n" +
+                    "            int indexInput = (h + z) * depth * columns + (w + k) * depth;\n" +
+                    "            for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
+                    "                C[index] = A[indexInput];\n" +
+                    "            }\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void imageVector_half(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
                     "    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
@@ -2317,6 +2392,55 @@ public class NNArray {
                     "        }\n" +
                     "   }\n" +
                     "}\n";*/
+
+                    /*"extern \"C\"\n" +
+                    __global__ void SoftmaxBwKernel(float *input,float *input_grad,int tgt_len,float *output,float scale)
+                    {
+
+                        int tid = threadIdx.x;
+                        int base = blockIdx.x * tgt_len;
+                        //int baseInput = ;
+                        //int baseOutput = blockIdx.x * m ;
+                        float outp=0.0f;
+                        if (tid < tgt_len)
+                            outp = input[base + tid] * input_grad[base + tid];
+                        //printf("%d %d %.3f\n",blockIdx.y,tid,ds[tid]);
+                        __syncthreads();
+
+                        __shared__ float reduce[TILE_WIDTH];
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 16, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 8, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 4, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 2, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 1, 32);
+                        __syncthreads();
+                        if ((tid & 0x1f) == 0)
+                        {
+                            reduce[tid>>5] = outp;
+                        }
+                        __syncthreads();
+                        if (tid < (blockDim.x>>5))
+                            outp = reduce[tid];
+                        else
+                            outp = 0.0f;
+                        __syncthreads();
+
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 16, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 8, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 4, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 2, 32);
+                        outp += __shfl_xor_sync(WARP_REDUCE_MASK, outp, 1, 32);
+                        __syncthreads();
+
+                        __shared__ float sum;
+                        if (tid==0)
+                            sum = outp;
+                        __syncthreads();
+
+                        if (tid<tgt_len)
+                            output[base + tid] = scale * input[base + tid] * (input_grad[base + tid] - sum);
+
+                    }*/
 
                     "extern \"C\"\n" +
                     "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)\n" +

@@ -133,7 +133,7 @@ public class PositionLoader extends DataLoader3D {
 
                     NNVector output = codeString(label);
 
-                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
+                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData(), inputsData.getSdata());
                     Use.CPU = false;
 
                     train.add(new ImageData3D(ImageTensor, output));
