@@ -24,37 +24,37 @@ import java.util.Scanner;
 
 public class TestMyCycleGAN {
     public static void main(String[] args) throws Exception {
-        NeuralNetwork discriminatorA = getDiscriminator();
+        /*NeuralNetwork discriminatorA = getDiscriminator();
 
         NeuralNetwork discriminatorB = getDiscriminator();
 
         NeuralNetwork generatorA = getGenerator();
 
-        NeuralNetwork generatorB = getGenerator();
+        NeuralNetwork generatorB = getGenerator();*/
 
-        /*NeuralNetwork discriminatorA = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/CycleGAN/patch_discriminator_orange.txt")))
+        NeuralNetwork discriminatorA = NeuralNetwork
+                .read(new Scanner(new File("C:/NetworkTest/CycleGAN/patch_discriminator_orange.txt")))
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0001))
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork discriminatorB = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/CycleGAN/patch_discriminator_apple.txt")))
+                .read(new Scanner(new File("C:/NetworkTest/CycleGAN/patch_discriminator_apple.txt")))
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0001))
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork generatorA = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/CycleGAN/res_generator_orange.txt")))
+                .read(new Scanner(new File("C:/NetworkTest/CycleGAN/res_generator_orange.txt")))
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0001))
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();
 
         NeuralNetwork generatorB = NeuralNetwork
-                .read(new Scanner(new File("D:/NetworkTest/CycleGAN/res_generator_apple.txt")))
+                .read(new Scanner(new File("C:/NetworkTest/CycleGAN/res_generator_apple.txt")))
                 .setOptimizer(new AdamOptimizer(0.5, 0.999, 0.0001))
                 .setFunctionLoss(new FunctionLoss.MSE())
-                .create();*/
+                .create();
 
         System.out.println(generatorA.getLayers().size());
 
@@ -69,19 +69,19 @@ public class TestMyCycleGAN {
             long start = System.nanoTime();
             if (i % n == 0) {
                 NNTensor[] data = NNArrays.isTensor(loader.getNextTestAData(1));
-                ImageCreator.drawColorImage(data[0], 64, 64, i / n + "_apple", "D:/NetworkTest/CycleGAN", true);
-                ImageCreator.drawColorImage((NNTensor) gan.query(data)[0], 64, 64, i / n + "_apple_orange", "D:/NetworkTest/CycleGAN", true);
-                ImageCreator.drawColorImage((NNTensor) generatorB.query(generatorA.getOutputs())[0], 64, 64, i / n + "_apple_recon", "D:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage(data[0], 64, 64, i / n + "_apple", "C:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage((NNTensor) gan.query(data)[0], 64, 64, i / n + "_apple_orange", "C:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage((NNTensor) generatorB.query(generatorA.getOutputs())[0], 64, 64, i / n + "_apple_recon", "C:/NetworkTest/CycleGAN", true);
 
                 data = NNArrays.isTensor(loader.getNextTestBData(1));
-                ImageCreator.drawColorImage(data[0], 64, 64, i / n + "_orange", "D:/NetworkTest/CycleGAN", true);
-                ImageCreator.drawColorImage((NNTensor) generatorB.query(data)[0], 64, 64, i / n + "_orange_apple", "D:/NetworkTest/CycleGAN", true);
-                ImageCreator.drawColorImage((NNTensor) generatorA.query(generatorB.getOutputs())[0], 64, 64, i / n + "_orange_recon", "D:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage(data[0], 64, 64, i / n + "_orange", "C:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage((NNTensor) generatorB.query(data)[0], 64, 64, i / n + "_orange_apple", "C:/NetworkTest/CycleGAN", true);
+                ImageCreator.drawColorImage((NNTensor) generatorA.query(generatorB.getOutputs())[0], 64, 64, i / n + "_orange_recon", "C:/NetworkTest/CycleGAN", true);
 
-                generatorA.save(new FileWriter(new File("D:/NetworkTest/CycleGAN/res_generator_orange.txt")));
-                discriminatorA.save(new FileWriter(new File("D:/NetworkTest/CycleGAN/patch_discriminator_orange.txt")));
-                generatorB.save(new FileWriter(new File("D:/NetworkTest/CycleGAN/res_generator_apple.txt")));
-                discriminatorB.save(new FileWriter(new File("D:/NetworkTest/CycleGAN/patch_discriminator_apple.txt")));
+                generatorA.save(new FileWriter(new File("C:/NetworkTest/CycleGAN/res_generator_orange.txt")));
+                discriminatorA.save(new FileWriter(new File("C:/NetworkTest/CycleGAN/patch_discriminator_orange.txt")));
+                generatorB.save(new FileWriter(new File("C:/NetworkTest/CycleGAN/res_generator_apple.txt")));
+                discriminatorB.save(new FileWriter(new File("C:/NetworkTest/CycleGAN/patch_discriminator_apple.txt")));
             }
             NNTensor[] apples = loader.getNextTrainAData(16);
             NNTensor[] oranges = loader.getNextTrainBData(16);
