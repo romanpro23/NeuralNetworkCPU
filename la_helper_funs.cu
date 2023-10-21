@@ -53,7 +53,7 @@ __global__ void imageVector(const float* __restrict__ A, float* C, int rows, int
     }
 }
 extern "C"
-__global__ void imageVector_half(const __half* __restrict__ A, __half* C, int rows, int columns, int depth, int sizeKernel)
+__global__ void imageVector_half(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)
 {
     const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;
     const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;

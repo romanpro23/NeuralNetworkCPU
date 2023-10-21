@@ -696,7 +696,7 @@ public class NNTensor extends NNArray {
         }
 
         if (Use.GPU) {
-            long start0 = System.nanoTime();
+            //long start0 = System.nanoTime();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector_half");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
@@ -714,7 +714,7 @@ public class NNTensor extends NNArray {
                     kernelParameters, null // Kernel- and extra parameters
             );
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-            System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! ");
+            //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! ");
 
             IsNan(result);
         }

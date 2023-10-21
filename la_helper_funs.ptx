@@ -302,7 +302,7 @@ BB4_7:
 )
 {
 	.reg .pred 	%p<10>;
-	.reg .b16 	%rs<2>;
+	.reg .f32 	%f<2>;
 	.reg .b32 	%r<55>;
 	.reg .b64 	%rd<15>;
 
@@ -361,18 +361,18 @@ BB5_3:
 	@%p7 bra 	BB5_6;
 
 	mad.lo.s32 	%r51, %r18, %r52, %r8;
-	mul.wide.s32 	%rd11, %r51, 2;
+	mul.wide.s32 	%rd11, %r51, 4;
 	add.s64 	%rd14, %rd2, %rd11;
-	mul.wide.s32 	%rd12, %r54, 2;
+	mul.wide.s32 	%rd12, %r54, 4;
 	add.s64 	%rd13, %rd1, %rd12;
 	mov.u32 	%r53, 0;
 
 BB5_5:
-	ld.global.u16 	%rs1, [%rd14];
-	st.global.u16 	[%rd13], %rs1;
+	ld.global.f32 	%f1, [%rd14];
+	st.global.f32 	[%rd13], %f1;
 	add.s32 	%r54, %r54, 1;
-	add.s64 	%rd14, %rd14, 2;
-	add.s64 	%rd13, %rd13, 2;
+	add.s64 	%rd14, %rd14, 4;
+	add.s64 	%rd13, %rd13, 4;
 	add.s32 	%r53, %r53, 1;
 	setp.lt.s32	%p8, %r53, %r18;
 	@%p8 bra 	BB5_5;
