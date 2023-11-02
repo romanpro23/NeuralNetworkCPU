@@ -1,7 +1,7 @@
 const __device__ float epsilon = 0.001f;
 #define MAX_FLOAT_EXP 		80
 #include <cuda_fp16.h>
-__device__ float SharedMemorySize = 110 * 110;
+__device__ int SharedMemorySize = 64 * 1024 / 4;
 extern "C"
 __global__ void fill(float* A, float alpha, int numElements)
 {
@@ -643,7 +643,7 @@ __global__ void derSoftmax(const float* __restrict__ output, const float* __rest
     int i = blockDim.y * blockIdx.y + threadIdx.y;
     if (k < row && i < column)
     {
-       int idx = k * blockDim.y * gridDim.y + i;
+       int idx = k * column + i;
        if (idx < SharedMemorySize) {
            shared[idx] = error[idx];
        }
@@ -654,7 +654,7 @@ __global__ void derSoftmax(const float* __restrict__ output, const float* __rest
        data[indexI] = 0.0f;
        int indexJ = index;
        float o = output[indexI];
-       float sum = 0;
+       float sum = 0.0f;
        for (int j = 0; j < column; j++, indexJ++) {
            if (i != j) {
                value = o * -output[indexJ];

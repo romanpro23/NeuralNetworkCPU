@@ -9,6 +9,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
+
 public class FlattenLayer2D extends NeuralLayer {
     protected int depth, width;
     protected int countNeuron;
@@ -55,9 +58,11 @@ public class FlattenLayer2D extends NeuralLayer {
         output = new NNVector[inputs.length];
 
         if (Use.CPU) {
+            GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
                 output[i] = new NNVector(input[i].getData());
             }
+            GPU_WakeUp();
         }
 
         if (Use.GPU) {
@@ -83,7 +88,9 @@ public class FlattenLayer2D extends NeuralLayer {
 
         for (int i = 0; i < errors.length; i++) {
             if (Use.CPU) {
+                GPU_Sleep();
                 error[i] = new NNMatrix(width, depth, errorNL[i].getData());
+                GPU_WakeUp();
             }
 
             if (Use.GPU) {

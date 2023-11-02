@@ -43,7 +43,7 @@ public class NNArray {
     @Getter
     protected int countAxes;
     public static int BLOCK_SIZE = 1024;
-    public static int SharedMemorySizeGPU = 110 * 110 * Sizeof.FLOAT;
+    public static int SharedMemorySizeGPU = 64 * 1024;
 
     public NNArray(int size) {
         this.size = size;
@@ -351,6 +351,8 @@ public class NNArray {
                 kernelParameters, null // Kernel- and extra parameters
         );
         if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+
+        matrix.IsNan(matrix);
     }
 
     public void add(float val) {
@@ -1398,7 +1400,7 @@ public class NNArray {
                     "#define MAX_FLOAT_EXP 		80\n" +
                     "#include <cuda_fp16.h>\n" +
 
-                    "__device__ float SharedMemorySize = 110 * 110;\n" +
+                    "__device__ int SharedMemorySize = 64 * 1024 / 4;\n" +
 
                     "extern \"C\"\n" +
                     "__global__ void fill(float* A, float alpha, int numElements)\n" +
@@ -2450,7 +2452,7 @@ public class NNArray {
                     "    int i = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (k < row && i < column)\n" +
                     "    {\n" +
-                    "       int idx = k * blockDim.y * gridDim.y + i;\n" +
+                    "       int idx = k * column + i;\n" +
                     "       if (idx < SharedMemorySize) {\n" +
                     "           shared[idx] = error[idx];\n" +
                     "       }\n" +
@@ -2461,7 +2463,7 @@ public class NNArray {
                     "       data[indexI] = 0.0f;\n" +
                     "       int indexJ = index;\n" +
                     "       float o = output[indexI];\n" +
-                    "       float sum = 0;\n" +
+                    "       float sum = 0.0f;\n" +
                     "       for (int j = 0; j < column; j++, indexJ++) {\n" +
                     "           if (i != j) {\n" +
                     "               value = o * -output[indexJ];\n" +

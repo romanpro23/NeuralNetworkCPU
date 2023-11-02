@@ -330,6 +330,8 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 derWeightQuery[j].add(inputT.dot(errorQuery));
                 derWeightValue[j].add(inputT.dot(errorValue));
             }
+
+            errorInput.IsNan(errorInput);
         }
 
         return errorInput;

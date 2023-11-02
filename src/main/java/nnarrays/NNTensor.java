@@ -112,7 +112,7 @@ public class NNTensor extends NNArray {
     public void set(int i, int j, int k, float value) {
         if (Use.CPU) {
             data[rowsIndex[i] + columnsIndex[j] + k] = value;
-            sdata[rowsIndex[i] + columnsIndex[j] + k] = Ieee754Binary16.floatToBinary16ShortBits(value);
+            //sdata[rowsIndex[i] + columnsIndex[j] + k] = Ieee754Binary16.floatToBinary16ShortBits(value);
         }
 
         if (Use.GPU) {

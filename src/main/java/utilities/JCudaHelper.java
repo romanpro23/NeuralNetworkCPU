@@ -6,6 +6,7 @@ import java.io.*;
 import static jcuda.driver.JCudaDriver.cuModuleLoad;
 import static jcuda.runtime.JCuda.cudaDeviceSetCacheConfig;
 import static jcuda.runtime.JCuda.cudaFuncGetAttributes;
+import static jcuda.runtime.cudaFuncCache.cudaFuncCachePreferL1;
 import static jcuda.runtime.cudaFuncCache.cudaFuncCachePreferShared;
 
 public class JCudaHelper {

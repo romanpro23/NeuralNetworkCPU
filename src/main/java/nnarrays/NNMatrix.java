@@ -18,11 +18,14 @@ import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
-import static jcuda.driver.JCudaDriver.cuLaunchKernel;
-import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.driver.JCudaDriver.*;
 import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaFuncAttribute.cudaFuncAttributeMaxDynamicSharedMemorySize;
+import static jcuda.runtime.cudaFuncAttribute.cudaFuncAttributePreferredSharedMemoryCarveout;
 import static jcuda.runtime.cudaFuncCache.cudaFuncCachePreferShared;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static jcuda.runtime.cudaSharedCarveout.cudaSharedmemCarveoutMaxShared;
+import static jcuda.runtime.cudaSharedMemConfig.cudaSharedMemBankSizeEightByte;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
 
@@ -350,6 +353,8 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             //JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, column, row, Pointer.to(new float[]{1.0f}), data_gpu, row, Pointer.to(new float[]{0.0f}), new Pointer(), row, nnMatrix.data_gpu, nnMatrix.row);
             JCublas2.cublasSgeam( cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, row, column, Pointer.to(new float[]{1.0f}), data_gpu, column, Pointer.to(new float[]{0.0f}), new Pointer(), column, nnMatrix.data_gpu, row);
+
+            IsNan();
         }
 
         return nnMatrix;
@@ -411,6 +416,9 @@ public class NNMatrix extends NNArray {
         }
 
         if (Use.GPU) {
+            matrix.IsNan(matrix);
+            IsNan();
+
             NNMatrix transpose = matrix.transpose();
             gemm(1.0f, this, transpose, 0.0f, result);
         }
@@ -665,7 +673,10 @@ public class NNMatrix extends NNArray {
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
             int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
 
-            cuLaunchKernel(function,
+            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributePreferredSharedMemoryCarveout, cudaSharedmemCarveoutMaxShared);
+            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributeMaxDynamicSharedMemorySize, SharedMemorySizeGPU);
+
+                    cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
                     SharedMemorySizeGPU, null,               // Shared memory size and stream
@@ -867,6 +878,19 @@ public class NNMatrix extends NNArray {
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
             int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            /*int NumBlocks = getNumBlocks(row * column, 64, 128);
+            int NumThreads = getNumThreads(row * column,64, 128);
+
+            int sharedMemSize = NumThreads * Sizeof.FLOAT;
+            if (NumThreads <= 32)
+            {
+                sharedMemSize *= 2;
+            }*/
+
+            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributePreferredSharedMemoryCarveout, cudaSharedmemCarveoutMaxShared);
+            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributeMaxDynamicSharedMemorySize, SharedMemorySizeGPU);
+
             cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
@@ -879,6 +903,50 @@ public class NNMatrix extends NNArray {
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
     }
+
+    /**
+     * Compute the number of blocks that should be used for the
+     * given input size and limits
+     *
+     * @param n The input size
+     * @param maxBlocks The maximum number of blocks
+     * @param maxThreads The maximum number of threads
+     * @return The number of blocks
+     */
+    private static int getNumBlocks(int n, int maxBlocks, int maxThreads)
+    {
+        int blocks = 0;
+        int threads = getNumThreads(n, maxBlocks, maxThreads);
+        blocks = (n + (threads * 2 - 1)) / (threads * 2);
+        blocks = Math.min(maxBlocks, blocks);
+        return blocks;
+    }
+
+
+    private static int getNumThreads(int n, int maxBlocks, int maxThreads)
+    {
+        int threads = 0;
+        threads = (n < maxThreads * 2) ? nextPow2((n + 1) / 2) : maxThreads;
+        return threads;
+    }
+
+    /**
+     * Returns the power of 2 that is equal to or greater than x
+     *
+     * @param x The input
+     * @return The next power of 2
+     */
+    private static int nextPow2(int x)
+    {
+        --x;
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        x |= x >> 16;
+        return ++x;
+    }
+
 
     @Override
     public String toString() {

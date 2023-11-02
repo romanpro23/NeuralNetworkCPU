@@ -374,6 +374,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
         }
 
+        errorNorm.IsNan(errorNorm);
+
         return errorNorm;
     }
 

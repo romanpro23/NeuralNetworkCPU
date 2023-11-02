@@ -21,6 +21,8 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.cublasHandle;
 import static utilities.GPUInit.helperModule;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public final class NNArrays {
 
@@ -32,7 +34,9 @@ public final class NNArrays {
         NNVector[] arr = new NNVector[batch.length];
         for (int i = 0; i < arr.length; i++) {
             if (Use.CPU) {
+                GPU_Sleep();
                 arr[i] = new NNVector(batch[i]);
+                GPU_WakeUp();
             }
 
             if (Use.GPU) {

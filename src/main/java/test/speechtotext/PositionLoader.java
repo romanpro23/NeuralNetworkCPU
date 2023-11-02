@@ -28,7 +28,7 @@ public class PositionLoader extends DataLoader3D {
         test = new ArrayList<>();
 
         try {
-            Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetwork/data/ka_chars.txt"), StandardCharsets.UTF_8);
+            Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_chars.txt"), StandardCharsets.UTF_8);
             uaChars.put(NLP.PAD, ' ');
             codeUaChars.put(' ', NLP.PAD);
 
@@ -143,7 +143,7 @@ public class PositionLoader extends DataLoader3D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 200) {
+                    if (wwq == 100) {
                         return;
                     }
 
