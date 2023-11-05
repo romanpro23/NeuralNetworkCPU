@@ -354,6 +354,26 @@ public class NNMatrix extends NNArray {
             //JCublas2.cublasSgeam(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, column, row, Pointer.to(new float[]{1.0f}), data_gpu, row, Pointer.to(new float[]{0.0f}), new Pointer(), row, nnMatrix.data_gpu, nnMatrix.row);
             JCublas2.cublasSgeam( cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, row, column, Pointer.to(new float[]{1.0f}), data_gpu, column, Pointer.to(new float[]{0.0f}), new Pointer(), column, nnMatrix.data_gpu, row);
 
+            /*int row = this.column;
+            int column = this.row;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "transpose");
+            Pointer kernelParameters = Pointer.to(Pointer.to(nnMatrix.getData_gpu()), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributeMaxDynamicSharedMemorySize, (BLOCK_SIZE + 1) * 2);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    (BLOCK_SIZE + 1) * 2, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();*/
+
             IsNan();
         }
 

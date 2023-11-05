@@ -4,6 +4,8 @@ import data.loaders.DataLoader3D;
 import data.loaders.ImageData3D;
 import data.loaders.TransformData;
 import data.nlp.NLP;
+import jcuda.Pointer;
+import jcuda.Sizeof;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
 import utilities.Use;
@@ -14,6 +16,9 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
 public class PositionLoader extends DataLoader3D {
     private LinkedHashMap<Integer, Character> uaChars;
@@ -133,7 +138,7 @@ public class PositionLoader extends DataLoader3D {
 
                     NNVector output = codeString(label);
 
-                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData(), inputsData.getSdata());
+                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
                     Use.CPU = false;
 
                     train.add(new ImageData3D(ImageTensor, output));
@@ -143,7 +148,7 @@ public class PositionLoader extends DataLoader3D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 100) {
+                    if (wwq == 999) {
                         return;
                     }
 
@@ -159,6 +164,10 @@ public class PositionLoader extends DataLoader3D {
         for (int j = 0; j < input.size(); j++) {
             float value = ((float) codeUaChars.get(chars[j]));
             input.set(j, value);
+        }
+
+        if (Use.GPU) {
+            cudaMemcpy(input.getData_gpu(), Pointer.to(input.getData()), (long) Sizeof.FLOAT * input.size(), cudaMemcpyHostToDevice);
         }
 
         return input;

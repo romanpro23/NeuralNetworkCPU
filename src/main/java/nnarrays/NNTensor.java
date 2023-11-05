@@ -5,15 +5,12 @@ import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
-import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -22,8 +19,6 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
-import static utilities.Use.GPU_Sleep;
-import static utilities.Use.GPU_WakeUp;
 
 public class NNTensor extends NNArray {
     @Getter
@@ -90,16 +85,6 @@ public class NNTensor extends NNArray {
         initialize();
     }
 
-    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata) {
-        super(data, sdata);
-        this.depth = depth;
-        this.columns = columns;
-        this.rows = rows;
-        countAxes = 3;
-
-        initialize();
-    }
-
     @Override
     public int[] shape() {
         return new int[]{rows, columns, depth};
@@ -112,7 +97,6 @@ public class NNTensor extends NNArray {
     public void set(int i, int j, int k, float value) {
         if (Use.CPU) {
             data[rowsIndex[i] + columnsIndex[j] + k] = value;
-            //sdata[rowsIndex[i] + columnsIndex[j] + k] = Ieee754Binary16.floatToBinary16ShortBits(value);
         }
 
         if (Use.GPU) {
@@ -698,7 +682,7 @@ public class NNTensor extends NNArray {
         if (Use.GPU) {
             //long start0 = System.nanoTime();
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "imageVector_half");
+            cuModuleGetFunction(function, helperModule, "imageVector");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
             int blockSizeX = (int) Math.min((double) rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
             int blockSizeY = (int) Math.min((double) columns / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));

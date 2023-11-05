@@ -1,8 +1,14 @@
 package neural_network.initialization;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
 import nnarrays.*;
+import utilities.Use;
 
 import java.util.Random;
+
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
 public abstract class Initializer {
     protected float range;
@@ -17,14 +23,40 @@ public abstract class Initializer {
     public abstract void initialize(NNTensor4D weight);
 
     protected void initializeNormal(NNArray weight) {
+        if ((Use.GPU) && (!Use.CPU)) {
+            weight.data = new float[weight.size()];
+        }
+
+        Use.CPU = true;
         for (int i = 0; i < weight.size(); i++) {
             weight.set(i, (float) (random.nextGaussian() * range));
+        }
+        Use.CPU = false;
+
+        if (Use.GPU) {
+            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getData()), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
+            if (!Use.CPU) {
+                weight.data = null;
+            }
         }
     }
 
     protected void initializeUniform(NNArray weight) {
+        if ((Use.GPU) && (!Use.CPU)) {
+            weight.data = new float[weight.size()];
+        }
+
+        Use.CPU = true;
         for (int i = 0; i < weight.size(); i++) {
             weight.set(i, (float) ((Math.random() - 0.5) * range));
+        }
+        Use.CPU = false;
+
+        if (Use.GPU) {
+            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getData()), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
+            if (!Use.CPU) {
+                weight.data = null;
+            }
         }
     }
 

@@ -5,12 +5,10 @@ import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
-import jcuda.jcublas.cublasOperation;
 import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
-import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;
@@ -23,20 +21,16 @@ import static java.lang.Math.pow;
 import static java.lang.Math.signum;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
-import static jcuda.jcublas.JCublas2.*;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
-import static utilities.JCudaHelper.CONTEXT;
 
 @NoArgsConstructor
 public class NNArray {
     @Getter
-    protected float data[];
-    @Getter
-    protected short sdata[];
+    public float[] data;
     @Getter
     protected Pointer data_gpu;
     protected int size;
@@ -50,7 +44,6 @@ public class NNArray {
 
         if (Use.CPU) {
             this.data = new float[size];
-            this.sdata = new short[size];
         }
 
         if (Use.GPU) {
@@ -71,23 +64,6 @@ public class NNArray {
 
         if (Use.CPU) {
             this.data = data;
-        }
-
-        if (Use.GPU) {
-            this.data_gpu = new Pointer();
-            cudaMalloc(this.data_gpu, (long) Sizeof.FLOAT * this.size);
-            cudaMemcpy(this.data_gpu, Pointer.to(sdata), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
-
-            allocatedPut();
-        }
-    }
-
-    public NNArray(float[] data, short[] sdata) {
-        this.size = data.length;
-
-        if (Use.CPU) {
-            this.data = data;
-            this.sdata = sdata;
         }
 
         if (Use.GPU) {
@@ -133,7 +109,7 @@ public class NNArray {
         if (Use.CPU) {
             data[i] = value;
         }
-        if (Use.GPU) {
+        /*if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "set");
             Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new float[]{value}));
@@ -146,7 +122,7 @@ public class NNArray {
                     kernelParameters, null // Kernel- and extra parameters
             );
             //if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-        }
+        }*/
     }
 
     public float get(int i) {
@@ -1094,11 +1070,6 @@ public class NNArray {
             randomArray[i] = (float) Math.random();
         }
 
-        short[] randomArray_short = new short[n];
-        for (int i = 0; i < n; i++) {
-            randomArray_short[i] = Ieee754Binary16.floatToBinary16ShortBits((float) Math.random());
-        }
-
         NNArray randomArrayGPU = new NNArray(randomArray);
 
         cuModuleGetFunction(function, helperModule, "dropout");
@@ -1401,6 +1372,7 @@ public class NNArray {
                     "#include <cuda_fp16.h>\n" +
 
                     "__device__ int SharedMemorySize = 64 * 1024 / 4;\n" +
+                    "__device__ const int BLOCK_DIM = 32;\n" +
 
                     "extern \"C\"\n" +
                     "__global__ void fill(float* A, float alpha, int numElements)\n" +
@@ -1458,27 +1430,6 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void imageVector_half(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
-                    "{\n" +
-                    "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
-                    "    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
-                    "    const int z = blockDim.z * blockIdx.z + threadIdx.z;\n" +
-                    "    if (h < rows && w < columns && z < sizeKernel)\n" +
-                    "    {\n" +
-                    "        int sizeKernel_X_depth = sizeKernel * depth;\n" +
-                    "        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;\n" +
-                    "        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;\n" +
-                    "        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;\n" +
-                    "        for (int k = 0; k < sizeKernel; k++) {\n" +
-                    "            int indexInput = (h + z) * depth * columns + (w + k) * depth;\n" +
-                    "            for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
-                    "                C[index] = A[indexInput];\n" +
-                    "            }\n" +
-                    "        }\n" +
-                    "    }\n" +
-                    "}\n" +
-
-                    "extern \"C\"\n" +
                     "__global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
@@ -1502,21 +1453,22 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void add3(const float* __restrict__ A, float* C, int rows, int columns)\n" +
                     "{\n" +
-                    "    __device__ extern __shared__ float shared[];\n" +
+                    //"    extern __shared__ float shared[];\n" +
                     "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (h < rows && w < columns) {\n" +
-                    "       if (w < SharedMemorySize) {\n" +
+                    /*"       if (w < SharedMemorySize) {\n" +
                     "           shared[w] = A[w];\n" +
                     "       }\n" +
-                    "       __syncthreads();\n" +
+                    "       __syncthreads();\n" +*/
                     "       int index = h * blockDim.y * gridDim.y + w;\n" +
-                    "       if (w < SharedMemorySize) {\n" +
-                    "           C[index] += shared[w];\n" +
-                    "       }\n" +
-                    "       else {\n" +
+                    "       w = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    //"       if (w < SharedMemorySize) {\n" +
+                    //"           C[index] += shared[w];\n" +
+                    //"       }\n" +
+                    //"       else {\n" +
                     "          C[index] += A[w];\n" +
-                    "       }\n" +
+                    //"       }\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -1928,7 +1880,7 @@ public class NNArray {
                     "    }\n" +
                     "}\n" +
 
-                    "__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
+                    /*"__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
                     "{\n" +
                     "    int index;\n" +
                     "    for (int i = 0; i < row; i++) {\n" +
@@ -1936,6 +1888,27 @@ public class NNArray {
                     "        for (int j = 0; j < col; j++, index++) {\n" +
                     "            result[i + j * col] = data[index];\n" +
                     "        }\n" +
+                    "    }\n" +
+                    "}\n" +*/
+
+                    "extern \"C\"\n" +
+                    "__global__ void transpose(float* odata, const float* __restrict__ idata, int width, int height)\n" +
+                    "{\n" +
+                    "    __shared__ float block[BLOCK_DIM][BLOCK_DIM+1];\n" +
+                    "    unsigned int xIndex = blockIdx.x * BLOCK_DIM + threadIdx.x;\n" +
+                    "    unsigned int yIndex = blockIdx.y * BLOCK_DIM + threadIdx.y;\n" +
+                    "    if((xIndex < width) && (yIndex < height))\n" +
+                    "    {\n" +
+                    "        unsigned int index_in = yIndex * width + xIndex;\n" +
+                    "        block[threadIdx.y][threadIdx.x] = idata[index_in];\n" +
+                    "    }\n" +
+                    "    __syncthreads();\n" +
+                    "    xIndex = blockIdx.y * BLOCK_DIM + threadIdx.x;\n" +
+                    "    yIndex = blockIdx.x * BLOCK_DIM + threadIdx.y;\n" +
+                    "    if((xIndex < height) && (yIndex < width))\n" +
+                    "    {\n" +
+                    "        unsigned int index_out = yIndex * height + xIndex;\n" +
+                    "        odata[index_out] = block[threadIdx.x][threadIdx.y];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -2447,35 +2420,36 @@ public class NNArray {
                     "extern \"C\"\n" +
                     "__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)\n" +
                     "{\n" +
-                    "    __device__ extern __shared__ float shared[];\n" +
+                    //"    extern __shared__ float shared[];\n" +
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int i = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    int idx = k * blockDim.y * gridDim.y + i;\n" +
                     "    if (k < row && i < column)\n" +
                     "    {\n" +
-                    "       int idx = k * column + i;\n" +
-                    "       if (idx < SharedMemorySize) {\n" +
+                    /*"       if (idx < SharedMemorySize) {\n" +
                     "           shared[idx] = error[idx];\n" +
                     "       }\n" +
-                    "       __syncthreads();\n" +
-                    "       float value;\n" +
+                    "       __syncthreads();\n" +*/
+                    "       k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "       i = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "       float value = 0.0f;\n" +
                     "       int index = k * column;\n" +
                     "       int indexI = index + i;\n" +
                     "       data[indexI] = 0.0f;\n" +
-                    "       int indexJ = index;\n" +
                     "       float o = output[indexI];\n" +
                     "       float sum = 0.0f;\n" +
-                    "       for (int j = 0; j < column; j++, indexJ++) {\n" +
+                    "       for (int j = 0; j < column; j++) {\n" +
+                    "           int indexJ = index + j;\n" +
                     "           if (i != j) {\n" +
                     "               value = o * -output[indexJ];\n" +
                     "           } else {\n" +
                     "               value = o * (1.0f - o);\n" +
                     "           }\n" +
-                    "         if (indexJ < SharedMemorySize) {\n" +
-                    "             sum += shared[indexJ] * value;\n" +
-                    "         }\n" +
-                    "         else {\n" +
-                    "             sum += error[indexJ] * value;\n" +
-                    "         }\n" +
+                    //"           if (indexJ < SharedMemorySize) {\n" +
+                    //"               sum += shared[indexJ] * value;\n" +
+                    //"           } else {\n" +
+                    "               sum += error[indexJ] * value;\n" +
+                    //"           }\n" +
                     "        }\n" +
                     "        data[indexI] = sum;\n" +
                     "    }\n" +

@@ -2,6 +2,7 @@ const __device__ float epsilon = 0.001f;
 #define MAX_FLOAT_EXP 		80
 #include <cuda_fp16.h>
 __device__ int SharedMemorySize = 64 * 1024 / 4;
+__device__ const int BLOCK_DIM = 32;
 extern "C"
 __global__ void fill(float* A, float alpha, int numElements)
 {
@@ -53,26 +54,6 @@ __global__ void imageVector(const float* __restrict__ A, float* C, int rows, int
     }
 }
 extern "C"
-__global__ void imageVector_half(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)
-{
-    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;
-    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;
-    const int z = blockDim.z * blockIdx.z + threadIdx.z;
-    if (h < rows && w < columns && z < sizeKernel)
-    {
-        int sizeKernel_X_depth = sizeKernel * depth;
-        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;
-        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;
-        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;
-        for (int k = 0; k < sizeKernel; k++) {
-            int indexInput = (h + z) * depth * columns + (w + k) * depth;
-            for (int c = 0; c < depth; c++, index++, indexInput++) {
-                C[index] = A[indexInput];
-            }
-        }
-    }
-}
-extern "C"
 __global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)
 {
     const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;
@@ -95,21 +76,12 @@ __global__ void backImageVector(const float* __restrict__ A, float* C, int rows,
 extern "C"
 __global__ void add3(const float* __restrict__ A, float* C, int rows, int columns)
 {
-    __device__ extern __shared__ float shared[];
     int h = blockDim.x * blockIdx.x + threadIdx.x;
     int w = blockDim.y * blockIdx.y + threadIdx.y;
     if (h < rows && w < columns) {
-       if (w < SharedMemorySize) {
-           shared[w] = A[w];
-       }
-       __syncthreads();
        int index = h * blockDim.y * gridDim.y + w;
-       if (w < SharedMemorySize) {
-           C[index] += shared[w];
-       }
-       else {
+       w = blockDim.y * blockIdx.y + threadIdx.y;
           C[index] += A[w];
-       }
     }
 }
 extern "C"
@@ -387,14 +359,24 @@ __global__ void dot(float* const __restrict__ a, const float* __restrict__ b, fl
        result[i * col2 + j] = sum;
     }
 }
-__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)
+extern "C"
+__global__ void transpose(float* odata, const float* __restrict__ idata, int width, int height)
 {
-    int index;
-    for (int i = 0; i < row; i++) {
-        index = i * col;
-        for (int j = 0; j < col; j++, index++) {
-            result[i + j * col] = data[index];
-        }
+    __shared__ float block[BLOCK_DIM][BLOCK_DIM+1];
+    unsigned int xIndex = blockIdx.x * BLOCK_DIM + threadIdx.x;
+    unsigned int yIndex = blockIdx.y * BLOCK_DIM + threadIdx.y;
+    if((xIndex < width) && (yIndex < height))
+    {
+        unsigned int index_in = yIndex * width + xIndex;
+        block[threadIdx.y][threadIdx.x] = idata[index_in];
+    }
+    __syncthreads();
+    xIndex = blockIdx.y * BLOCK_DIM + threadIdx.x;
+    yIndex = blockIdx.x * BLOCK_DIM + threadIdx.y;
+    if((xIndex < height) && (yIndex < width))
+    {
+        unsigned int index_out = yIndex * height + xIndex;
+        odata[index_out] = block[threadIdx.x][threadIdx.y];
     }
 }
 __device__ size_t getGlobalIdx_3D_3D()
@@ -638,35 +620,27 @@ __global__ void Softmax(const float* __restrict__ input, float* data, int column
 extern "C"
 __global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)
 {
-    __device__ extern __shared__ float shared[];
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     int i = blockDim.y * blockIdx.y + threadIdx.y;
+    int idx = k * blockDim.y * gridDim.y + i;
     if (k < row && i < column)
     {
-       int idx = k * column + i;
-       if (idx < SharedMemorySize) {
-           shared[idx] = error[idx];
-       }
-       __syncthreads();
-       float value;
+       k = blockDim.x * blockIdx.x + threadIdx.x;
+       i = blockDim.y * blockIdx.y + threadIdx.y;
+       float value = 0.0f;
        int index = k * column;
        int indexI = index + i;
        data[indexI] = 0.0f;
-       int indexJ = index;
        float o = output[indexI];
        float sum = 0.0f;
-       for (int j = 0; j < column; j++, indexJ++) {
+       for (int j = 0; j < column; j++) {
+           int indexJ = index + j;
            if (i != j) {
                value = o * -output[indexJ];
            } else {
                value = o * (1.0f - o);
            }
-         if (indexJ < SharedMemorySize) {
-             sum += shared[indexJ] * value;
-         }
-         else {
-             sum += error[indexJ] * value;
-         }
+               sum += error[indexJ] * value;
         }
         data[indexI] = sum;
     }
