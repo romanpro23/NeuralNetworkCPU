@@ -1,6 +1,7 @@
 const __device__ float epsilon = 0.001f;
 #define MAX_FLOAT_EXP 		80
 #include <cuda_fp16.h>
+#include <cfloat>
 __device__ int SharedMemorySize = 64 * 1024 / 4;
 __device__ const int BLOCK_DIM = 32;
 extern "C"
@@ -584,7 +585,7 @@ __global__ void matrixMultiplicationKernel(const float* __restrict__ A, const fl
     int c = blockIdx.x * blockDim.x + threadIdx.x;
     const int index = r * blockDim.y * gridDim.y + c;
     if (index < P * Q) {
-        float value = (float)(0.0);
+        float value = 0.0f;
         for(int k = 0; k < width; k++) {
             value += A[r * width + k] * B[k * Q + c];
         }
@@ -597,7 +598,7 @@ __global__ void Softmax(const float* __restrict__ input, float* data, int column
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     if (k < numElements)
     {
-       float sum = 0;
+       float sum = 0.0f;
        int index = k * column;
        float max = input[index];
        for (int i = 1; i < column; i++, index++) {
@@ -605,10 +606,21 @@ __global__ void Softmax(const float* __restrict__ input, float* data, int column
                max = input[index];
        }
        index = k * column;
-       float E = 2.718281828459045f;
+       double E = 2.718281828459045;
        for (int i = 0; i < column; i++, index++) {
-           data[index] = (float)(pow(E, input[index] - max));
-               sum += data[index];
+           double val = pow(E, ((double)input[index] - max));
+           float valf = 0.0f;
+           if (val > FLT_MAX) {
+               valf = FLT_MAX;
+           } else {
+               valf = ((float)val);
+           }
+           if (sum + valf + 0.00000001f > FLT_MAX) {
+               sum = FLT_MAX;
+           } else {
+               sum += valf;
+           }
+           data[index] = valf;
        }
        sum += 0.00000001f;
        index = k * column;

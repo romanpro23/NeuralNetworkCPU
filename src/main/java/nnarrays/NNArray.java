@@ -1370,6 +1370,7 @@ public class NNArray {
                     "const __device__ float epsilon = 0.001f;\n" +
                     "#define MAX_FLOAT_EXP 		80\n" +
                     "#include <cuda_fp16.h>\n" +
+                    "#include <cfloat>\n" +
 
                     "__device__ int SharedMemorySize = 64 * 1024 / 4;\n" +
                     "__device__ const int BLOCK_DIM = 32;\n" +
@@ -2179,7 +2180,7 @@ public class NNArray {
                     "    int c = blockIdx.x * blockDim.x + threadIdx.x;\n" +
                     "    const int index = r * blockDim.y * gridDim.y + c;\n" +
                     "    if (index < P * Q) {\n" +
-                    "        float value = (float)(0.0);\n" +
+                    "        float value = 0.0f;\n" +
                     "        for(int k = 0; k < width; k++) {\n" +
                     "            value += A[r * width + k] * B[k * Q + c];\n" +
                     "        }\n" +
@@ -2193,7 +2194,7 @@ public class NNArray {
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (k < numElements)\n" +
                     "    {\n" +
-                    "       float sum = 0;\n" +
+                    "       float sum = 0.0f;\n" +
                     "       int index = k * column;\n" +
                     "       float max = input[index];\n" +
                     "       for (int i = 1; i < column; i++, index++) {\n" +
@@ -2201,14 +2202,21 @@ public class NNArray {
                     "               max = input[index];\n" +
                     "       }\n" +
                     "       index = k * column;\n" +
-                    "       float E = 2.718281828459045f;\n" +
+                    "       double E = 2.718281828459045;\n" +
                     "       for (int i = 0; i < column; i++, index++) {\n" +
-                    "           data[index] = (float)(pow(E, input[index] - max));\n" +
-                    //"           if (sum + data[index] + 0.00000001 > Float.MAX_VALUE) {\n" +
-                    //"               sum = Float.MAX_VALUE;\n" +
-                    //"           } else {\n" +
-                    "               sum += data[index];\n" +
-                    //"           }\n" +
+                    "           double val = pow(E, ((double)input[index] - max));\n" +
+                    "           float valf = 0.0f;\n" +
+                    "           if (val > FLT_MAX) {\n" +
+                    "               valf = FLT_MAX;\n" +
+                    "           } else {\n" +
+                    "               valf = ((float)val);\n" +
+                    "           }\n" +
+                    "           if (sum + valf + 0.00000001f > FLT_MAX) {\n" +
+                    "               sum = FLT_MAX;\n" +
+                    "           } else {\n" +
+                    "               sum += valf;\n" +
+                    "           }\n" +
+                    "           data[index] = valf;\n" +
                     "       }\n" +
                     "       sum += 0.00000001f;\n" +
                     "       index = k * column;\n" +

@@ -54,11 +54,11 @@ public class PositionLoader extends DataLoader3D {
     @Override
     public void reloadTrainData() {
 
-        String fileName = "C:/Levani/cv-corpus-14.0-2023-06-23/ka/validated.tsv";
+        String fileName = "C:/Levani/cv-corpus-15.0-2023-09-08/ka/validated.tsv";
         File file = new File(fileName);
         ArrayList<String[]> data = tsvr(file);
 
-        File folder = new File("C:/tesstrain-windows-gui-main/SpeechToSpeech-0.012/images/");
+        File folder = new File("C:/Levani/SpeechToSpeech-0.013/images/");
         File[] listOfFiles = folder.listFiles();
 
         TransformData transformData = new TransformData.Sigmoid();
@@ -77,7 +77,7 @@ public class PositionLoader extends DataLoader3D {
                 int width = img.getWidth();
                 int height = img.getHeight();
 
-                int size_width = 488;
+                int size_width = 492;
 
                 if (width > size_width) {
                     try {
