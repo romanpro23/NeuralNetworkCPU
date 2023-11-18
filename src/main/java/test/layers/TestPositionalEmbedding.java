@@ -9,6 +9,6 @@ public class TestPositionalEmbedding {
         PositionalEmbeddingLayer layer = new PositionalEmbeddingLayer();
         layer.initialize(new int[]{100, 512});
 
-        ImageCreator.drawImage(new NNTensor(100, 512, 1, layer.getPositionalVal().getData()), 100, 512, "_position", "D:/NetworkTest/Transformer", true);
+        ImageCreator.drawImage(new NNTensor(100, 512, 1, layer.getPositionalVal().getData(), layer.getPositionalVal().getSdata()), 100, 512, "_position", "D:/NetworkTest/Transformer", true);
     }
 }

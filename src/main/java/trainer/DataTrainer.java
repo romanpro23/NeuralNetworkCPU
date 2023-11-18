@@ -3,6 +3,13 @@ package trainer;
 import data.loaders.DataLoader;
 import data.network_train.NNData;
 import neural_network.network.NeuralNetwork;
+import nnarrays.NNMatrix;
+import utilities.Use;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static neural_network.layers.NeuralLayer.CallGarbageCollector;
 
 public class DataTrainer {
     private DataLoader loader;

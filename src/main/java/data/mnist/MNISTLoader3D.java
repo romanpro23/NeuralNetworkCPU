@@ -88,7 +88,7 @@ public class MNISTLoader3D extends DataLoader3D {
                 generateInput();
                 NNVector output = new NNVector(batchMNIST.getCountClass());
                 output.set(trueNumb, 1);
-                train.add(new ImageData3D(new NNTensor(28, 28, 1, inputsData), output));
+                train.add(new ImageData3D(new NNTensor(28, 28, 1, inputsData, null), output));
             }
         }
         Collections.shuffle(train);
@@ -103,7 +103,7 @@ public class MNISTLoader3D extends DataLoader3D {
                 generateInput();
                 NNVector output = new NNVector(batchMNIST.getCountClass());
                 output.set(trueNumb, 1);
-                test.add(new ImageData3D(new NNTensor(28, 28, 1, inputsData), output));
+                test.add(new ImageData3D(new NNTensor(28, 28, 1, inputsData, null), output));
             }
         }
         Collections.shuffle(test);
@@ -114,6 +114,6 @@ public class MNISTLoader3D extends DataLoader3D {
         for (int i = 0; i < 784; i++) {
             inputsData[i] = transformData.transform(bytes[i]);
         }
-        inputsData = new NNMatrix(28,28, inputsData).transpose().getData();
+        inputsData = new NNMatrix(28,28, inputsData, null).transpose().getData();
     }
 }

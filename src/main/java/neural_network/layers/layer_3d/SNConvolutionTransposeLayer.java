@@ -111,7 +111,7 @@ public class SNConvolutionTransposeLayer extends NeuralLayer3D {
     }
 
     private float spectralNorm() {
-        NNMatrix weightM = new NNMatrix(depth, v.size(), weight.getData());
+        NNMatrix weightM = new NNMatrix(depth, v.size(), weight.getData(),  weight.getSdata());
 
         v.clear();
         v.addMulT(u, weightM);

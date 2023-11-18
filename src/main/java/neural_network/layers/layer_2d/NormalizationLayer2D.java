@@ -117,7 +117,6 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 findVariance(i);
                 normalization(i);
             }
-            //NormalizationLayerForward2D();
         }
     }
 
@@ -190,8 +189,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         if (Use.GPU) {
             int p = var[n].size();
             Pointer varSqrt_Pointer = new Pointer();
-            cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.FLOAT);
-            cudaMemset(varSqrt_Pointer, 0, (long) p * Sizeof.FLOAT);
+            cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.SHORT);
+            cudaMemset(varSqrt_Pointer, 0, (long) p * Sizeof.SHORT);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "normalization_part_1");
@@ -205,8 +204,10 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     kernelParameters, null // Kernel- and extra parameters
             );
 
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                var[n].IsNan(var[n]);
+            }
 
             CUfunction function2 = new CUfunction();
             cuModuleGetFunction(function2, helperModule, "normalization_part_2");
@@ -223,7 +224,15 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     kernelParameters2, null // Kernel- and extra parameters
             );
 
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+                normOutput[n].IsNan(normOutput[n]);
+                normOutput[n].IsNan(gamma);
+                normOutput[n].IsNan(betta);
+                output[n].IsNan(output[n]);
+            }
 
             JCuda.cudaFree(varSqrt_Pointer);
         }
@@ -254,7 +263,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+            }
         }
         mean[n].div(depth);
     }
@@ -284,7 +297,12 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+                var[n].IsNan(var[n]);
+            }
         }
         var[n].div(depth);
     }
@@ -371,10 +389,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                errorNorm.IsNan(errorNorm);
+                errorNorm.IsNan(errorNL[n]);
+                errorNorm.IsNan(gamma);
+            }
         }
-
-        errorNorm.IsNan(errorNorm);
 
         return errorNorm;
     }
@@ -402,13 +423,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
         if (Use.GPU) {
             Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.FLOAT);
-            cudaMemset(dVar_Pointer, 0,(long) var[n].size() * Sizeof.FLOAT);
+            cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.SHORT);
+            cudaMemset(dVar_Pointer, 0,(long) var[n].size() * Sizeof.SHORT);
 
             int p = var[n].size();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derVar_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(new float[]{epsilon}), Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
             int blockSize = Math.min(p, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) p / blockSize);
             cuLaunchKernel(function,
@@ -417,9 +438,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                var[n].IsNan(var[n]);
+            }
 
-            var[n].IsNan(var[n]);
 
             CUfunction function2 = new CUfunction();
             cuModuleGetFunction(function2, helperModule, "derVar_part_2");
@@ -434,11 +457,12 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     kernelParameters2, null // Kernel- and extra parameters
             );
 
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            input[n].IsNan(input[n]);
-            mean[n].IsNan(mean[n]);
-            derVariance.IsNan(derVariance);
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+                derVariance.IsNan(derVariance);
+            }
 
             p = derVariance.size();
             CUfunction function3 = new CUfunction();
@@ -452,11 +476,12 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters3, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                derVariance.IsNan(derVariance);
+            }
 
             JCuda.cudaFree(dVar_Pointer);
-
-            derVariance.IsNan(derVariance);
         }
         return derVariance;
     }
@@ -466,7 +491,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
         if (Use.CPU) {
             float[] dMean = new float[mean[n].size()];
-            double[] dVar = new double[var[n].size()];
+            float[] dVar = new float[var[n].size()];
+
             for (int i = 0; i < var[n].size(); i++) {
                 dMean[i] = (float) (-1.0f / Math.sqrt(var[n].get(i) + epsilon));
             }
@@ -475,27 +501,26 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             for (int j = 0; j < width; j++) {
                 for (int k = 0; k < depth; k++, index++) {
                     derMean.getData()[j] += error.get(index);
-                    dVar[j] += ((double)input[n].get(index)) - (mean[n].get(j));
+                    dVar[j] += input[n].get(index) - mean[n].get(j);
                 }
             }
 
             for (int i = 0; i < derMean.size(); i++) {
                 derMean.getData()[i] *= dMean[i];
-                derMean.getData()[i] += (-2.0f * derVar.get(i) * dVar[i]) / (depth);
+                derMean.getData()[i] += ((-2.0f * derVar.get(i) * dVar[i]) / (depth));
             }
         }
 
         if (Use.GPU) {
-
             Pointer dMean_Pointer = new Pointer();
-            cudaMalloc(dMean_Pointer, (long) mean[n].size() * Sizeof.FLOAT);
-            cudaMemset(dMean_Pointer, 0, (long) mean[n].size() * Sizeof.FLOAT);
+            cudaMalloc(dMean_Pointer, (long) mean[n].size() * Sizeof.SHORT);
+            cudaMemset(dMean_Pointer, 0, (long) mean[n].size() * Sizeof.SHORT);
 
             int p = var[n].size();
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derMean_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(new float[]{epsilon}), Pointer.to(dMean_Pointer), Pointer.to(new int[]{p}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(dMean_Pointer), Pointer.to(new int[]{p}));
             int blockSizeX = Math.min(p, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) p / blockSizeX);
             cuLaunchKernel(function,
@@ -504,11 +529,14 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                var[n].IsNan(var[n]);
+            }
 
             Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) p * Sizeof.DOUBLE);
-            cudaMemset(dVar_Pointer, 0, (long) p * Sizeof.DOUBLE);
+            cudaMalloc(dVar_Pointer, (long) p * Sizeof.SHORT);
+            cudaMemset(dVar_Pointer, 0, (long) p * Sizeof.SHORT);
 
             CUfunction function2 = new CUfunction();
             cuModuleGetFunction(function2, helperModule, "derMean_part_2");
@@ -522,7 +550,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters2, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                error.IsNan(error);
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+                derMean.IsNan(derMean);
+            }
 
             p = derMean.size();
             CUfunction function3 = new CUfunction();
@@ -536,10 +570,15 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters3, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                derVar.IsNan(derVar);
+                derMean.IsNan(derMean);
+            }
 
             JCuda.cudaFree(dMean_Pointer);
             JCuda.cudaFree(dVar_Pointer);
+            JCuda.cudaFree(kernelParameters);
         }
         return derMean;
     }
@@ -567,13 +606,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             int p = var[n].size();
 
             Pointer dVar_Pointer = new Pointer();
-            float[] init2 = new float[p];
-            cudaMalloc(dVar_Pointer, (long) p * Sizeof.FLOAT);
-            cudaMemcpy(dVar_Pointer, Pointer.to(init2), (long) p * Sizeof.FLOAT, cudaMemcpyHostToDevice);
+            short[] init2 = new short[p];
+            cudaMalloc(dVar_Pointer, (long) p * Sizeof.SHORT);
+            cudaMemcpy(dVar_Pointer, Pointer.to(init2), (long) p * Sizeof.SHORT, cudaMemcpyHostToDevice);
 
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derNorm_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(new float[]{epsilon}), Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()),  Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
             int blockSize = Math.min(p, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) p / blockSize);
             cuLaunchKernel(function,
@@ -582,9 +621,10 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            var[n].IsNan(var[n]);
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                var[n].IsNan(var[n]);
+            }
 
             int row = width;
             int column = depth;
@@ -602,13 +642,16 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters2, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                errors.IsNan(errors);
+                errorVar.IsNan(errorVar);
+                input[n].IsNan(input[n]);
+                mean[n].IsNan(mean[n]);
+                error[n].IsNan(error[n]);
+            }
 
             JCuda.cudaFree(dVar_Pointer);
-
-            errors.IsNan(errors);
-            errorVar.IsNan(errorVar);
-            input[n].IsNan(input[n]);
         }
     }
 
@@ -638,7 +681,15 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                error.IsNan(error);
+                output[n].IsNan(output[n]);
+                betta.IsNan(betta);
+                gamma.IsNan(gamma);
+                derBetta.IsNan(derBetta);
+                derGamma.IsNan(derGamma);
+            }
         }
     }
 

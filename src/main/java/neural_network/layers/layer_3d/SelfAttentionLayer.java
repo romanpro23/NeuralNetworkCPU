@@ -84,15 +84,15 @@ public class SelfAttentionLayer extends NeuralLayer3D {
         for (int t = 0; t < input.length; t++) {
             final int i = t;
             executor.execute(() -> {
-                NNMatrix query = new NNMatrix(height * width, depth / depthAttention, queryLayer.getOutput()[i].getData());
-                NNMatrix key = new NNMatrix(height * width, depth / depthAttention, keyLayer.getOutput()[i].getData()).transpose();
-                NNMatrix value = new NNMatrix(height * width, depth, valueLayer.getOutput()[i].getData()).transpose();
+                NNMatrix query = new NNMatrix(height * width, depth / depthAttention, queryLayer.getOutput()[i].getData(), queryLayer.getOutput()[i].getSdata());
+                NNMatrix key = new NNMatrix(height * width, depth / depthAttention, keyLayer.getOutput()[i].getData(), keyLayer.getOutput()[i].getSdata()).transpose();
+                NNMatrix value = new NNMatrix(height * width, depth, valueLayer.getOutput()[i].getData(), valueLayer.getOutput()[i].getSdata()).transpose();
 
                 attention[i] = new NNMatrix(height * width, height * width);
                 attention[i].softmax(query.dot(key));
 
                 attOutput[i] = (value).dot(attention[i]).transpose();
-                output[i] = new NNTensor(height, width, depth, attOutput[i].getData());
+                output[i] = new NNTensor(height, width, depth, attOutput[i].getData(), attOutput[i].getSdata());
                 output[i].mul(gamma.get(0));
                 output[i].add(inputs[i]);
             });
@@ -114,9 +114,9 @@ public class SelfAttentionLayer extends NeuralLayer3D {
         for (int t = 0; t < input.length; t++) {
             final int i = t;
             executor.execute(() -> {
-                NNMatrix query = new NNMatrix(height * width, depth / depthAttention, queryLayer.getOutput()[i].getData()).transpose();
-                NNMatrix key = new NNMatrix(height * width, depth / depthAttention, keyLayer.getOutput()[i].getData());
-                NNMatrix value = new NNMatrix(height * width, depth, valueLayer.getOutput()[i].getData());
+                NNMatrix query = new NNMatrix(height * width, depth / depthAttention, queryLayer.getOutput()[i].getData(), queryLayer.getOutput()[i].getSdata()).transpose();
+                NNMatrix key = new NNMatrix(height * width, depth / depthAttention, keyLayer.getOutput()[i].getData(), keyLayer.getOutput()[i].getSdata());
+                NNMatrix value = new NNMatrix(height * width, depth, valueLayer.getOutput()[i].getData(), valueLayer.getOutput()[i].getSdata());
 
                 NNMatrix errorOut = new NNMatrix(height * width, depth);
                 errorOut.add(errorNL[i]);
@@ -124,17 +124,17 @@ public class SelfAttentionLayer extends NeuralLayer3D {
                 errorOut = errorOut.transpose();
 
                 NNMatrix errorValue = errorOut.dot(attention[i].transpose());
-                errValue[i] = new NNTensor(height, width, depth, errorValue.transpose().getData());
+                errValue[i] = new NNTensor(height, width, depth, errorValue.transpose().getData(), errorValue.transpose().getSdata());
 
                 NNMatrix errorAttention = value.dot(errorOut);
                 NNMatrix errorEnergy = new NNMatrix(attention[i]);
                 errorEnergy.derSoftmax(attention[i], errorAttention);
 
                 NNMatrix errorKey = query.dot(errorEnergy);
-                errKey[i] = new NNTensor(height, width, depth / depthAttention, errorKey.transpose().getData());
+                errKey[i] = new NNTensor(height, width, depth / depthAttention, errorKey.transpose().getData(), errorKey.transpose().getSdata());
 
                 NNMatrix errorQuery = errorEnergy.dot(key);
-                errQuery[i] = new NNTensor(height, width, depth / depthAttention, errorQuery.getData());
+                errQuery[i] = new NNTensor(height, width, depth / depthAttention, errorQuery.getData(), errorQuery.getSdata());
 
                 if (trainable) {
                     findDerivative(attOutput[i], errorNL[i]);

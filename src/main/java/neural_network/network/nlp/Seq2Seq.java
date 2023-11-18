@@ -75,7 +75,7 @@ public class Seq2Seq {
         int word = decoder.getOutputs()[0].indexMaxElement();
         while (index < (maxLength - 1) && word != 1) {
             output.set(index, word);
-            decoder.query(new NNVector[]{new NNVector(new float[]{(float) word})});
+            decoder.query(new NNVector[]{new NNVector(new float[]{(float) word}, new short[]{(short) word})});
 
             word = decoder.getOutputs()[0].indexMaxElement();
             index++;

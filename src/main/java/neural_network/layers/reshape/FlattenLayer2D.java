@@ -8,6 +8,8 @@ import utilities.Use;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static utilities.Use.GPU_Sleep;
 import static utilities.Use.GPU_WakeUp;
@@ -60,7 +62,7 @@ public class FlattenLayer2D extends NeuralLayer {
         if (Use.CPU) {
             GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNVector(input[i].getData());
+                output[i] = new NNVector(input[i].getData(), input[i].getSdata());
             }
             GPU_WakeUp();
         }
@@ -69,9 +71,6 @@ public class FlattenLayer2D extends NeuralLayer {
             for (int i = 0; i < output.length; i++) {
                 output[i] = new NNVector(input[i].size());
                 output[i].copy(input[i]);
-
-                output[i].IsNan(output[i]);
-                input[i].IsNan(input[i]);
             }
         }
     }
@@ -89,21 +88,17 @@ public class FlattenLayer2D extends NeuralLayer {
         for (int i = 0; i < errors.length; i++) {
             if (Use.CPU) {
                 GPU_Sleep();
-                error[i] = new NNMatrix(width, depth, errorNL[i].getData());
+                error[i] = new NNMatrix(width, depth, errorNL[i].getData(), errorNL[i].getSdata());
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
                 error[i] = new NNMatrix(width, depth);
-                error[i].IsNan(error[i]);
                 error[i].copy(errorNL[i]);
-
-                error[i].IsNan(error[i]);
             }
         }
-        if (Use.GPU) {
-            CallGarbageCollector();
-        }
+
+        CallGarbageCollector();
     }
 
     public NNVector[] getErrorNextLayer(NNArray[] error) {

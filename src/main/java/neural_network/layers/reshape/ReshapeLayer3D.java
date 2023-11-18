@@ -66,7 +66,7 @@ public class ReshapeLayer3D extends NeuralLayer {
         output = new NNTensor[inputs.length];
 
         for (int i = 0; i < output.length; i++) {
-            output[i] = new NNTensor(height, width, depth, input[i].getData());
+            output[i] = new NNTensor(height, width, depth, input[i].getData(), input[i].getSdata());
         }
     }
 
@@ -81,7 +81,7 @@ public class ReshapeLayer3D extends NeuralLayer {
         error = new NNVector[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
-            error[i] = new NNVector(errorNL[i].getData());
+            error[i] = new NNVector(errorNL[i].getData(), errorNL[i].getSdata());
         }
     }
 

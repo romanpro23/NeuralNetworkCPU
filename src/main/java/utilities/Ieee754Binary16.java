@@ -1,4 +1,4 @@
-package utilities;
+/*package utilities;
 
 import static java.lang.Float.floatToIntBits;
 import static java.lang.Float.intBitsToFloat;
@@ -152,4 +152,4 @@ public class Ieee754Binary16 {//implements Comparable<Half> {
                         | ((i >> SIZE_SIGNIFICAND_D) & MASK_SIGNIFICAND)
         );
     }
-}
+}*/

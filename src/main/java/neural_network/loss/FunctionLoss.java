@@ -16,9 +16,9 @@ import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
-import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
-import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public interface FunctionLoss {
     float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs);
@@ -48,46 +48,8 @@ public interface FunctionLoss {
         public float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs) {
             float accuracy = 0;
 
-            if (Use.CPU) {
-                boolean GPU = false;
-                if (Use.GPU) {
-                    Use.GPU = false;
-                    GPU = true;
-                }
-
-                for (int i = 0; i < outputs.length; i++) {
-                    accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / outputs[i].size();
-                }
-
-                if (GPU) {
-                    Use.GPU = true;
-                }
-            }
-
-            if (Use.GPU) {
-                Pointer accuracy_gpu = new Pointer();
-                cudaMalloc(accuracy_gpu, (long) Sizeof.FLOAT);
-                cudaMemset(accuracy_gpu, 0, Sizeof.FLOAT);
-
-                for (int r = 0; r < outputs.length; r++) {
-                    Pointer sum_gpu = idealOutputs[r].sum_gpu(NNArrays.sub(idealOutputs[r], outputs[r]).pow2());
-
-                    CUfunction function = new CUfunction();
-                    cuModuleGetFunction(function, helperModule, "divide_add");
-                    Pointer kernelParameters = Pointer.to(Pointer.to(accuracy_gpu), Pointer.to(sum_gpu), Pointer.to(new int[]{outputs[r].size()}));
-                    cuLaunchKernel(function,
-                            1, 1, 1,      // Grid dimension
-                            1, 1, 1,      // Block dimension
-                            0, null,               // Shared memory size and stream
-                            kernelParameters, null // Kernel- and extra parameters
-                    );
-
-                    JCuda.cudaFree(sum_gpu);
-                }
-
-                float[] accuracyArray = new float[1];
-                cudaMemcpy(Pointer.to(accuracyArray), accuracy_gpu, (long) Sizeof.FLOAT, cudaMemcpyDeviceToHost);
-                accuracy = accuracyArray[0];
+            for (int i = 0; i < outputs.length; i++) {
+                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float)outputs[i].size());
             }
 
             return accuracy;

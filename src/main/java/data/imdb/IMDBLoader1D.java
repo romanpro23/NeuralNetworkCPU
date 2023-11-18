@@ -13,8 +13,8 @@ import java.util.Collections;
 import java.util.Scanner;
 
 public class IMDBLoader1D extends DataLoader1D {
-    private NNVector trueAns = new NNVector(new float[]{1});
-    private NNVector falseAns = new NNVector(new float[]{0});
+    private NNVector trueAns = new NNVector(new float[]{1}, new short[]{1});
+    private NNVector falseAns = new NNVector(new float[]{0}, new short[]{0});
 
     public IMDBLoader1D() {
         test = new ArrayList<>(25000);
