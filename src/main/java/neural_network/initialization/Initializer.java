@@ -1,14 +1,8 @@
 package neural_network.initialization;
 
-import jcuda.Pointer;
-import jcuda.Sizeof;
 import nnarrays.*;
-import utilities.Use;
 
 import java.util.Random;
-
-import static jcuda.runtime.JCuda.cudaMemcpy;
-import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
 public abstract class Initializer {
     protected float range;

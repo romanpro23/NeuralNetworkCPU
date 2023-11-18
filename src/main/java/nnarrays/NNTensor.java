@@ -8,6 +8,7 @@ import jcuda.jcublas.JCublas2;
 import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;

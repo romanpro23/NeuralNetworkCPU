@@ -11,6 +11,7 @@ import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
+import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;
@@ -23,10 +24,12 @@ import static java.lang.Math.pow;
 import static java.lang.Math.signum;
 import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.jcublas.JCublas2.*;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.*;
 import static utilities.GPUInit.*;
 import static utilities.GPUInit.allocatedUse;
+import static utilities.JCudaHelper.CONTEXT;
 
 @NoArgsConstructor
 public class NNArray {
@@ -1489,7 +1492,7 @@ public class NNArray {
                     //"       }\n" +
                     //"       else {\n" +
                     "          C[index] += A[w];\n" +
-                    //"       }\n" +
+                    "       }\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -2009,7 +2012,7 @@ public class NNArray {
                     "    }\n" +
                     "}\n" +
 
-                    /*"__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
+                    "__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
                     "{\n" +
                     "    int index;\n" +
                     "    for (int i = 0; i < row; i++) {\n" +
@@ -2349,7 +2352,6 @@ public class NNArray {
                     //"    extern __shared__ half shared[];\n" +
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int i = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    int idx = k * blockDim.y * gridDim.y + i;\n" +
                     "    if (k < row && i < column)\n" +
                     "    {\n" +
                     //"       if (idx < SharedMemorySize) {\n" +
@@ -2371,11 +2373,12 @@ public class NNArray {
                     "           } else {\n" +
                     "               value = o * (sh[4] - o);\n" +
                     "           }\n" +
-                    //"           if (indexJ < SharedMemorySize) {\n" +
-                    //"               sum += shared[indexJ] * value;\n" +
-                    //"           } else {\n" +
-                    "               sum += error[indexJ] * value;\n" +
-                    //"           }\n" +
+                    "         if (indexJ < SharedMemorySize) {\n" +
+                    "             sum += shared[indexJ] * value;\n" +
+                    "         }\n" +
+                    "         else {\n" +
+                    "             sum += error[indexJ] * value;\n" +
+                    "         }\n" +
                     "        }\n" +
                     "        data[indexI] = sum;\n" +
                     "    }\n" +

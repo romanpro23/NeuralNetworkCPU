@@ -143,7 +143,7 @@ public class speechtotext {
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 100, 1, new DataMetric.Top1());
+            trainer.train(network, 5, 1, new DataMetric.Top1());
 
             network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt"));
