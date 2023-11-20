@@ -22,6 +22,8 @@ import utilities.Use;
 import java.io.File;
 import java.io.FileWriter;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 
 import static neural_network.layers.NeuralLayer.CallGarbageCollector;
@@ -37,13 +39,13 @@ public class speechtotext {
         loader.setUseReverse(false);
 
         Optimizer optimizer = new AdamOptimizer();
-        /*network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
+        network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setTrainable(true)
-                .create();*/
+                .create();
 
-                network = new NeuralNetwork();
+                /*network = new NeuralNetwork();
                 network.addInputLayer(480, 24, 1)
                 .addLayer(new ImagePatchesLayer(12,160))
                 .addLayer(new AdditionBlock()
@@ -118,9 +120,9 @@ public class speechtotext {
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setTrainable(true)
-                .create();
+                .create();*/
 
-        //optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
+        optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
         /*for (int s = 0; s < 150; s++) {
             NNData3D Data3D = loader.getNextTestData(1);
@@ -139,14 +141,23 @@ public class speechtotext {
         }*/
 
         network.info();
-        DataTrainer trainer = new DataTrainer(5000, 5000, loader);
+        DataTrainer trainer = new DataTrainer(15000, 15000, loader);
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 5, 1, new DataMetric.Top1());
+            trainer.train(network, 100, 1, new DataMetric.Top1());
 
             network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt"));
+
+            if (i % 2 == 0) {
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy.MM.dd.HH.mm.ss");
+                LocalDateTime now = LocalDateTime.now();
+                System.out.println(dtf.format(now));
+
+                network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation.txt"));
+                optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation_optimizer.txt"));
+            }
 
             //System.out.println((System.nanoTime() - start) / 1000000);
 

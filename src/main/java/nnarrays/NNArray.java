@@ -11,7 +11,6 @@ import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
-import utilities.Ieee754Binary16;
 import utilities.Use;
 
 import java.io.FileWriter;
@@ -1386,9 +1385,6 @@ public class NNArray {
 
     public static final String kernels =
                     "#include <cuda_fp16.h>\n" +
-                    "#include <curand.h>\n" +
-                    "#include <math.h>\n" +
-                    "#include <stdio.h>\n" +
                     "#define TYPE half\n" +
                     "#define BLOCK_HEIGHT 1024\n" +
                     "#define BLOCK_WIDTH 64\n" +
@@ -1492,7 +1488,7 @@ public class NNArray {
                     //"       }\n" +
                     //"       else {\n" +
                     "          C[index] += A[w];\n" +
-                    "       }\n" +
+                    //"       }\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -2012,7 +2008,7 @@ public class NNArray {
                     "    }\n" +
                     "}\n" +
 
-                    "__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
+                    /*"__device__ void transpose(const float* __restrict__ data, float* result, int row, int col)\n" +
                     "{\n" +
                     "    int index;\n" +
                     "    for (int i = 0; i < row; i++) {\n" +
@@ -2322,7 +2318,8 @@ public class NNArray {
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (k < numElements)\n" +
                     "    {\n" +
-                    "       half sum = sh[0];\n" +
+                    "       half sh0 = sh[0];\n" +
+                    "       half sum = sh0;\n" +
                     "       int index = k * column;\n" +
                     "       half max = input[index];\n" +
                     "       for (int i = 1; i < column; i++, index++) {\n" +
@@ -2336,8 +2333,14 @@ public class NNArray {
                     "           sum += d;\n" +
                     "           data[index] = d;\n" +
                     "       }\n" +
-                    "       if (sum == sh[0]) {\n" +
+                    "       if (sum = sh0) {\n" +
                     "           sum = sh[5];\n" +
+                    "       }\n" +
+                    "       if (__hisinf(sum)) {\n" +
+                    "           sum = sh[12];\n" +
+                    "       }\n" +
+                    "       if (__hisinf(sum) == -1) {\n" +
+                    "           sum = -sh[12];\n" +
                     "       }\n" +
                     "       index = k * column;\n" +
                     "       for (int i = 0; i < column; i++, index++) {\n" +
@@ -2373,12 +2376,12 @@ public class NNArray {
                     "           } else {\n" +
                     "               value = o * (sh[4] - o);\n" +
                     "           }\n" +
-                    "         if (indexJ < SharedMemorySize) {\n" +
-                    "             sum += shared[indexJ] * value;\n" +
-                    "         }\n" +
-                    "         else {\n" +
+                    //"         if (indexJ < SharedMemorySize) {\n" +
+                    //"             sum += shared[indexJ] * value;\n" +
+                    //"         }\n" +
+                    //"         else {\n" +
                     "             sum += error[indexJ] * value;\n" +
-                    "         }\n" +
+                    //"         }\n" +
                     "        }\n" +
                     "        data[indexI] = sum;\n" +
                     "    }\n" +

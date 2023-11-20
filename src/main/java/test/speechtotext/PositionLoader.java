@@ -17,6 +17,9 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+
 public class PositionLoader extends DataLoader3D {
     private LinkedHashMap<Integer, Character> uaChars;
     private LinkedHashMap<Character, Integer> codeUaChars;
@@ -51,11 +54,11 @@ public class PositionLoader extends DataLoader3D {
     @Override
     public void reloadTrainData() {
 
-        String fileName = "C:/Levani/cv-corpus-14.0-2023-06-23/ka/validated.tsv";
+        String fileName = "C:/Levani/cv-corpus-15.0-2023-09-08/ka/validated.tsv";
         File file = new File(fileName);
         ArrayList<String[]> data = tsvr(file);
 
-        File folder = new File("C:/tesstrain-windows-gui-main/SpeechToSpeech-0.012/images/");
+        File folder = new File("C:/Levani/SpeechToSpeech-0.013/images/");
         File[] listOfFiles = folder.listFiles();
 
         TransformData transformData = new TransformData.Sigmoid();
@@ -78,7 +81,9 @@ public class PositionLoader extends DataLoader3D {
 
                 if (width > size_width) {
                     try {
-                        throw new Exception("!!!: " + width);
+                        //throw new Exception("!!!: " + width);
+                        System.out.println("!!!: " + width);
+                        continue;
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -120,9 +125,9 @@ public class PositionLoader extends DataLoader3D {
                     int sss = c - label.length();
                     if (sss < 0) {
                         try {
-                            System.out.println("!!!: " + sss);
-                            continue;
-                            //throw new Exception("!!!: " + sss);
+                            //System.out.println("!!!: " + sss);
+                            //continue;
+                            throw new Exception("!!!: " + sss);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
@@ -148,9 +153,9 @@ public class PositionLoader extends DataLoader3D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 199) {
-                        return;
-                    }
+                    //if (wwq == 4999) {
+                    //    return;
+                    //}
 
                     wwq++;
                 }

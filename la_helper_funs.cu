@@ -1,7 +1,4 @@
 #include <cuda_fp16.h>
-#include <curand.h>
-#include <math.h>
-#include <stdio.h>
 #define TYPE half
 #define BLOCK_HEIGHT 1024
 #define BLOCK_WIDTH 64
@@ -699,7 +696,8 @@ __global__ void Softmax(const half* __restrict__ input, half* data, int column, 
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     if (k < numElements)
     {
-       half sum = sh[0];
+       half sh0 = sh[0];
+       half sum = sh0;
        int index = k * column;
        half max = input[index];
        for (int i = 1; i < column; i++, index++) {
@@ -713,8 +711,14 @@ __global__ void Softmax(const half* __restrict__ input, half* data, int column, 
            sum += d;
            data[index] = d;
        }
-       if (sum == sh[0]) {
+       if (sum = sh0) {
            sum = sh[5];
+       }
+       if (__hisinf(sum)) {
+           sum = sh[12];
+       }
+       if (__hisinf(sum) == -1) {
+           sum = -sh[12];
        }
        index = k * column;
        for (int i = 0; i < column; i++, index++) {
@@ -727,7 +731,6 @@ __global__ void derSoftmax(const half* __restrict__ output, const half* __restri
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     int i = blockDim.y * blockIdx.y + threadIdx.y;
-    int idx = k * blockDim.y * gridDim.y + i;
     if (k < row && i < column)
     {
        k = blockDim.x * blockIdx.x + threadIdx.x;
@@ -745,7 +748,7 @@ __global__ void derSoftmax(const half* __restrict__ output, const half* __restri
            } else {
                value = o * (sh[4] - o);
            }
-               sum += error[indexJ] * value;
+             sum += error[indexJ] * value;
         }
         data[indexI] = sum;
     }
