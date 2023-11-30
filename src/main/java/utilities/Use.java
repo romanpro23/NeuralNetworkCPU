@@ -16,6 +16,8 @@ public class Use {
         if (Use.GPU) {
             Use.GPU = false;
             mGPU = true;
+
+            //Use.CPU = false;//!!
         }
     }
 
@@ -23,6 +25,8 @@ public class Use {
         if (mGPU) {
             Use.GPU = true;
             mGPU = false;
+
+            //Use.CPU = true;//!!
         }
     }
 }

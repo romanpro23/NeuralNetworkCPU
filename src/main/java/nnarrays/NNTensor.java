@@ -5,12 +5,14 @@ import jcuda.Sizeof;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.JCublas2;
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -19,6 +21,8 @@ import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static utilities.GPUInit.*;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class NNTensor extends NNArray {
     @Getter
@@ -60,23 +64,8 @@ public class NNTensor extends NNArray {
         }
     }
 
-    public void multiplyIndex(Pointer p, int n, int value) {
-        CUfunction function = new CUfunction();
-        cuModuleGetFunction(function, helperModule, "multiplyIndex");
-        Pointer kernelParameters = Pointer.to(Pointer.to(p), Pointer.to(new int[]{value}), Pointer.to(new int[]{n}));
-        int blockSize = Math.min(n, BLOCK_SIZE);
-        int gridSizeX = (int) Math.ceil((double) n / blockSize);
-        cuLaunchKernel(function,
-                gridSizeX, 1, 1,      // Grid dimension
-                blockSize, 1, 1,      // Block dimension
-                0, null,               // Shared memory size and stream
-                kernelParameters, null // Kernel- and extra parameters
-        );
-        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-    }
-
-    public NNTensor(int rows, int columns, int depth, float[] data) {
-        super(data);
+    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata) {
+        super(data, sdata);
         this.depth = depth;
         this.columns = columns;
         this.rows = rows;
@@ -97,12 +86,13 @@ public class NNTensor extends NNArray {
     public void set(int i, int j, int k, float value) {
         if (Use.CPU) {
             data[rowsIndex[i] + columnsIndex[j] + k] = value;
+            sdata[rowsIndex[i] + columnsIndex[j] + k] = Float.floatToFloat16(value);
         }
 
         if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "set2");
-            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new float[]{value}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new short[]{Float.floatToFloat16(value)}));
             int blockSize = 1;
             int gridSizeX = 1;
             cuLaunchKernel(function,
@@ -111,7 +101,10 @@ public class NNTensor extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan();
+            }
         }
     }
 
@@ -157,6 +150,12 @@ public class NNTensor extends NNArray {
         return output;
     }
 
+    public void ClearCpuData()
+    {
+        data = null;
+        sdata = null;
+    }
+
     public NNTensor reverse() {
         if (Use.CPU) {
             for (int i = 0; i < rows; i++) {
@@ -188,9 +187,10 @@ public class NNTensor extends NNArray {
                     kernelParameters, null // Kernel- and extra parameters
             );
 
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            IsNan();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan();
+            }
         }
         return this;
     }
@@ -680,15 +680,17 @@ public class NNTensor extends NNArray {
         }
 
         if (Use.GPU) {
+            int Rows = rows;
+            int Cols = columns;
             //long start0 = System.nanoTime();
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "imageVector");
-            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
-            int blockSizeX = (int) Math.min((double) rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
-            int blockSizeY = (int) Math.min((double) columns / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{Rows}), Pointer.to(new int[]{Cols}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
+            int blockSizeX = (int) Math.min((double) Rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min((double) Cols / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
             int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
-            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX / sizeKernel);
-            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY / sizeKernel);
+            int gridSizeX = (int) Math.ceil((double) Rows / blockSizeX / sizeKernel);
+            int gridSizeY = (int) Math.ceil((double) Cols / blockSizeY / sizeKernel);
             int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
 
             cuLaunchKernel(function,
@@ -697,10 +699,12 @@ public class NNTensor extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan(result);
+                IsNan();
+            }
             //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! ");
-
-            IsNan(result);
         }
         return result;
     }
@@ -741,16 +745,18 @@ public class NNTensor extends NNArray {
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
-            IsNan(result);
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan(error);
+                IsNan(result);
+            }
         }
         return result;
     }
 
     public NNMatrix convolutionImg2Col(NNTensor input, NNTensor4D weight, int step, int padY, int padX) {
         data = null;
-        NNMatrix weightM = new NNMatrix(weight.depth(), weight.size / weight.depth(), weight.getData());
+        NNMatrix weightM = new NNMatrix(weight.depth(), weight.size / weight.depth(), weight.getData(), weight.getSdata());
         NNMatrix inputM = img2col(input, weight, step, padY, padX);
         data = inputM.dotT(weightM).data;
         return inputM;
@@ -1294,9 +1300,9 @@ public class NNTensor extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
-        float[] hostData = null;
+        short[] hostData = null;
         if (Use.GPU) {
-            hostData = GetFirstSingleValueFloat(data_gpu, size);
+            hostData = GetAllHalfValues(data_gpu, size);
         }
 
         writer.write(rows + " " + columns + " " + depth + "\n");
@@ -1308,6 +1314,7 @@ public class NNTensor extends NNArray {
                     }
                     else
                     {
+                        assert hostData != null;
                         writer.write(hostData[d * depth * columns + i * depth + j] + " ");
                     }
                 }
@@ -1331,18 +1338,18 @@ public class NNTensor extends NNArray {
             }
         }
 
-        if (Use.CPU) {
+        if (Use.GPU) {
             int index = 0;
-            float[] hostdata = new float[tensor.size];
+            short[] hostdata = new short[tensor.size];
             for (int d = 0; d < tensor.rows; d++) {
-                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
                 for (double v : arr) {
-                    hostdata[index] = (float) v;
+                    hostdata[index] = (short) v;
                     index++;
                 }
             }
 
-            cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.FLOAT * tensor.size, cudaMemcpyHostToDevice);
+            cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * tensor.size, cudaMemcpyHostToDevice);
         }
 
         return tensor;

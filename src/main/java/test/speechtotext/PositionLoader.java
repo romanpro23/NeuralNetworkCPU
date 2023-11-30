@@ -1,11 +1,11 @@
 package test.speechtotext;
 
-import data.loaders.DataLoader3D;
-import data.loaders.ImageData3D;
-import data.loaders.TransformData;
+import data.loaders.*;
+import data.network_train.NNData2D;
 import data.nlp.NLP;
 import jcuda.Pointer;
 import jcuda.Sizeof;
+import nnarrays.NNMatrix;
 import nnarrays.NNTensor;
 import nnarrays.NNVector;
 import utilities.Use;
@@ -77,30 +77,28 @@ public class PositionLoader extends DataLoader3D {
                 int width = img.getWidth();
                 int height = img.getHeight();
 
-                int size_width = 492;
+                int size_width = 480;
 
                 if (width > size_width) {
                     try {
-                        throw new Exception("!!!: " + width);
+                        //throw new Exception("!!!: " + width);
+                        System.out.println("!!!: " + width);
+                        continue;
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 }
 
+                int ss = 0;
+                NNTensor inputsData = new NNTensor(size_width, 24, 1);
+
                 Use.GPU = false;
 
-                int ss = 0;
-                //float[] inputsData = new float[size_width * 24];
-                NNTensor inputsData = new NNTensor(size_width, 24, 1);
                 for (int xx = 0; xx < size_width; xx++) {
                     if (width > xx) {
                         for (int yy = 0; yy < height; yy++) {
-                            //Color originalColor = new Color(img.getRGB(xx, yy));
-                            //int pixels = originalColor.getRed();
-
                             Color color = new Color(img.getRGB(xx, yy));
                             inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
-                            //inputsData[ss] = (float) pixels;
                             ss++;
                         }
                     } else {
@@ -111,6 +109,7 @@ public class PositionLoader extends DataLoader3D {
                         }
                     }
                 }
+                Use.GPU = true;
 
                 var label = "";
                 for (String[] datum : data) {
@@ -121,10 +120,13 @@ public class PositionLoader extends DataLoader3D {
                 }
 
                 if (!Objects.equals(label, "")) {
-
-                    int sss = 175 - label.length();
+                    int c = 176;
+                    //label = label.substring(0, c);//!!!
+                    int sss = c - label.length();
                     if (sss < 0) {
                         try {
+                            //System.out.println("!!!: " + sss);
+                            //continue;
                             throw new Exception("!!!: " + sss);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
@@ -134,26 +136,31 @@ public class PositionLoader extends DataLoader3D {
                         label += " ";
                     }
 
-                    Use.GPU = true;
+                    NNTensor inputsDataNew = new NNTensor(inputsData.getRows(), inputsData.getColumns(), 1, inputsData.getData(), inputsData.getSdata());
+
+                    inputsData.ClearCpuData();
+                    inputsData = null;
+                    inputsDataNew.ClearCpuData();
+
+                    Use.CPU = false;
 
                     NNVector output = codeString(label);
 
-                    NNTensor ImageTensor = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData());
-                    Use.CPU = false;
-
-                    train.add(new ImageData3D(ImageTensor, output));
-                    test.add(new ImageData3D(ImageTensor, output));
+                    train.add(new ImageData3D(inputsDataNew, output));
+                    test.add(new ImageData3D(inputsDataNew, output));
 
                     if (wwq % 100 == 0) {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 999) {
-                        return;
-                    }
+                    //if (wwq == 4999) {
+                    //    return;
+                    //}
 
                     wwq++;
                 }
+
+                Use.CPU = false;
             }
         }
     }
@@ -161,22 +168,31 @@ public class PositionLoader extends DataLoader3D {
     public NNVector codeString(String text) {
         char[] chars = text.toCharArray();
         NNVector input = new NNVector(chars.length);
-        for (int j = 0; j < input.size(); j++) {
-            float value = ((float) codeUaChars.get(chars[j]));
-            input.set(j, value);
+        if (Use.CPU) {
+            for (int j = 0; j < input.size(); j++) {
+                float value = ((float) codeUaChars.get(chars[j]));
+                input.set(j, value);
+            }
         }
 
         if (Use.GPU) {
-            cudaMemcpy(input.getData_gpu(), Pointer.to(input.getData()), (long) Sizeof.FLOAT * input.size(), cudaMemcpyHostToDevice);
+            short[] sm = new short[input.size()];
+            for (int j = 0; j < input.size(); j++) {
+                float value = ((float) codeUaChars.get(chars[j]));
+                sm[j] = Float.floatToFloat16(value);
+            }
+
+            cudaMemcpy(input.getData_gpu(), Pointer.to(sm), (long) Sizeof.SHORT * input.size(), cudaMemcpyHostToDevice);
+            sm = null;
         }
 
         return input;
     }
 
-    public String decodeString(float[] input) {
+    public String decodeString(short[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round(input[i])/* uaChars.size()*/)));
+            Character Char = (uaChars.get((int) (Math.round(Float.float16ToFloat(input[i]))/* uaChars.size()*/)));
             if (Char != null) {
                 string.append(Char);
             }

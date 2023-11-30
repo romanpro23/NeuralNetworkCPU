@@ -1,6 +1,8 @@
 package neural_network.optimizers;
 
+import jcuda.driver.JCudaDriver;
 import nnarrays.NNArray;
+import utilities.Use;
 
 import java.util.Arrays;
 

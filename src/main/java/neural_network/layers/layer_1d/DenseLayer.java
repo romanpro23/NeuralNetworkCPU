@@ -27,6 +27,7 @@ import static jcuda.driver.JCudaDriver.cuLaunchKernel;
 import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
 import static jcuda.runtime.JCuda.cudaMalloc;
 import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaFuncAttribute.cudaFuncAttributeMaxDynamicSharedMemorySize;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.helperModule;
@@ -236,6 +237,13 @@ public class DenseLayer extends DenseNeuralLayer {
 
     private void derivativeWeight(NNVector input, NNVector error) {
         if (Use.CPU) {
+            if (Use.GPU) {
+                for (int j = 0; j < derWeight.getRow(); j++) {
+                    for (int k = 0; k < derWeight.getColumn(); k++) {
+                        derWeight.set(j, k, 0);
+                    }
+                }
+            }
             for (int j = 0, index = 0; j < error.size(); j++) {
                 for (int k = 0; k < input.size(); k++, index++) {
                     derWeight.getData()[index] += error.getData()[j] * input.getData()[k];
@@ -246,20 +254,26 @@ public class DenseLayer extends DenseNeuralLayer {
         if (Use.GPU) {
             int row = error.size();
             int column = input.size();
-            int n = row * column;
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "derivativeWeight");
             Pointer kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(n, Math.pow(BLOCK_SIZE, 1));
-            int gridSizeX = (int) Math.ceil((double) n / blockSizeX);
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
 
             cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
-            if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                input.IsNan(input);
+                error.IsNan(error);
+                derWeight.IsNan(derWeight);
+            }
         }
         derThreshold.add(error);
     }

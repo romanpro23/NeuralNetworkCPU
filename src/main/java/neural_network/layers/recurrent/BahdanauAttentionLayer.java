@@ -63,7 +63,7 @@ public abstract class BahdanauAttentionLayer extends RecurrentNeuralLayer {
         outputAttention[i][t] = new NNMatrix(inputAttention[i][t].getColumn(), inputAttention[i][t].getRow());
         outputAttention[i][t].softmax(inputAttention[i][t]);
 
-        contextVector[i][t] = new NNVector(outputAttention[i][t].dot(outputPreLayer[i]).getData());
+        contextVector[i][t] = new NNVector(outputAttention[i][t].dot(outputPreLayer[i]).getData(), outputAttention[i][t].dot(outputPreLayer[i]).getSdata());
 
         return contextVector[i][t];
     }

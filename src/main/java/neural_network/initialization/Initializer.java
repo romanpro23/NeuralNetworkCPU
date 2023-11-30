@@ -23,40 +23,32 @@ public abstract class Initializer {
     public abstract void initialize(NNTensor4D weight);
 
     protected void initializeNormal(NNArray weight) {
-        if ((Use.GPU) && (!Use.CPU)) {
-            weight.data = new float[weight.size()];
+        if (Use.CPU) {
+            for (int i = 0; i < weight.size(); i++) {
+                weight.set(i, (float) (random.nextGaussian() * range));
+            }
         }
-
-        Use.CPU = true;
-        for (int i = 0; i < weight.size(); i++) {
-            weight.set(i, (float) (random.nextGaussian() * range));
-        }
-        Use.CPU = false;
 
         if (Use.GPU) {
-            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getData()), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
-            if (!Use.CPU) {
-                weight.data = null;
+            if (Use.CPU) {
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getSdata()), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            } else {
+                short[] temp = new short[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    temp[i] = Float.floatToFloat16((float) (random.nextGaussian() * range));
+                }
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
             }
         }
     }
 
     protected void initializeUniform(NNArray weight) {
-        if ((Use.GPU) && (!Use.CPU)) {
-            weight.data = new float[weight.size()];
-        }
-
-        Use.CPU = true;
         for (int i = 0; i < weight.size(); i++) {
             weight.set(i, (float) ((Math.random() - 0.5) * range));
         }
-        Use.CPU = false;
 
         if (Use.GPU) {
-            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getData()), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
-            if (!Use.CPU) {
-                weight.data = null;
-            }
+            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getSdata()), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
         }
     }
 

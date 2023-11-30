@@ -266,7 +266,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
             score[i][j].div((float) Math.sqrt(sizeAttention));
             if(useMask){
-                score[i][j].mask(mask, 0, -1000000000);
+                score[i][j].mask(mask, 0, -65504);
             }
 
             inputAtt[i][j] = new NNMatrix(score[i][j]);
@@ -330,8 +330,6 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 derWeightQuery[j].add(inputT.dot(errorQuery));
                 derWeightValue[j].add(inputT.dot(errorValue));
             }
-
-            errorInput.IsNan(errorInput);
         }
 
         return errorInput;

@@ -29,6 +29,8 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static utilities.GPUInit.allocated;
 import static utilities.GPUInit.allocatedUse;
@@ -169,11 +171,12 @@ public abstract class NeuralLayer {
     public static void CallGarbageCollector()
     {
         if (Use.GPU) {
-            //System.gc();
-            Runtime.getRuntime().gc();
-            //runGarbageCollection();
-
             List<String> listString = new ArrayList<>();
+            ExecutorService executor = Executors.newFixedThreadPool(1);
+            executor.execute(() -> {
+                Runtime.getRuntime().gc();
+            });
+            executor.shutdown();
 
             allocated.forEach((key, value) ->
             {

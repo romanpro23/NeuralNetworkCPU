@@ -61,7 +61,7 @@ public class ReshapeLayer2D extends NeuralLayer {
         output = new NNMatrix[inputs.length];
 
         for (int i = 0; i < output.length; i++) {
-            output[i] = new NNMatrix(width, depth, input[i].getData());
+            output[i] = new NNMatrix(width, depth, input[i].getData(), input[i].getSdata());
         }
     }
 
@@ -76,7 +76,7 @@ public class ReshapeLayer2D extends NeuralLayer {
         error = new NNVector[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
-            error[i] = new NNVector(errorNL[i].getData());
+            error[i] = new NNVector(errorNL[i].getData(), errorNL[i].getSdata());
         }
     }
 

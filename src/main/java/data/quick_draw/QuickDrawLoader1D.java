@@ -95,7 +95,7 @@ public class QuickDrawLoader1D extends DataLoader1D {
                 generateInput();
                 NNVector labelClass = new NNVector(labels.size());
                 labelClass.set(index, 1);
-                train.add(new ImageData1D(new NNVector(inputsData), labelClass));
+                train.add(new ImageData1D(new NNVector(inputsData, null), labelClass));
             }
             index++;
         }
@@ -113,7 +113,7 @@ public class QuickDrawLoader1D extends DataLoader1D {
                 generateInput();
                 NNVector labelClass = new NNVector(labels.size());
                 labelClass.set(index, 1);
-                test.add(new ImageData1D(new NNVector(inputsData), labelClass));
+                test.add(new ImageData1D(new NNVector(inputsData, null), labelClass));
             }
             index++;
         }

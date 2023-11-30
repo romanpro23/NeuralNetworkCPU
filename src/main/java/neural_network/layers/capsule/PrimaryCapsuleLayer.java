@@ -114,7 +114,7 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
             executor.execute(() -> {
                 NNTensor outputConv = new NNTensor(outHeightConv, outWidthConv, outDepthConv);
                 outputConv.convolution(input[i], weight, step, paddingY, paddingX);
-                inputSquash[i] = new NNMatrix(outWidth, outDepth, outputConv.getData());
+                inputSquash[i] = new NNMatrix(outWidth, outDepth, outputConv.getData(), outputConv.getSdata());
                 output[i] = new NNMatrix(outWidth, outDepth);
                 output[i].squash(inputSquash[i]);
             });
@@ -141,7 +141,7 @@ public class PrimaryCapsuleLayer extends NeuralLayer {
                 error[i] = new NNTensor(height, width, depth);
                 NNMatrix errSquash = new NNMatrix(outWidth, outDepth);
                 errSquash.derSquash(inputSquash[i], errorNL[i]);
-                NNTensor errNL = new NNTensor(outHeightConv, outWidthConv, outDepthConv, errSquash.getData());
+                NNTensor errNL = new NNTensor(outHeightConv, outWidthConv, outDepthConv, errSquash.getData(), errSquash.getSdata());
                 error[i].transposeConvolution(errNL.stride(step), weight, step, paddingY, paddingX);
 
                 if (trainable) {
