@@ -37,17 +37,18 @@ public class DenseLayer2D extends NeuralLayer2D {
     private NNVector threshold;
     private NNVector derThreshold;
 
-    public DenseLayer2D(int countNeuron) {
+    public DenseLayer2D(int countNeuron, boolean half) {
         super();
         this.countNeuron = countNeuron;
         this.trainable = true;
         initializer = new Initializer.HeNormal();
+        this.half = half;
     }
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(weight, derWeight);
-        optimizer.addDataOptimize(threshold, derThreshold);
+        optimizer.addDataOptimize(weight, derWeight, "Dense layer 2D");
+        optimizer.addDataOptimize(threshold, derThreshold, "Dense layer 2D");
     }
 
     public DenseLayer2D setTrainable(boolean trainable) {
@@ -79,6 +80,7 @@ public class DenseLayer2D extends NeuralLayer2D {
     public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer 2D\n");
         writer.write(countNeuron + "\n");
+        writer.write(this.half + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -100,12 +102,12 @@ public class DenseLayer2D extends NeuralLayer2D {
         outWidth = width;
         outDepth = countNeuron;
 
-        derThreshold = new NNVector(countNeuron);
-        derWeight = new NNMatrix(depth, countNeuron);
+        derThreshold = new NNVector(countNeuron, this.half);
+        derWeight = new NNMatrix(depth, countNeuron, this.half);
 
         if (!loadWeight) {
-            threshold = new NNVector(countNeuron);
-            weight = new NNMatrix(depth, countNeuron);
+            threshold = new NNVector(countNeuron, this.half);
+            weight = new NNMatrix(depth, countNeuron, this.half);
             initializer.initialize(weight);
         }
     }
@@ -182,7 +184,7 @@ public class DenseLayer2D extends NeuralLayer2D {
     }
 
     public static DenseLayer2D read(Scanner scanner) {
-        DenseLayer2D denseLayer = new DenseLayer2D(Integer.parseInt(scanner.nextLine()));
+        DenseLayer2D denseLayer = new DenseLayer2D(Integer.parseInt(scanner.nextLine()), Boolean.parseBoolean(scanner.nextLine()));
         denseLayer.threshold = NNVector.read(scanner);
         denseLayer.weight = NNMatrix.read(scanner);
         denseLayer.setRegularization(Regularization.read(scanner));

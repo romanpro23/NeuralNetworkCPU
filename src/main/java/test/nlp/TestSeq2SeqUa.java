@@ -31,7 +31,7 @@ public class TestSeq2SeqUa {
                 .addInputLayer(100)
                 .addLayer(new EmbeddingLayer(1000, 64).setTrainable(true))
                 .addLayer(new RecurrentLayer(256, 0.2, true))
-                .addLayer(new DenseLayer2D(1000).setTrainable(true))
+                .addLayer(new DenseLayer2D(1000, false).setTrainable(true))
                 .addLayer(new SoftmaxLayer2D())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
                 .setOptimizer(optDecoder = new AdamOptimizer())

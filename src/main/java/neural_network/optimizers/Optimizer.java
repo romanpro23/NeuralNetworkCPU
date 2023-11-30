@@ -108,9 +108,17 @@ public abstract class Optimizer {
     public void addDataOptimize(NNArray weight, NNArray derWeight) {
         NNArray[] additionParam = new NNArray[countParam];
         for (int i = 0; i < countParam; i++) {
-            additionParam[i] = new NNArray(weight.size());
+            additionParam[i] = new NNArray(weight.size(), weight.isHalf());
         }
         optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
+    }
+
+    public void addDataOptimize(NNArray weight, NNArray derWeight, String Name) {
+        NNArray[] additionParam = new NNArray[countParam];
+        for (int i = 0; i < countParam; i++) {
+            additionParam[i] = new NNArray(weight.size(), weight.isHalf());
+        }
+        optimizeData.add(new DataOptimize(weight, derWeight, additionParam, Name));
     }
 
     protected abstract void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam);

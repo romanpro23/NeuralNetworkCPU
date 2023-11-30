@@ -6,6 +6,7 @@ import jcuda.cudaDataType;
 import jcuda.driver.CUfunction;
 import jcuda.driver.JCudaDriver;
 import jcuda.jcublas.*;
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import utilities.Use;
@@ -44,6 +45,21 @@ public class NNMatrix extends NNArray {
         countAxes = 2;
     }
 
+    public NNMatrix(int row, int column, boolean half) {
+        super(row * column, half);
+        this.column = column;
+        this.row = row;
+
+        if (Use.CPU) {
+            rowIndex = new int[row];
+            for (int i = 0; i < row; i++) {
+                rowIndex[i] = i * column;
+            }
+        }
+
+        countAxes = 2;
+    }
+
     public NNMatrix(int row, int column, float[] _data, short[] _sdata) {
         super(_data, _sdata);
         this.column = column;
@@ -59,8 +75,27 @@ public class NNMatrix extends NNArray {
         countAxes = 2;
     }
 
+    public NNMatrix(int row, int column, float[] _data, short[] _sdata, boolean half) {
+        super(_data, _sdata, half);
+        this.column = column;
+        this.row = row;
+
+        if (Use.CPU) {
+            rowIndex = new int[row];
+            for (int i = 0; i < row; i++) {
+                rowIndex[i] = i * column;
+            }
+        }
+
+        countAxes = 2;
+    }
+
     public NNMatrix(NNMatrix matrix) {
         this(matrix.row, matrix.column);
+    }
+
+    public NNMatrix(NNMatrix matrix, boolean half) {
+        this(matrix.row, matrix.column, half);
     }
 
     public void fillUnderDiagonal(float val) {
@@ -104,8 +139,16 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             int n = size;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "mask");
-            Pointer kernelParameters = Pointer.to(Pointer.to(mask.data_gpu), Pointer.to(new short[]{Float.floatToFloat16(val)}), Pointer.to(new short[]{Float.floatToFloat16(newVal)}), Pointer.to(this.data_gpu), Pointer.to(new int[]{n}));
+            Pointer kernelParameters = null;
+            if (!mask.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "mask");
+                kernelParameters = Pointer.to(Pointer.to(mask.data_gpu), Pointer.to(new float[]{val}), Pointer.to(new float[]{newVal}), Pointer.to(this.data_gpu), Pointer.to(new int[]{n}));
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "mask_half");
+                kernelParameters = Pointer.to(Pointer.to(mask.data_gpu), Pointer.to(new short[]{Float.floatToFloat16(val)}), Pointer.to(new short[]{Float.floatToFloat16(newVal)}), Pointer.to(this.data_gpu), Pointer.to(new int[]{n}));
+            }
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
             cuLaunchKernel(function,
@@ -116,8 +159,15 @@ public class NNMatrix extends NNArray {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                IsNan();
-                IsNan(mask);
+                if (!mask.isHalf()) {
+                    IsNan_float();
+                    IsNan_float(mask);
+                }
+                else
+                {
+                    IsNan();
+                    IsNan(mask);
+                }
             }
         }
     }
@@ -159,7 +209,13 @@ public class NNMatrix extends NNArray {
 
         if (Use.GPU) {
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "addCopy");
+            if (!matrix.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "addCopy");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "addCopy_half");
+            }
             Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{start}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(matrix.column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -174,8 +230,15 @@ public class NNMatrix extends NNArray {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                matrix.IsNan(matrix);
-                IsNan();
+                if (!matrix.isHalf()) {
+                    matrix.IsNan_float(matrix);
+                    IsNan_float();
+                }
+                else
+                {
+                    matrix.IsNan(matrix);
+                    IsNan();
+                }
             }
         }
     }
@@ -194,7 +257,47 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             int n = row;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "addBackCopy");
+            if (!matrix.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "addBackCopy");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "addBackCopy_half");
+            }
+            Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{this.row}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{start}), Pointer.to(this.data_gpu));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                if (!matrix.isHalf()) {
+                    IsNan_float();
+                }
+                else
+                {
+                    IsNan();
+                }
+            }
+        }
+    }
+
+    public void rotateImage(NNMatrix matrix, int start) {
+        if (Use.CPU) {
+            throw new ExceptionInInitializerError("Error! Not written yet!");
+        }
+
+        if (Use.GPU) {
+            int n = row;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "rotateImage");
             Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(new int[]{matrix.column}), Pointer.to(new int[]{this.row}), Pointer.to(new int[]{this.column}), Pointer.to(new int[]{start}), Pointer.to(this.data_gpu));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -324,7 +427,7 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix transpose() {
-        NNMatrix nnMatrix = new NNMatrix(this.column, this.row);
+        NNMatrix nnMatrix = new NNMatrix(this.column, this.row, this.half);
 
         if (Use.CPU) {
             int index;
@@ -332,12 +435,6 @@ public class NNMatrix extends NNArray {
                 index = rowIndex[i];
                 for (int j = 0; j < column; j++, index++) {
                     nnMatrix.data[i + nnMatrix.rowIndex[j]] = data[index];
-                    //nnMatrix.data[i + j * this.getRow()] = data[j + i * this.getColumn()];
-                    //r[j * rows + i] = m[i * cols + j];
-                    //AT[idx+idy*N] = A[idy+idx*N];
-                    //nnMatrix.data[i+ j * row] = data[i * cols + j];
-                    //out[ix * ny + iy] = in[iy * nx + ix];
-                    //out[iy * nx + ix] = in[ix * ny + iy];
                 }
             }
         }
@@ -346,16 +443,17 @@ public class NNMatrix extends NNArray {
             int row = this.row;
             int column = this.column;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "sharedMem_transpose");
-            Pointer kernelParameters = Pointer.to(Pointer.to(nnMatrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            Pointer kernelParameters = null;
+            if (!isHalf()) {
+                cuModuleGetFunction(function, helperModule, "sharedMem_transpose");
+                kernelParameters = Pointer.to(Pointer.to(nnMatrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "sharedMem_transpose_half");
+                kernelParameters = Pointer.to(Pointer.to(nnMatrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
             int BDIM = 32;
-            //int NblocksX = row / BDIM;
-            //int NblocksY = column / BDIM;
-            //int BLOCK_SIZE 8;
-            //int TILE 8;
-            //int SIDE 4;
 
             int gridSizeX = (int) Math.ceil((double) row / BDIM);
             int gridSizeY = (int) Math.ceil((double) column / BDIM);
@@ -370,8 +468,15 @@ public class NNMatrix extends NNArray {
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
 
-                IsNan(nnMatrix);
-                IsNan();
+                if (!isHalf()) {
+                    IsNan_float(nnMatrix);
+                    IsNan_float();
+                }
+                else
+                {
+                    IsNan(nnMatrix);
+                    IsNan();
+                }
             }
         }
 
@@ -383,7 +488,14 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             hostData = GetAllHalfValues(data_gpu, size);
         }
-        writer.write(row + " " + column + "\n");
+
+        int ihalf = 0;
+        if (half)
+        {
+            ihalf = 1;
+        }
+
+        writer.write(row + " " + column + " " + ihalf + "\n");
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
                 if (Use.CPU) {
@@ -422,7 +534,7 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix dotT(NNMatrix matrix) {
-        NNMatrix result = new NNMatrix(row, matrix.getRow());
+        NNMatrix result = new NNMatrix(row, matrix.getRow(), matrix.half);
 
         if (Use.CPU) {
             for (int n = 0, indR = 0; n < row; n++) {
@@ -437,14 +549,6 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             NNMatrix transpose = matrix.transpose();
             gemm(this, transpose, result);
-
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-
-                IsNan(transpose);
-                IsNan();
-                IsNan(result);
-            }
         }
 
         return result;
@@ -520,7 +624,7 @@ public class NNMatrix extends NNArray {
     }
 
     public NNMatrix dot(NNMatrix matrix) {
-        NNMatrix result = new NNMatrix(row, matrix.column);
+        NNMatrix result = new NNMatrix(row, matrix.column, matrix.half);
 
         if (Use.CPU) {
             NNMatrix m = matrix.transpose();
@@ -544,21 +648,46 @@ public class NNMatrix extends NNArray {
 
     // C = alpha * A * B + beta * C
     private void gemm(NNMatrix A, NNMatrix B, NNMatrix C) {
-        int PType = cudaDataType.CUDA_R_16F;
-        int CComputeType = cublasComputeType.CUBLAS_COMPUTE_16F;
 
-        int SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, B.column, A.row, B.row, Pointer.to(new short[]{Float.floatToFloat16(1.0f)}), B.data_gpu, PType, B.column, A.data_gpu, PType, B.row, Pointer.to(new short[]{Float.floatToFloat16(0.0f)}), C.data_gpu, PType, B.column, CComputeType, cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
-        if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS)
+        if (A.half != B.half || B.half != C.half)
         {
-            throw new ArithmeticException("Error!");
+            throw new ArithmeticException("Error! Half Problem!");
         }
 
-        if (Use.DEBUG_SYNC) {
-            JCudaDriver.cuCtxSynchronize();
+        if (!A.half) {
+            int PType = cudaDataType.CUDA_R_32F;
+            int CComputeType = cublasComputeType.CUBLAS_COMPUTE_32F;
 
-            IsNan(A);
-            IsNan(B);
-            IsNan(C);
+            int SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, B.column, A.row, B.row, Pointer.to(new float[]{1.0f}), B.data_gpu, PType, B.column, A.data_gpu, PType, B.row, Pointer.to(new float[]{0.0f}), C.data_gpu, PType, B.column, CComputeType, cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
+            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS) {
+                throw new ArithmeticException("Error!");
+            }
+
+            if (Use.DEBUG_SYNC) {
+                //JCudaDriver.cuCtxSynchronize();
+
+                //IsNan(A);
+                //IsNan(B);
+                //IsNan(C);
+            }
+        }
+        else
+        {
+            int PType = cudaDataType.CUDA_R_16F;
+            int CComputeType = cublasComputeType.CUBLAS_COMPUTE_16F;
+
+            int SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_N, cublasOperation.CUBLAS_OP_N, B.column, A.row, B.row, Pointer.to(new short[]{Float.floatToFloat16(1.0f)}), B.data_gpu, PType, B.column, A.data_gpu, PType, B.row, Pointer.to(new short[]{Float.floatToFloat16(0.0f)}), C.data_gpu, PType, B.column, CComputeType, cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
+            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS) {
+                throw new ArithmeticException("Error!");
+            }
+
+            if (Use.DEBUG_SYNC) {
+                //JCudaDriver.cuCtxSynchronize();
+
+                //IsNan(A);
+                //IsNan(B);
+                //IsNan(C);
+            }
         }
     }
 
@@ -600,7 +729,13 @@ public class NNMatrix extends NNArray {
 
     public static NNMatrix read(Scanner scanner) {
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        NNMatrix matrix = new NNMatrix(size[0], size[1]);
+        boolean half = false;
+        if (size[2] == 1)
+        {
+            half = true;
+        }
+
+        NNMatrix matrix = new NNMatrix(size[0], size[1], half);
         if (Use.CPU) {
             for (int i = 0; i < matrix.row; i++) {
                 double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
@@ -694,8 +829,16 @@ public class NNMatrix extends NNArray {
 
         if (Use.GPU) {
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "add3");
-            Pointer kernelParameters = Pointer.to(Pointer.to(vector.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = null;
+            if (!vector.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "add3");
+                kernelParameters = Pointer.to(Pointer.to(vector.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "add3_half");
+                kernelParameters = Pointer.to(Pointer.to(vector.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
@@ -703,7 +846,7 @@ public class NNMatrix extends NNArray {
 
             //JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributeMaxDynamicSharedMemorySize, SharedMemorySizeGPU);
 
-                    cuLaunchKernel(function,
+            cuLaunchKernel(function,
                     gridSizeX, gridSizeY, 1,      // Grid dimension
                     blockSizeX, blockSizeY, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
@@ -711,9 +854,17 @@ public class NNMatrix extends NNArray {
             );
 
             if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                IsNan();
-                IsNan(vector);
+                if (!vector.isHalf()) {
+                    JCudaDriver.cuCtxSynchronize();
+                    IsNan_float();
+                    IsNan_float(vector);
+                }
+                else
+                {
+                    JCudaDriver.cuCtxSynchronize();
+                    IsNan();
+                    IsNan(vector);
+                }
             }
         }
     }
@@ -723,7 +874,7 @@ public class NNMatrix extends NNArray {
         if (column != vector.size) {
             throw new Exception("Array has difference size");
         }
-        NNMatrix result = new NNMatrix(this);
+        NNMatrix result = new NNMatrix(this, this.half);
         int inputIndex = 0;
         for (int i = 0; i < row; i++) {
             for (int k = 0; k < column; k++, inputIndex++) {
@@ -830,13 +981,21 @@ public class NNMatrix extends NNArray {
         if (Use.GPU) {
             int n = row;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "Softmax");
-            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{column}),  Pointer.to(new int[]{n}));
-            int blockSize = Math.min(n, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            if (!input.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "Softmax");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "Softmax_half");
+            }
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
             cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeX, 1,      // Block dimension
                     0, null,               // Shared memory size and stream
                     kernelParameters, null // Kernel- and extra parameters
             );
@@ -844,8 +1003,15 @@ public class NNMatrix extends NNArray {
             if (Use.DEBUG_SYNC)
             {
                 JCudaDriver.cuCtxSynchronize();
-                IsNan(input);
-                IsNan();
+                if (!input.isHalf()) {
+                    IsNan_float(input);
+                    IsNan_float();
+                }
+                else
+                {
+                    IsNan(input);
+                    IsNan();
+                }
             }
         }
     }
@@ -874,7 +1040,13 @@ public class NNMatrix extends NNArray {
 
         if (Use.GPU) {
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derSoftmax");
+            if (!output.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "derSoftmax");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "derSoftmax_half");
+            }
             Pointer kernelParameters = Pointer.to(Pointer.to(output.data_gpu), Pointer.to(error.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -893,9 +1065,17 @@ public class NNMatrix extends NNArray {
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
 
-                IsNan(error);
-                IsNan(output);
-                IsNan();
+                if (!output.isHalf()) {
+                    IsNan_float(error);
+                    IsNan_float(output);
+                    IsNan_float();
+                }
+                else
+                {
+                    IsNan(error);
+                    IsNan(output);
+                    IsNan();
+                }
             }
         }
     }
@@ -978,7 +1158,6 @@ public class NNMatrix extends NNArray {
     }
 
     public void free() {
-        //if (data_gpu != null) JCuda.cudaFree(data_gpu);
-        //if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
+        if (data_gpu != null) JCuda.cudaFree(data_gpu);
     }
 }

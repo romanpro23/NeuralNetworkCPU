@@ -39,9 +39,9 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     public void initialize(int[] size) {
         super.initialize(size);
 
-        derWeight = new NNMatrix(width, depth);
+        derWeight = new NNMatrix(width, depth, half);
         if (!loadWeight) {
-            weight = new NNMatrix(width, depth);
+            weight = new NNMatrix(width, depth, half);
         }
     }
 

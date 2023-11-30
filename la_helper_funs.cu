@@ -4,7 +4,18 @@
 #define BLOCK_WIDTH 64
 __device__ const int SharedMemorySize = 64 * 1024 / 2;
 __device__ const int BLOCK_DIM = 32;
-__device__ __constant__ half sh[13];
+__device__ __constant__ half sh[14];
+__inline__ __device__ half InfinityCheck(half v)
+{
+    int r = __hisinf(v);
+    if (r == 1) {
+        v = sh[12];
+    }
+    else if (r == -1) {
+        v = -sh[12];
+    }
+    return v;
+}
 extern "C"
 __global__ void fill(half* A, half alpha, int numElements)
 {
@@ -14,26 +25,65 @@ __global__ void fill(half* A, half alpha, int numElements)
     }
 }
 extern "C"
-__global__ void gelu(const half* __restrict__ A, half* C, int numElements)
+__global__ void fill_float(float* A, float alpha, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        A[i] = alpha;
+    }
+}
+extern "C"
+__global__ void float2HalfVector(float* v, half* data, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        half d = __float2half_rn(v[i]);
+        data[i] = InfinityCheck(d);
+    }
+}
+extern "C"
+__global__ void half2FloatVector(half* v, float* data, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        data[i] = __half2float(v[i]);
+    }
+}
+extern "C"
+__global__ void gelu(const float* __restrict__ A, float* C, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        float a = A[i];
+        float t = tanh(0.7978846f * a + 0.0356774f * (a * a * a));
+        C[i] = 0.5f * a * (1.0f + t);
+    }
+}
+extern "C"
+__global__ void gelu_half(const half* __restrict__ A, half* C, int numElements)
 {
     const int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements) {
         half a = A[i];
-        half t = tanh(sh[1] * a + sh[2] * (a * a * a));
+        half t = __tanf(sh[1] * a + sh[2] * (a * a * a));
         C[i] = sh[3] * a * (sh[4] + t);
     }
 }
 extern "C"
-__global__ void set(half* A, int i, half alpha)
-{
-    A[i] = alpha;
-}
-extern "C"
-__global__ void MatAdd(half2* A, const half2* __restrict__ B, int numElements)
+__global__ void MatAdd(float* A, const float* __restrict__ B, int numElements)
 {
     const int k = blockDim.x * blockIdx.x + threadIdx.x;
     if (k < numElements) {
-       A[k] = __hadd2(A[k], B[k]);
+       A[k] = A[k] + B[k];
+    }
+}
+extern "C"
+__global__ void MatAdd_half(half* A, const half* __restrict__ B, int numElements)
+{
+    const int k = blockDim.x * blockIdx.x + threadIdx.x;
+    if (k < numElements) {
+       A[k] = A[k] + B[k];
+       A[k] = InfinityCheck(A[k]);
     }
 }
 extern "C"
@@ -77,13 +127,23 @@ __global__ void backImageVector(const half* __restrict__ A, half* C, int rows, i
     }
 }
 extern "C"
-__global__ void add3(const half* __restrict__ A, half* C, int rows, int columns)
+__global__ void add3(const float* __restrict__ A, float* C, int rows, int columns)
 {
     int h = blockDim.x * blockIdx.x + threadIdx.x;
     int w = blockDim.y * blockIdx.y + threadIdx.y;
     if (h < rows && w < columns) {
-       int index = h * blockDim.y * gridDim.y + w;
-          C[index] += A[w];
+       int index = h * columns + w;
+       C[index] = C[index] + A[w];
+    }
+}
+extern "C"
+__global__ void add3_half(const half* __restrict__ A, half* C, int rows, int columns)
+{
+    int h = blockDim.x * blockIdx.x + threadIdx.x;
+    int w = blockDim.y * blockIdx.y + threadIdx.y;
+    if (h < rows && w < columns) {
+       int index = h * columns + w;
+       C[index] = C[index] + A[w];
     }
 }
 extern "C"
@@ -180,11 +240,11 @@ __global__ void MatMulKernelT(TYPE *out, TYPE *in, TYPE *a, const int matrixHeig
     }
 }
 extern "C"
-__global__ void dotT_VectorAndMatrix(const half* __restrict__ A, const half* __restrict__ B, half* C, int rows, int columns)
+__global__ void dotT_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)
 {
     int j = blockDim.x * blockIdx.x + threadIdx.x;
     if (j < columns) {
-       half sum = sh[0];
+       float sum = sh[0];
        for (int i = 0; i < rows; i++) {
             int index = i * columns + j;
             sum += A[i] * B[index];
@@ -193,128 +253,40 @@ __global__ void dotT_VectorAndMatrix(const half* __restrict__ A, const half* __r
     }
 }
 extern "C"
-__global__ void derivativeWeight(const half* __restrict__ input, const half* __restrict__ error, half* derWeight, int rows, int columns)
+__global__ void derivativeWeight(const float* __restrict__ input, const float* __restrict__ error, float* derWeight, int rows, int columns)
 {
     const int i = blockDim.x * blockIdx.x + threadIdx.x;
     const int j = blockDim.y * blockIdx.y + threadIdx.y;
     if (i < rows && j < columns) {
        const int index = i * columns + j;
-       half m = error[i] * input[j];
-       half v = derWeight[index] + m;
-       derWeight[index] = v;
+       derWeight[index] = derWeight[index] + error[i] * input[j];
     }
 }
 extern "C"
-__global__ void findMean_part(const half* __restrict__ A, half* C, int width, int depth)
-{
-    int j = blockDim.x * blockIdx.x + threadIdx.x;
-    if (j < width) {
-       half s = sh[0];
-       int index = j * depth;
-       for (int k = 0; k < depth; k++, index++) {
-           s += A[index];
-       }
-       C[j] = s;
-    }
-}
-extern "C"
-__global__ void generateErrorNorm(const half* __restrict__ errorNL, const half* __restrict__ gamma, half* errorNorm, int width, int depth)
-{
-    const int j = blockDim.x * blockIdx.x + threadIdx.x;
-    const int k = blockDim.y * blockIdx.y + threadIdx.y;
-    const int index = j * depth + k;
-    if (j < width && k < depth) {
-       errorNorm[index] = errorNL[index] * gamma[k];
-    }
-}
-extern "C"
-__global__ void derVar_part_2(const half* __restrict__ error, const half* __restrict__ input, const half* __restrict__ mean, half* derVariance, int width, int depth)
-{
-    const int j = blockDim.x * blockIdx.x + threadIdx.x;
-    if (j < width) {
-        int index = j * depth;
-        half m = mean[j];
-        half s = sh[0];
-        for (int k = 0; k < depth; k++, index++) {
-           s += error[index] * (input[index] - m);
-        }
-        derVariance[j] = s;
-    }
-}
-extern "C"
-__global__ void derMean_part_2(const half* __restrict__ error, const half* __restrict__ input, const half* __restrict__ mean, half* derMean, half* dVar, int width, int depth)
-{
-    const int j = blockDim.x * blockIdx.x + threadIdx.x;
-    if (j < width) {
-        half DM = sh[0];
-        half DV = DM;
-        half m = mean[j];
-        for (int k = 0; k < depth; k++) {
-           int index = j * depth + k;
-           DM += error[index];
-           DV += input[index] - m;
-        }
-        derMean[j] = DM;
-        dVar[j] = DV;
-    }
-}
-extern "C"
-__global__ void derNorm_part_2(const half* __restrict__ errors, const half* __restrict__ dVar, const half* __restrict__ errorVar, const half* __restrict__ input, const half* __restrict__ mean, const half* __restrict__ errorMean, half* error, int width, int depth)
-{
-    const int j = blockDim.x * blockIdx.x + threadIdx.x;
-    const int k = blockDim.y * blockIdx.y + threadIdx.y;
-    const int index = j * depth + k;
-    if (j < width && k < depth) {
-        error[index] = errors[index] * dVar[j] + errorVar[j] * (input[index] - mean[j]) + errorMean[j];
-    }
-}
-extern "C"
-__global__ void derivativeWeight_2(const half* __restrict__ error, const half* __restrict__ output, const half* __restrict__ betta, const half* __restrict__ gamma, half* derBetta, half* derGamma, int width, int depth)
+__global__ void derivativeWeight_half(const half* __restrict__ input, const half* __restrict__ error, half* derWeight, int rows, int columns)
 {
     const int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < depth) {
-       half dB = derBetta[i];
-       half dG = derGamma[i];
-       half g = gamma[i];
-       half b = betta[i];
-       for (int j = 0; j < width; j++) { 
-           int ind = j * depth + i;
-           dB += error[ind];
-           dG += error[ind] * ((output[ind] - b) / g);
+    const int j = blockDim.y * blockIdx.y + threadIdx.y;
+    if (i < rows && j < columns) {
+       const int index = i * columns + j;
+       derWeight[index] = derWeight[index] + error[i] * input[j];
+    }
+}
+extern "C"
+__global__ void addMatrix(const float* __restrict__ matrix, float* data, int width, int depth)
+{
+    int k = blockDim.x * blockIdx.x + threadIdx.x;
+    if (k < depth) {
+       float d = data[k];
+       for (int i = 0; i < width; i++) { 
+           int	index = i * depth + k;
+           d += matrix[index];
        }
-       derBetta[i] = dB;
-       derGamma[i] = dG;
+       data[k] = d;
     }
-}
+  }
 extern "C"
-__global__ void findVariance_part(const half* __restrict__ input, const half* __restrict__ mean, half* var, int width, int depth)
-{
-    const int j = blockDim.x * blockIdx.x + threadIdx.x;
-    if (j < width) {
-        half s = sh[0];
-        half m = mean[j];
-        int index = j * depth;
-        for (int k = 0; k < depth; k++, index++) {
-           half sub = input[index] - m;
-           s += sub * sub;
-        }
-        var[j] = s;
-    }
-}
-extern "C"
-__global__ void normalization_part_2(const half* __restrict__ input, const half* __restrict__ mean, const half* __restrict__ varSqrt, half* normOutput, const half* __restrict__ gamma, const half* __restrict__ betta, half* output, int width, int depth)
-{
-    int j = blockDim.x * blockIdx.x + threadIdx.x;
-    int k = blockDim.y * blockIdx.y + threadIdx.y;
-    if (j < width && k < depth) {
-        int index = j * depth + k;
-        half nO = (input[index] - mean[j]) / varSqrt[j];
-        output[index] = nO * gamma[k] + betta[k];
-        normOutput[index] = nO;
-    }
-}
-extern "C"
-__global__ void addMatrix(const half* __restrict__ matrix, half* data, int width, int depth)
+__global__ void addMatrix_half(const half* __restrict__ matrix, half* data, int width, int depth)
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     if (k < depth) {
@@ -326,6 +298,59 @@ __global__ void addMatrix(const half* __restrict__ matrix, half* data, int width
        data[k] = d;
     }
   }
+__device__ void atomicMax(float* const address, const float value)
+{
+    if (*address >= value)
+    {
+        return;
+    }
+    int* const addressAsI = (int*)address;
+    int old = *addressAsI, assumed;
+    do
+    {
+        assumed = old;
+        if (__int_as_float(assumed) >= value)
+        {
+            break;
+        }
+        old = atomicCAS(addressAsI, assumed, __float_as_int(value));
+    } while (assumed != old);
+}
+extern "C"
+__global__ void reduceMaxIdxOptimizedShared(const float* __restrict__ input, const int size, float* maxOut, int* maxIdxOut)
+{
+    __shared__ float sharedMax;
+    __shared__ int sharedMaxIdx;
+    if (0 == threadIdx.x)
+    {
+        sharedMax = 0.f;
+        sharedMaxIdx = 0;
+    }
+    __syncthreads();
+    float localMax = 0.f;
+    int localMaxIdx = 0;
+    for (int i = threadIdx.x; i < size; i += blockDim.x)
+    {
+        float val = input[i];
+        if (localMax < val)
+        {
+            localMax = val;
+            localMaxIdx = i;
+        }
+    }
+    atomicMax(&sharedMax, localMax);
+    __syncthreads();
+    if (sharedMax == localMax)
+    {
+        sharedMaxIdx = localMaxIdx;
+    }
+    __syncthreads();
+    if (0 == threadIdx.x)
+    {
+        *maxOut = sharedMax;
+        *maxIdxOut = sharedMaxIdx;
+    }
+}
 extern "C"
 __global__ void reverse(half* A, int rows, int columns, int depth)
 {
@@ -343,24 +368,23 @@ __global__ void reverse(half* A, int rows, int columns, int depth)
     }
 }
 extern "C"
-__global__ void set2(half* A, int i, int j, int k, int columns, int depth, half value)
-{
-    A[i * depth * columns + j * depth + k] = value;
-}
-extern "C"
-__global__ void transpose_naive(half* odata, const half* __restrict__ idata, int width, int height)
-{
-    unsigned int xIndex = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned int yIndex = blockDim.y * blockIdx.y + threadIdx.y;
-    if (xIndex < width && yIndex < height)
-    {
-        unsigned int index_in  = xIndex + width * yIndex;
-        unsigned int index_out = yIndex + height * xIndex;
-        odata[index_out] = idata[index_in];
+__global__ void sharedMem_transpose(float* R, float* M, int rows, int cols){
+    __shared__ float M_Shared[BLOCK_DIM][BLOCK_DIM];
+    int tile_size = BLOCK_DIM;
+    int idx = tile_size * blockIdx.x + threadIdx.x;
+    int idy = tile_size * blockIdx.y + threadIdx.y;
+    int index_in = idx * cols + idy;
+    int index_out = idy * rows + idx;
+    if (idx < rows && idy < cols) {
+        M_Shared[threadIdx.y][threadIdx.x] = M[index_in];
+    }
+    __syncthreads();
+    if(idx < rows && idy < cols){
+        R[index_out] = M_Shared[threadIdx.y][threadIdx.x];
     }
 }
 extern "C"
-__global__ void sharedMem_transpose(half* R, half* M, int rows, int cols){
+__global__ void sharedMem_transpose_half(half* R, half* M, int rows, int cols){
     __shared__ half M_Shared[BLOCK_DIM][BLOCK_DIM];
     int tile_size = BLOCK_DIM;
     int idx = tile_size * blockIdx.x + threadIdx.x;
@@ -413,7 +437,15 @@ __global__ void matrixDiv(half* A, half B, int numElements)
     }
 }
 extern "C"
-__global__ void addCopy(const half* __restrict__ matrix, half* data, int row, int col, int m_col, int start) 
+__global__ void matrixDiv_float(float* A, float B, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        A[i] /= B;
+    }
+}
+extern "C"
+__global__ void addCopy(const float* __restrict__ matrix, float* data, int row, int col, int m_col, int start) 
 {
     const int x = blockDim.x * blockIdx.x + threadIdx.x;
     const int y = blockDim.y * blockIdx.y + threadIdx.y;
@@ -425,49 +457,91 @@ __global__ void addCopy(const half* __restrict__ matrix, half* data, int row, in
     }
 }
 extern "C"
-__global__ void normalization_part_1(half* A, const half* __restrict__ var, int numElements)
+__global__ void addCopy_half(const half* __restrict__ matrix, half* data, int row, int col, int m_col, int start) 
 {
-    const int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if (i < numElements) {
-       A[i] = hsqrt(var[i] + sh[5]);
+    const int x = blockDim.x * blockIdx.x + threadIdx.x;
+    const int y = blockDim.y * blockIdx.y + threadIdx.y;
+    const int index = x * blockDim.y * gridDim.y + y;
+    if (index < row * m_col)
+    {
+        const int indexIn = x * col + start * m_col + y;
+        data[indexIn] = matrix[index];
     }
 }
 extern "C"
-__global__ void DenseLayerForward(half*** P, half* weight, const half* __restrict__ threshold, int row, int column, int n)
+__global__ void NormalizationLayerForward2D(float*** P, const float* __restrict__ gamma, const float* __restrict__ betta, int width, int depth, int n)
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
     int y = blockDim.y * blockIdx.y + threadIdx.y;
-    if (x < n && y < row) {
-       int index = y * column;
-       half sum = P[1][x][y];
-       for (int j = 0; j < column; j++, index++) {
-           P[1][x][y] += P[0][x][j] * weight[index];
-       }
-       P[1][x][y] = sum;
-       atomicAdd(&P[1][x][y], threshold[y]);
+    if (x < n && y < width) {
+        float* input = P[0][x];
+        float mean = P[1][x][y];
+        int index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+           mean += input[index];
+        }
+        mean = mean / depth;
+        P[1][x][y] = mean;
+        float var = P[2][x][y];
+        float sub;
+        index = y * depth;
+        mean = P[1][x][y];
+        for (int k = 0; k < depth; k++, index++) {
+            sub = input[index] - mean;
+            var += sub * sub;
+        }
+        var = var / depth;
+        P[2][x][y] = var;
+        float varSqrt = sqrtf(var + 0.0000001f);
+        float* output = P[3][x];
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+             output[index] = ((input[index] - mean) / varSqrt) * gamma[k] + betta[k];
+        }
     }
 }
 extern "C"
-__global__ void dot(half* const __restrict__ a, const half* __restrict__ b, half* result, int row1, int col1, int row2, int col2)
+__global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict__ gamma, const float* __restrict__ betta, float* derGamma, float* derBetta, int outWidth, int outDepth, int width, int depth, int n)
 {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-    int j = blockDim.y * blockIdx.y + threadIdx.y;
-    if (i < row1 && j < col2) {
-       half sum = sh[0];
-       for (int k = 0; k < col1; k++) {
-           sum = sum + a[i * col1 + k] * b[k * col2 + j];
-       }
-       result[i * col2 + j] = sum;
+    int x = blockDim.x * blockIdx.x + threadIdx.x;
+    int y = blockDim.y * blockIdx.y + threadIdx.y;
+    if (x < n && y < width) {
+        float* errorNL = P[0][x];
+        float var = P[1][x][y];
+        float* input = P[2][x];
+        float mean = P[3][x][y];
+        float* error = P[4][x];
+        float* output = P[5][x];
+        float dVar_m = -0.5f * powf(var + 0.0000001f, -1.5f);
+        int index = y * depth;
+        float derVariance = 0.0f;
+        for (int k = 0; k < depth; k++, index++) {
+            derVariance += errorNL[index] * gamma[k] * (input[index] - mean);
+        }
+        derVariance *= dVar_m;
+        dVar_m = 0.0f;
+        float derMean = 0.0f;
+        float dMean = -1.0f / sqrtf(var + 0.0000001f);
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            derMean += errorNL[index] * gamma[k];
+            dVar_m += input[index] - mean;
+        }
+        derMean *= dMean;
+        derMean += (-2.0f * derVariance * dVar_m) / depth;
+        derMean /= depth;
+        derVariance *= 2.0f / (depth);
+        float _dVar = 1.0f / sqrtf(var + 0.0000001f);
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;
+        }
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            atomicAdd(&derBetta[k], errorNL[index]);
+            atomicAdd(&derGamma[k], errorNL[index] * ((output[index] - betta[k]) / gamma[k]));
+        }
     }
-}
-__device__ size_t getGlobalIdx_3D_3D()
-{
-    size_t blockId = blockIdx.x + blockIdx.y * gridDim.x
-            + gridDim.x * gridDim.y * blockIdx.z;
-    size_t threadId = blockId * (blockDim.x * blockDim.y * blockDim.z)
-            + (threadIdx.z * (blockDim.x * blockDim.y))
-            + (threadIdx.y * blockDim.x) + threadIdx.x;
-    return threadId;
 }
 extern "C"
 __global__ void dropout(half* A, half* random, half chanceDrop, int numElements)
@@ -482,7 +556,7 @@ __global__ void dropout(half* A, half* random, half chanceDrop, int numElements)
     }
 }
 extern "C"
-__global__ void sub_gpu(const half2* __restrict__ first, const half2* __restrict__ second, half2* result, int numElements)
+__global__ void sub_gpu_half2(const half2* __restrict__ first, const half2* __restrict__ second, half2* result, int numElements)
 {
     const int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
@@ -490,7 +564,39 @@ __global__ void sub_gpu(const half2* __restrict__ first, const half2* __restrict
     }
 }
 extern "C"
-__global__ void mul(half* result, half val, int numElements)
+__global__ void sub_gpu(const float* __restrict__ first, const float* __restrict__ second, float* result, int numElements)
+{
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       result[idx] = first[idx] - second[idx];
+    }
+}
+extern "C"
+__global__ void sub_gpu_half(const half* __restrict__ first, const half* __restrict__ second, half* result, int numElements)
+{
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       result[idx] = first[idx] - second[idx];
+    }
+}
+extern "C"
+__global__ void sub_half_float_gpu(const half* __restrict__ first, const float* __restrict__ second, float* result, int numElements)
+{
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       result[idx] = __half2float(first[idx]) - second[idx];
+    }
+}
+extern "C"
+__global__ void sub_float_half_gpu(const float* __restrict__ first, const half* __restrict__ second, float* result, int numElements)
+{
+    const int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       result[idx] = first[idx] - __half2float(second[idx]);
+    }
+}
+extern "C"
+__global__ void mul(float* result, float val, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
@@ -498,7 +604,28 @@ __global__ void mul(half* result, half val, int numElements)
     }
 }
 extern "C"
-__global__ void clip(half* data, half min, half max, int numElements)
+__global__ void mul_float(float* result, float val, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       result[idx] *= val;
+    }
+}
+extern "C"
+__global__ void clip(float* data, float min, float max, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+        float a = data[idx];
+        if (a > max) {
+            data[idx] = max;
+        } else if (a < min) {
+            data[idx] = min;
+        }
+    }
+}
+extern "C"
+__global__ void clip_half(half* data, half min, half max, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
@@ -511,66 +638,60 @@ __global__ void clip(half* data, half min, half max, int numElements)
     }
 }
 extern "C"
-__global__ void indexMaxElement(half* data, half* max_value, int* result, int numElements)
+__global__ void pow2(float* data, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
-        if (data[idx] > *max_value) {
-            *max_value = data[idx];
-            *result = idx;
-        }
+       data[idx] *= data[idx];
     }
 }
 extern "C"
-__global__ void derVar_part_1(const half* __restrict__ var, half* dVar, int numElements)
+__global__ void pow2_half(half* data, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
-       dVar[idx] = sh[6] * hexp2(sh[7] * hlog2(var[idx] + sh[5]));
+       data[idx] *= data[idx];
     }
 }
 extern "C"
-__global__ void derVar_part_3(const half* __restrict__ dVar, half* derVariance, int numElements)
+__global__ void subAbs_half(half* first, half* second, half* result, int numElements)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    if (idx < numElements) {
-       derVariance[idx] *= dVar[idx];
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       result[i] = __habs(first[i] - second[i]);
     }
 }
 extern "C"
-__global__ void derMean_part_1(const half* __restrict__ var, half* dMean, int numElements)
+__global__ void subAbs(float* first, float* second, float* result, int numElements)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    if (idx < numElements) {
-       dMean[idx] = (sh[8] / hsqrt(var[idx] + sh[5]));
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       result[i] = fabsf(first[i] - second[i]);
     }
 }
 extern "C"
-__global__ void derMean_part_3(const half* __restrict__ dMean, const half* __restrict__ derVar, const half* __restrict__ dVar, int depth, half* derMean, int numElements)
+__global__ void sum(float* data, float* result, int numElements)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    if (idx < numElements) {
-       half dM = derMean[idx];
-       dM *= dMean[idx];
-       dM += (sh[9] * derVar[idx] * dVar[idx]) / (__int2half_rn(depth));
-       derMean[idx] = dM;
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       atomicAdd(&result[0], data[i]);
     }
 }
 extern "C"
-__global__ void derNorm_part_1(const half* __restrict__ var, half* dVar, int numElements)
+__global__ void sum_half(half* data, half* result, int numElements)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    if (idx < numElements) {
-       dVar[idx] = sh[4] / hsqrt(var[idx] + sh[5]);
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       atomicAdd(&result[0], data[i]);
     }
 }
 extern "C"
-__global__ void pow2(half* data, int numElements)
+__global__ void derAbs(float* first, float* second, float* result, int numElements)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    if (idx < numElements) {
-       half d = data[idx];
-       data[idx] = d * d;
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       float diff = first[i] - second[i];
+       result[i] = diff / fabsf(diff) + 0.0000001f;
     }
 }
 extern "C"
@@ -580,6 +701,18 @@ __global__ void fisnan(const half* __restrict__ data, int* result, int numElemen
     if (idx < numElements) {
        if (result[0] == 0) {
            if (__hisnan(data[idx])) {
+               result[0] = idx;
+           }
+       }
+    }
+}
+extern "C"
+__global__ void fisnan_float(const float* __restrict__ data, int* result, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       if (result[0] == 0) {
+           if (__isnan(data[idx])) {
                result[0] = idx;
            }
        }
@@ -601,11 +734,34 @@ __global__ void hisinf(const half* __restrict__ data, int* result, int numElemen
     }
 }
 extern "C"
+__global__ void hisinf_float(const float* __restrict__ data, int* result, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       if (result[0] == 0) {
+           if (__isinf(data[idx])) {
+               result[0] = idx;
+           }
+           if (__isinf(data[idx]) == -1) {
+               result[0] = idx;
+           }
+       }
+    }
+}
+extern "C"
 __global__ void momentum(half* data, const half* __restrict__ array, half decay, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
        data[idx] = decay * data[idx] + array[idx] * (sh[4] - decay);
+    }
+}
+extern "C"
+__global__ void momentum_float(float* data, const float* __restrict__ array, float decay, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       data[idx] = decay * data[idx] + array[idx] * (1.0f - decay);
     }
 }
 extern "C"
@@ -617,17 +773,45 @@ __global__ void momentumPow2(half* data, const half* __restrict__ vector, half d
     }
 }
 extern "C"
-__global__ void subDivSqrtNorm(const half* __restrict__ nominator, const half* __restrict__ denominator, half lr, half normN, half normD, half* data, int numElements)
+__global__ void momentumPow2_float(float* data, const float* __restrict__ vector, float decay, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       data[idx] = decay * data[idx] + (1.0f - decay) * vector[idx] * vector[idx];
+    }
+}
+extern "C"
+__global__ void subDivSqrtNorm_half(const half* __restrict__ nominator, const half* __restrict__ denominator, half lr, half normN, half normD, half* data, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
        half sh5 = sh[5];
        half cur_lr = lr / (normN +  sh5);
-       data[idx] -= (half)(cur_lr * (nominator[idx]) / (hsqrt(denominator[idx] / normD) +  sh5));
+       atomicAdd(&data[idx], -(cur_lr * (nominator[idx]) / (hsqrt(denominator[idx] / normD) + sh5)));
     }
 }
 extern "C"
-__global__ void addBackCopy(const half* __restrict__ matrix, int m_column, int row, int column, int start, half* data)
+__global__ void subDivSqrtNorm(const float* __restrict__ nominator, const float* __restrict__ denominator, float lr, float normN, float normD, float* data, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+       float cur_lr = lr / (normN + 0.0000001f);
+       atomicAdd(&data[idx], -(cur_lr * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.000001f)));
+    }
+}
+extern "C"
+__global__ void addBackCopy(const float* __restrict__ matrix, int m_column, int row, int column, int start, float* data)
+{
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    const int index = x * blockDim.y * gridDim.y + y;
+    if (index < row * column) {
+       const int indexOut = x * m_column + start * column + y;
+       data[index] = matrix[indexOut];
+    }
+}
+extern "C"
+__global__ void addBackCopy_half(const half* __restrict__ matrix, int m_column, int row, int column, int start, half* data)
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -648,7 +832,17 @@ __global__ void dropoutBack(const half* __restrict__ output, const half* __restr
     }
 }
 extern "C"
-__global__ void mask(const half* __restrict__ A, half val, half newVal, half* C, int numElements)
+__global__ void mask(const float* __restrict__ A, float val, float newVal, float* C, int numElements)
+{
+    const int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+       if (A[i] == val) {
+           C[i] = newVal;
+       }
+    }
+}
+extern "C"
+__global__ void mask_half(const half* __restrict__ A, half val, half newVal, half* C, int numElements)
 {
     const int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements) {
@@ -668,66 +862,114 @@ __global__ void fillUnderDiagonal(int column, half val, half* data, int numEleme
     }
 }
 extern "C"
-__global__ void derGelu(const half* __restrict__ input, const half* __restrict__ error, half* data, int numElements)
+__global__ void derGelu(const float* __restrict__ input, const float* __restrict__ error, float* data, int numElements)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    if (idx < numElements) {
+        float x = input[idx];
+        float val = __tanf(0.7978846f * x + 0.0356774f * x * x * x);
+        data[idx] = error[idx] * 0.5f * (1.0f + val + x * (1.0f - val * val) * (0.79788846f + 0.1070322f * x * x));
+    }
+}
+extern "C"
+__global__ void derGelu_half(const half* __restrict__ input, const half* __restrict__ error, half* data, int numElements)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
         half x = input[idx];
-        half val = tanh(sh[1] * x + sh[2] * (x * x * x));
+        half val = tanh(sh[1] * x + sh[2] * x * x * x);
         data[idx] = error[idx] * sh[3] * (sh[4] + val + x * (sh[4] - val * val) * (sh[10] + sh[11] * x * x));
     }
 }
 extern "C"
-__global__ void matrixMultiplicationKernel(const half* __restrict__ A, const half* __restrict__ B, half* C, int width, int P, int Q) {
-    int r = blockIdx.y * blockDim.y + threadIdx.y;
-    int c = blockIdx.x * blockDim.x + threadIdx.x;
-    const int index = r * blockDim.y * gridDim.y + c;
-    if (index < P * Q) {
-        half value = __float2half(0.0f);
-        for(int k = 0; k < width; k++) {
-            value += A[r * width + k] * B[k * Q + c];
-        }
-        C[r * Q + c] = value;
-    }
-}
-extern "C"
-__global__ void Softmax(const half* __restrict__ input, half* data, int column, int numElements)
+__global__ void Softmax(const float* __restrict__ input, float* data, int row, int column)
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
-    if (k < numElements)
+    int g = blockDim.x * blockIdx.x + threadIdx.x;
+    if (k < row && g < column)
     {
-       half sh0 = sh[0];
-       half sum = sh0;
-       int index = k * column;
-       half max = input[index];
-       for (int i = 1; i < column; i++, index++) {
-           half inx = input[index];
-           if (max < inx)
-               max = inx;
-       }
-       index = k * column;
-       for (int i = 0; i < column; i++, index++) {
-           half d = hexp(input[index] - max);
-           sum += d;
-           data[index] = d;
-       }
-       if (sum = sh0) {
-           sum = sh[5];
-       }
-       if (__hisinf(sum)) {
-           sum = sh[12];
-       }
-       if (__hisinf(sum) == -1) {
-           sum = -sh[12];
-       }
-       index = k * column;
-       for (int i = 0; i < column; i++, index++) {
+       __shared__ float max;
+       __shared__ float sum;
+       max = 0.0f;
+       sum = 0.0f;
+       __syncthreads();
+       int index = k * column + g;
+       float inx = input[index];
+       if (max < inx)
+           max = inx;
+       __syncthreads();
+       index = k * column + g;
+       float d = __expf(input[index] - max);
+       sum += d;
+       data[index] = d;
+       __syncthreads();
+       index = k * column + g;
+       if (sum != 0.0f) {
            data[index] /= sum;
-       }
+       }        else {
+           data[index] /= 0.0000001f;
+       }     }
+}
+extern "C"
+__global__ void Softmax_half(const half* __restrict__ input, half* data, int row, int column)
+{
+    int k = blockDim.x * blockIdx.x + threadIdx.x;
+    int g = blockDim.x * blockIdx.x + threadIdx.x;
+    if (k < row && g < column)
+    {
+       __shared__ half max;
+       __shared__ half sum;
+       max = sh[0];
+       sum = sh[0];
+       __syncthreads();
+       int index = k * column + g;
+       half inx = input[index];
+       if (max < inx)
+           max = inx;
+       __syncthreads();
+       index = k * column + g;
+       half d = hexp(input[index] - max);
+       d = InfinityCheck(d);
+       sum += d;
+       data[index] = d;
+       sum = InfinityCheck(sum);
+       __syncthreads();
+       index = k * column + g;
+       if (sum != sh[0]) {
+           data[index] /= sum;
+       }        else {
+           data[index] /= 0.0000001f;
+       }     }
+}
+extern "C"
+__global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)
+{
+    int k = blockDim.x * blockIdx.x + threadIdx.x;
+    int i = blockDim.y * blockIdx.y + threadIdx.y;
+    if (k < row && i < column)
+    {
+       k = blockDim.x * blockIdx.x + threadIdx.x;
+       i = blockDim.y * blockIdx.y + threadIdx.y;
+       float value = 0.0f;
+       int index = k * column;
+       int indexI = index + i;
+       data[indexI] = 0.0f;
+       float o = output[indexI];
+       float sum = 0.0f;
+       for (int j = 0; j < column; j++) {
+           int indexJ = index + j;
+           if (i != j) {
+               value = o * -output[indexJ];
+           } else {
+               value = o * (1.0f - o);
+           }
+             sum += error[indexJ] * value;
+        }
+        data[indexI] = sum;
     }
 }
 extern "C"
-__global__ void derSoftmax(const half* __restrict__ output, const half* __restrict__ error, half* data, int row, int column)
+__global__ void derSoftmax_half(const half* __restrict__ output, const half* __restrict__ error, half* data, int row, int column)
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
     int i = blockDim.y * blockIdx.y + threadIdx.y;
@@ -750,6 +992,7 @@ __global__ void derSoftmax(const half* __restrict__ output, const half* __restri
            }
              sum += error[indexJ] * value;
         }
+        sum = InfinityCheck(sum);
         data[indexI] = sum;
     }
 }

@@ -20,7 +20,7 @@ public class TestIMDBDeep {
                 .addInputLayer(100)
                 .addLayer(new EmbeddingLayer(5000, 64).setTrainable(false))
                 .addLayer(new PositionalEmbeddingLayer())
-                .addLayer(new MultiHeadAttentionLayer(1, 64).setTrainable(true).setMask())
+                .addLayer(new MultiHeadAttentionLayer(1, 64, false).setTrainable(true).setMask())
                 .addLayer(new NormalizationLayer2D().setTrainable(false))
                 .addLayer(new FlattenLayer2D())
                 .addLayer(new DenseLayer(1).setTrainable(false))

@@ -3,6 +3,7 @@ package neural_network.layers.reshape;
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.*;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -60,8 +61,17 @@ public class ReshapeLayer2D extends NeuralLayer {
         input = NNArrays.isVector(inputs);
         output = new NNMatrix[inputs.length];
 
-        for (int i = 0; i < output.length; i++) {
-            output[i] = new NNMatrix(width, depth, input[i].getData(), input[i].getSdata());
+        if (Use.CPU) {
+            for (int i = 0; i < output.length; i++) {
+                output[i] = new NNMatrix(width, depth, input[i].getData(), input[i].getSdata());
+            }
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < output.length; i++) {
+                output[i] = new NNMatrix(width, depth);
+                output[i].copy(input[i]);
+            }
         }
     }
 
@@ -75,8 +85,17 @@ public class ReshapeLayer2D extends NeuralLayer {
         errorNL = getErrorNextLayer(errors);
         error = new NNVector[errors.length];
 
-        for (int i = 0; i < errors.length; i++) {
-            error[i] = new NNVector(errorNL[i].getData(), errorNL[i].getSdata());
+        if (Use.CPU) {
+            for (int i = 0; i < errors.length; i++) {
+                error[i] = new NNVector(errorNL[i].getData(), errorNL[i].getSdata());
+            }
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < errors.length; i++) {
+                error[i] = new NNVector(errorNL[i].size());
+                error[i].copy(errorNL[i]);
+            }
         }
     }
 

@@ -10,10 +10,19 @@ public class DataOptimize {
     private NNArray derWeight;
     @Getter
     private NNArray[] additionParam;
+    @Getter
+    private String name;
 
     public DataOptimize(NNArray weight, NNArray derWeight, NNArray[] additionParam) {
         this.weight = weight;
         this.derWeight = derWeight;
         this.additionParam = additionParam;
+    }
+
+    public DataOptimize(NNArray weight, NNArray derWeight, NNArray[] additionParam, String name) {
+        this.weight = weight;
+        this.derWeight = derWeight;
+        this.additionParam = additionParam;
+        this.name = name;
     }
 }

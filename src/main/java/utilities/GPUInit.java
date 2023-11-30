@@ -34,7 +34,7 @@ public class GPUInit {
         JCudaHelper.init();
         cublasHandle = new cublasHandle();
         JCublas2.cublasCreate(cublasHandle);
-        JCublas2.cublasSetMathMode(cublasHandle, CUBLAS_TENSOR_OP_MATH);
+        //JCublas2.cublasSetMathMode(cublasHandle, CUBLAS_TENSOR_OP_MATH);
         helperModule = JCudaHelper.compile("la_helper_funs", NNArray.kernels);
         allocated = new LinkedHashMap<String, WeakReference<Object>>();
         allocatedUse = new LinkedHashMap<String, Use>();
@@ -55,7 +55,9 @@ public class GPUInit {
                 Float.floatToFloat16(-2.0f),//9
                 Float.floatToFloat16(0.79788846f),//10
                 Float.floatToFloat16(0.1070322f), //11
-                Float.floatToFloat16(65504.0f)};//12
+                Float.floatToFloat16(65504.0f),
+                Float.floatToFloat16(65504.0f), //13
+        };//12
 
         CUdeviceptr devPtr = new CUdeviceptr();
         int result = JCudaDriver.cuModuleGetGlobal(devPtr, new long[1], helperModule, "sh");

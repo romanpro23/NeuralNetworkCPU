@@ -49,7 +49,7 @@ public interface FunctionLoss {
             float accuracy = 0;
 
             for (int i = 0; i < outputs.length; i++) {
-                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float)outputs[i].size());
+                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
             }
 
             return accuracy;

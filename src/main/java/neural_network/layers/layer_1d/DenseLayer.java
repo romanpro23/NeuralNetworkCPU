@@ -58,8 +58,8 @@ public class DenseLayer extends DenseNeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(weight, derWeight);
-        optimizer.addDataOptimize(threshold, derThreshold);
+        optimizer.addDataOptimize(weight, derWeight, "Dense layer");
+        optimizer.addDataOptimize(threshold, derThreshold, "Dense layer");
     }
 
     public DenseLayer setTrainable(boolean trainable) {
@@ -255,8 +255,16 @@ public class DenseLayer extends DenseNeuralLayer {
             int row = error.size();
             int column = input.size();
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derivativeWeight");
-            Pointer kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = null;
+            if (!input.isHalf()) {
+                cuModuleGetFunction(function, helperModule, "derivativeWeight");
+                kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "derivativeWeight_half");
+                kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            }
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
             int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
@@ -270,9 +278,9 @@ public class DenseLayer extends DenseNeuralLayer {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                input.IsNan(input);
-                error.IsNan(error);
-                derWeight.IsNan(derWeight);
+                input.IsNan_float(input);
+                error.IsNan_float(error);
+                derWeight.IsNan_float(derWeight);
             }
         }
         derThreshold.add(error);

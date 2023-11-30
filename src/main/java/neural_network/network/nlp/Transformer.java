@@ -60,13 +60,13 @@ public class Transformer {
 
     public Transformer addEncoderBlock(int countHead, int sizeKey, int sizeDense, short dropoutAttention, short dropout) {
         transformer.addLayer(new AdditionBlock()
-                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, dropoutAttention))
+                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention))
         ).addLayer(new NormalizationLayer2D());
 
         AdditionBlock additionBlock = new AdditionBlock()
-                .addLayer(new DenseLayer2D(sizeDense))
+                .addLayer(new DenseLayer2D(sizeDense, false))
                 .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-                .addLayer(new DenseLayer2D(depth));
+                .addLayer(new DenseLayer2D(depth, false));
 
         if (dropout != 0) {
             additionBlock.addLayer(new DropoutLayer2D(dropout));
@@ -96,16 +96,16 @@ public class Transformer {
 
     public Transformer addDecoderBlock(int countHead, int sizeKey, int sizeDense, short dropoutAttention, short dropout) {
         transformer.addLayer(new AdditionBlock()
-                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, dropoutAttention).setMask())
+                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention).setMask())
         ).addLayer(new NormalizationLayer2D())
                 .addLayer(new AdditionBlock()
-                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, dropoutAttention))
+                .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention))
         ).addLayer(new NormalizationLayer2D());
 
         AdditionBlock additionBlock = new AdditionBlock()
-                .addLayer(new DenseLayer2D(sizeDense))
+                .addLayer(new DenseLayer2D(sizeDense, false))
                 .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
-                .addLayer(new DenseLayer2D(depth));
+                .addLayer(new DenseLayer2D(depth, false));
 
         if (dropout != 0) {
             additionBlock.addLayer(new DropoutLayer2D(dropout));
@@ -118,7 +118,7 @@ public class Transformer {
     }
 
     public Transformer addDenseLayer(int countNeuron){
-        transformer.addLayer(new DenseLayer2D(countNeuron));
+        transformer.addLayer(new DenseLayer2D(countNeuron, false));
 
         return this;
     }

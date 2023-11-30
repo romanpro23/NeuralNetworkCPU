@@ -20,7 +20,7 @@ import java.util.*;
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
-public class PositionLoader extends DataLoader3D {
+public class PositionLoader extends DataLoader2D {
     private LinkedHashMap<Integer, Character> uaChars;
     private LinkedHashMap<Character, Integer> codeUaChars;
 
@@ -36,13 +36,15 @@ public class PositionLoader extends DataLoader3D {
             Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_chars.txt"), StandardCharsets.UTF_8);
             uaChars.put(NLP.PAD, ' ');
             codeUaChars.put(' ', NLP.PAD);
+            uaChars.put(NLP.Empty, '_');
+            codeUaChars.put('_', NLP.Empty);
 
             int key = 1;
-            for (int i = key; i < countChars; i++) {
+            for (int i = 0; i < countChars; i++) {
                 Character str = scanner.nextLine().charAt(0);
                 uaChars.put(key, str);
                 codeUaChars.put(str, key);
-                key++;
+                key += 1;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -89,37 +91,28 @@ public class PositionLoader extends DataLoader3D {
                     }
                 }
 
-                int ss = 0;
-                NNTensor inputsData = new NNTensor(size_width, 24, 1);
+                NNMatrix inputsData = new NNMatrix(24, size_width, true);
 
                 Use.GPU = false;
 
-                for (int xx = 0; xx < size_width; xx++) {
-                    if (width > xx) {
-                        for (int yy = 0; yy < height; yy++) {
-                            Color color = new Color(img.getRGB(xx, yy));
-                            inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
-                            ss++;
-                        }
-                    } else {
-                        for (int yy = 0; yy < height; yy++) {
-                            inputsData.set(xx, yy, 0, transformData.transformR(0));
-                            //inputsData[ss] = 0.0f;
-                            ss++;
-                        }
+                for (int xx = 0; xx < width; xx++) {
+                    for (int yy = 0; yy < height; yy++) {
+                        Color color = new Color(img.getRGB(xx, yy));
+                        inputsData.set(yy, width - xx - 1, transformData.transformR(color.getRed()));
                     }
                 }
+
                 Use.GPU = true;
 
-                var label = "";
+                StringBuilder label = new StringBuilder();
                 for (String[] datum : data) {
                     if (Objects.equals(fileNameWithOutExt(datum[1]), fileNameWithOutExt(afile.getName()))) {
-                        label = datum[2];
+                        label = new StringBuilder(datum[2]);
                         break;
                     }
                 }
 
-                if (!Objects.equals(label, "")) {
+                if (!Objects.equals(label.toString(), "")) {
                     int c = 176;
                     //label = label.substring(0, c);//!!!
                     int sss = c - label.length();
@@ -133,10 +126,10 @@ public class PositionLoader extends DataLoader3D {
                         }
                     }
                     for (int ww = 0; ww < sss; ww++) {
-                        label += " ";
+                        label.append("_");
                     }
 
-                    NNTensor inputsDataNew = new NNTensor(inputsData.getRows(), inputsData.getColumns(), 1, inputsData.getData(), inputsData.getSdata());
+                    NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);
 
                     inputsData.ClearCpuData();
                     inputsData = null;
@@ -144,18 +137,18 @@ public class PositionLoader extends DataLoader3D {
 
                     Use.CPU = false;
 
-                    NNVector output = codeString(label);
+                    NNVector output = codeString(label.toString(), false);
 
-                    train.add(new ImageData3D(inputsDataNew, output));
-                    test.add(new ImageData3D(inputsDataNew, output));
+                    train.add(new ImageData2D(inputsDataNew, output));
+                    test.add(new ImageData2D(inputsDataNew, output));
 
                     if (wwq % 100 == 0) {
                         System.out.println(wwq);
                     }
 
-                    //if (wwq == 4999) {
-                    //    return;
-                    //}
+                    if (wwq == 99) {
+                      return;
+                    }
 
                     wwq++;
                 }
@@ -165,9 +158,9 @@ public class PositionLoader extends DataLoader3D {
         }
     }
 
-    public NNVector codeString(String text) {
+    public NNVector codeString(String text, boolean half) {
         char[] chars = text.toCharArray();
-        NNVector input = new NNVector(chars.length);
+        NNVector input = new NNVector(chars.length, half);
         if (Use.CPU) {
             for (int j = 0; j < input.size(); j++) {
                 float value = ((float) codeUaChars.get(chars[j]));
@@ -176,23 +169,54 @@ public class PositionLoader extends DataLoader3D {
         }
 
         if (Use.GPU) {
-            short[] sm = new short[input.size()];
-            for (int j = 0; j < input.size(); j++) {
-                float value = ((float) codeUaChars.get(chars[j]));
-                sm[j] = Float.floatToFloat16(value);
-            }
+            if (!half) {
+                float[] sm = new float[input.size()];
+                for (int j = 0; j < input.size(); j++) {
+                    try {
+                        sm[j] = ((float) codeUaChars.get(chars[j])/* / 10 + 1*/);
+                    } catch (Exception e) {
+                        int ss = 0;
+                    }
+                }
 
-            cudaMemcpy(input.getData_gpu(), Pointer.to(sm), (long) Sizeof.SHORT * input.size(), cudaMemcpyHostToDevice);
-            sm = null;
+                cudaMemcpy(input.getData_gpu(), Pointer.to(sm), (long) Sizeof.FLOAT * input.size(), cudaMemcpyHostToDevice);
+            }
+            else
+            {
+                short[] sm = new short[input.size()];
+                for (int j = 0; j < input.size(); j++) {
+                    float value = 0;
+
+                    try {
+                        value = ((float) codeUaChars.get(chars[j])/* / 10 + 1*/);
+                        sm[j] = Float.floatToFloat16(value);
+                    } catch (Exception e) {
+                        int ss = 0;
+                    }
+                }
+
+                cudaMemcpy(input.getData_gpu(), Pointer.to(sm), (long) Sizeof.SHORT * input.size(), cudaMemcpyHostToDevice);
+            }
         }
 
         return input;
     }
 
-    public String decodeString(short[] input) {
+    public String decodeString(float[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round(Float.float16ToFloat(input[i]))/* uaChars.size()*/)));
+            Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/)/* * 10*/))));
+            if (Char != null) {
+                string.append(Char);
+            }
+        }
+        return string.toString();
+    }
+
+    public String decodeString_half(short[] input) {
+        StringBuilder string = new StringBuilder();
+        for (int i = 0; i < input.length; i++) {
+            Character Char = (uaChars.get((int) (Math.round((Float.float16ToFloat(input[i])/* - 1*/)/* * 10*/))));
             if (Char != null) {
                 string.append(Char);
             }

@@ -72,6 +72,7 @@ public class FlattenLayer2D extends NeuralLayer {
                 output[i] = new NNVector(input[i].size());
                 output[i].copy(input[i]);
             }
+            CallGarbageCollector();
         }
     }
 
@@ -97,8 +98,6 @@ public class FlattenLayer2D extends NeuralLayer {
                 error[i].copy(errorNL[i]);
             }
         }
-
-        CallGarbageCollector();
     }
 
     public NNVector[] getErrorNextLayer(NNArray[] error) {

@@ -45,12 +45,11 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     private NNVector gamma;
     private NNVector derGamma;
 
-    private NNMatrix[] normOutput;
     private NNVector[] mean, var;
 
     public NormalizationLayer2D() {
         this.trainable = true;
-        this.epsilon = 0.001f;
+        this.epsilon = 0.0000001f;
     }
 
     @Override
@@ -72,23 +71,29 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             betta = new NNVector(depth);
             gamma = new NNVector(depth);
 
+            //gamma.fill(1.0f);
             gamma.fill(1);
         }
     }
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(betta, derBetta);
-        optimizer.addDataOptimize(gamma, derGamma);
+        optimizer.addDataOptimize(betta, derBetta, "Normalization layer 2D");
+        optimizer.addDataOptimize(gamma, derGamma, "Normalization layer 2D");
     }
 
     @Override
     public void generateOutput(NNArray[] input) {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
-        this.normOutput = new NNMatrix[input.length];
         this.mean = new NNVector[input.length];
         this.var = new NNVector[input.length];
+
+        for (int i = 0; i < input.length; i++) {
+            output[i] = new NNMatrix(outWidth, outDepth);
+            mean[i] = new NNVector(width);
+            var[i] = new NNVector(width);
+        }
 
         if (Use.CPU) {
             GPU_Sleep();
@@ -96,8 +101,6 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    normOutput[i] = new NNMatrix(outWidth, outDepth);
-                    output[i] = new NNMatrix(outWidth, outDepth);
                     findMean(i);
                     findVariance(i);
                     normalization(i);
@@ -110,32 +113,21 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         }
 
         if (Use.GPU) {
-            for (int i = 0; i < input.length; i++) {
-                normOutput[i] = new NNMatrix(outWidth, outDepth);
-                output[i] = new NNMatrix(outWidth, outDepth);
-                findMean(i);
-                findVariance(i);
-                normalization(i);
-            }
+            NormalizationLayerForward2D();
         }
     }
 
     private void NormalizationLayerForward2D()
     {
         int numSteps = input.length;
-        Pointer[][] P = new Pointer[5][numSteps];
+        Pointer[][] P = new Pointer[4][numSteps];
 
         for(int k = 0; k < numSteps; k++)
         {
-            normOutput[k] = new NNMatrix(outWidth, outDepth);
-            output[k] = new NNMatrix(outWidth, outDepth);
-            mean[k] = new NNVector(width);
-            var[k] = new NNVector(width);
-            P[0][k] = normOutput[k].getData_gpu();
-            P[1][k] = output[k].getData_gpu();
-            P[2][k] = input[k].getData_gpu();
-            P[3][k] = mean[k].getData_gpu();
-            P[4][k] = var[k].getData_gpu();
+            P[0][k] = input[k].getData_gpu();
+            P[1][k] = mean[k].getData_gpu();
+            P[2][k] = var[k].getData_gpu();
+            P[3][k] = output[k].getData_gpu();
         }
 
         Pointer[] Array = new Pointer[P.length];
@@ -146,12 +138,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         }
 
         Pointer PArray = new Pointer();
-        cudaMalloc(PArray, (long) numSteps * Sizeof.POINTER);
-        cudaMemcpy(PArray, Pointer.to(Array), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+        cudaMalloc(PArray, (long) P.length * Sizeof.POINTER);
+        cudaMemcpy(PArray, Pointer.to(Array), (long) P.length * Sizeof.POINTER, cudaMemcpyHostToDevice);
 
         CUfunction function = new CUfunction();
         cuModuleGetFunction(function, helperModule, "NormalizationLayerForward2D");
         Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{numSteps}));
+
         int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int blockSizeY = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
@@ -163,145 +156,120 @@ public class NormalizationLayer2D extends NeuralLayer2D {
                 0, null,               // Shared memory size and stream
                 kernelParameters, null // Kernel- and extra parameters
         );
-        if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
-
         JCuda.cudaFree(PArray);
         for(int k = 0; k < P.length; k++) {
             JCuda.cudaFree(Array[k]);
         }
+
+        if (Use.DEBUG_SYNC) {
+            JCudaDriver.cuCtxSynchronize();
+            for(int k = 0; k < numSteps; k++) {
+                input[k].IsNan_float();
+                mean[k].IsNan_float();
+                var[k].IsNan_float();
+                output[k].IsNan_float();
+            }
+        }
     }
+
+    private void NormalizationLayerBackward2D()
+    {
+        int numSteps = input.length;
+        Pointer[][] P = new Pointer[6][numSteps];
+
+        for(int k = 0; k < numSteps; k++)
+        {
+            P[0][k] = errorNL[k].getData_gpu();
+            P[1][k] = var[k].getData_gpu();
+            P[2][k] = input[k].getData_gpu();
+            P[3][k] = mean[k].getData_gpu();
+            P[4][k] = error[k].getData_gpu();
+            P[5][k] = output[k].getData_gpu();
+        }
+
+        Pointer[] Array = new Pointer[P.length];
+        for(int k = 0; k < P.length; k++) {
+            Array[k] = new Pointer();
+            cudaMalloc(Array[k], (long) numSteps * Sizeof.POINTER);
+            cudaMemcpy(Array[k], Pointer.to(P[k]), (long) numSteps * Sizeof.POINTER, cudaMemcpyHostToDevice);
+        }
+
+        Pointer PArray = new Pointer();
+        cudaMalloc(PArray, (long) P.length * Sizeof.POINTER);
+        cudaMemcpy(PArray, Pointer.to(Array), (long) P.length * Sizeof.POINTER, cudaMemcpyHostToDevice);
+
+        CUfunction function = new CUfunction();
+        cuModuleGetFunction(function, helperModule, "NormalizationLayerBackward2D");
+        Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(derGamma.getData_gpu()), Pointer.to(derBetta.getData_gpu()), Pointer.to(new int[]{outWidth}), Pointer.to(new int[]{outDepth}), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{numSteps}));
+        int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int blockSizeY = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+        int gridSizeX = (int) Math.ceil((double) numSteps / blockSizeX);
+        int gridSizeY = (int) Math.ceil((double) width / blockSizeY);
+
+        cuLaunchKernel(function,
+                gridSizeX, gridSizeY, 1,      // Grid dimension
+                blockSizeX, blockSizeY, 1,      // Block dimension
+                0, null,               // Shared memory size and stream
+                kernelParameters, null // Kernel- and extra parameters
+        );
+        JCuda.cudaFree(PArray);
+        for(int k = 0; k < P.length; k++) {
+            JCuda.cudaFree(Array[k]);
+        }
+
+        if (Use.DEBUG_SYNC) {
+            JCudaDriver.cuCtxSynchronize();
+
+            for(int k = 0; k < numSteps; k++) {
+                errorNL[k].IsNan_float();
+                var[k].IsNan_float();
+                input[k].IsNan_float();
+                mean[k].IsNan_float();
+                error[k].IsNan_float();
+                output[k].IsNan_float();
+            }
+        }
+    }
+
+    //среднее_mean = X.sum () / n
+    //std = ((( X-mean)** 2 ) .sum () / n).sqrt()
+    //z_scores = (X - среднее_mean) / std
 
     private void normalization(int n) {
-        if (Use.CPU) {
-            float[] varSqrt = new float[var[n].size()];
-            for (int i = 0; i < var[n].size(); i++) {
-                varSqrt[i] = (float) (Math.sqrt(var[n].getData()[i] + epsilon));
-            }
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    normOutput[n].getData()[index] = ((float)(input[n].getData()[index] - mean[n].get(j))) / varSqrt[j];
-                    output[n].getData()[index] = normOutput[n].getData()[index] * gamma.get(k) + betta.get(k);
-                }
-            }
+        float[] varSqrt = new float[var[n].size()];
+        for (int i = 0; i < var[n].size(); i++) {
+            varSqrt[i] = (float) (Math.sqrt(var[n].getData()[i] + epsilon));
         }
-
-        if (Use.GPU) {
-            int p = var[n].size();
-            Pointer varSqrt_Pointer = new Pointer();
-            cudaMalloc(varSqrt_Pointer, (long) p * Sizeof.SHORT);
-            cudaMemset(varSqrt_Pointer, 0, (long) p * Sizeof.SHORT);
-
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "normalization_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(varSqrt_Pointer), Pointer.to(var[n].getData_gpu()), Pointer.to(new int[]{p}));
-            int blockSize = Math.min(p, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) p / blockSize);
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                var[n].IsNan(var[n]);
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                output[n].getData()[index] = ((input[n].getData()[index] - mean[n].get(j)) / varSqrt[j]) * gamma.get(k) + betta.get(k);
             }
-
-            CUfunction function2 = new CUfunction();
-            cuModuleGetFunction(function2, helperModule, "normalization_part_2");
-            Pointer kernelParameters2 = Pointer.to(Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(varSqrt_Pointer), Pointer.to(normOutput[n].getData_gpu()), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(output[n].getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
-            int blockSizeX = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(depth, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            gridSizeX = (int) Math.ceil((double) width / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) depth / blockSizeY);
-
-            cuLaunchKernel(function2,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters2, null // Kernel- and extra parameters
-            );
-
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
-                normOutput[n].IsNan(normOutput[n]);
-                normOutput[n].IsNan(gamma);
-                normOutput[n].IsNan(betta);
-                output[n].IsNan(output[n]);
-            }
-
-            JCuda.cudaFree(varSqrt_Pointer);
         }
     }
 
+    //საშუალო მნიშვნელობის გამოთვლა
     private void findMean(int n) {
-        mean[n] = new NNVector(width);
-
-        if (Use.CPU) {
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    mean[n].getData()[j] += input[n].getData()[index];
-                }
-            }
-        }
-
-        if (Use.GPU) {
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "findMean_part");
-            Pointer kernelParameters = Pointer.to(Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()),  Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
-            int blockSizeX = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1));
-            int gridSizeX = (int) Math.ceil((double) width / blockSizeX);
-
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                mean[n].getData()[j] += input[n].getData()[index];
             }
         }
         mean[n].div(depth);
     }
 
-    private void findVariance(int n) {
-        var[n] = new NNVector(width);
-        if (Use.CPU) {
-            float sub;
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    sub = (float)(input[n].getData()[index] - mean[n].getData()[j]);
-                    var[n].getData()[j] += sub * sub;
-                }
-            }
-        }
-        if (Use.GPU) {
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "findVariance_part");
-            Pointer kernelParameters = Pointer.to(Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(var[n].getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
-            int blockSizeX = (int) Math.min(width, Math.pow(BLOCK_SIZE, 1));
-            int gridSizeX = (int) Math.ceil((double) width / blockSizeX);
+    //среднее_mean = X.sum () / n
+    //std = ((( X-mean)** 2 ) .sum () / n).sqrt()
+    //z_scores = (X - среднее_mean) / std
 
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
-                var[n].IsNan(var[n]);
+    private void findVariance(int n) {
+        float sub;
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                sub = (float)(input[n].getData()[index] - mean[n].getData()[j]);
+                var[n].getData()[j] += sub * sub;
             }
         }
         var[n].div(depth);
@@ -309,9 +277,12 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
     @Override
     public void generateError(NNArray[] errors) {
-        //long start0 = System.nanoTime();
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
+
+        for (int i = 0; i < input.length; i++) {
+            error[i] = new NNMatrix(outWidth, outDepth);
+        }
 
         if (Use.CPU) {
             GPU_Sleep();
@@ -319,7 +290,6 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    error[i] = new NNMatrix(outWidth, outDepth);
                     NNMatrix errorNorm = generateErrorNorm(i);
                     NNVector errorVariance = derVar(errorNorm, i);
                     NNVector errorMean = derMean(errorNorm, errorVariance, i);
@@ -339,61 +309,22 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
         if (Use.GPU)
         {
-            for (int i = 0; i < input.length; i++) {
-                error[i] = new NNMatrix(outWidth, outDepth);
-                NNMatrix errorNorm = generateErrorNorm(i);
-                NNVector errorVariance = derVar(errorNorm, i);
-                NNVector errorMean = derMean(errorNorm, errorVariance, i);
-
-                derNorm(errorNorm, errorMean, errorVariance, i);
-
-                if (trainable) {
-                    derivativeWeight(errorNL[i], i);
-                }
-            }
+            NormalizationLayerBackward2D();
         }
 
         if (trainable && regularization != null) {
             regularization.regularization(betta);
             regularization.regularization(gamma);
         }
-        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
     }
 
     private NNMatrix generateErrorNorm(int n) {
         NNMatrix errorNorm = new NNMatrix(outWidth, outDepth);
 
-        if (Use.CPU) {
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    errorNorm.getData()[index] = errorNL[n].getData()[index] * gamma.get(k);
-                }
-            }
-        }
-
-        if (Use.GPU) {
-            int row = width;
-            int column = depth;
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "generateErrorNorm");
-            Pointer kernelParameters = Pointer.to(Pointer.to(errorNL[n].getData_gpu()), Pointer.to(gamma.getData_gpu()), Pointer.to(errorNorm.getData_gpu()),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
-
-            cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                errorNorm.IsNan(errorNorm);
-                errorNorm.IsNan(errorNL[n]);
-                errorNorm.IsNan(gamma);
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                errorNorm.getData()[index] = errorNL[n].getData()[index] * gamma.get(k);
             }
         }
 
@@ -403,182 +334,46 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     private NNVector derVar(NNMatrix error, int n) {
         NNVector derVariance = new NNVector(var[n].size());
 
-        if (Use.CPU) {
-            float[] dVar = new float[var[n].size()];
-            for (int i = 0; i < var[n].size(); i++) {
-                dVar[i] = (float) (-0.5 * Math.pow(var[n].get(i) + epsilon, -1.5));
-            }
+        float[] dVar = new float[var[n].size()];
+        for (int i = 0; i < var[n].size(); i++) {
+            dVar[i] = (float) (-0.5 * Math.pow(var[n].get(i) + epsilon, -1.5));
+        }
 
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    derVariance.getData()[j] += (float)(error.get(index) * (input[n].get(index) - mean[n].get(j)));
-                }
-            }
-
-            for (int i = 0; i < derVariance.size(); i++) {
-                derVariance.getData()[i] *= dVar[i];
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                derVariance.getData()[j] += (float)(error.get(index) * (input[n].get(index) - mean[n].get(j)));
             }
         }
 
-        if (Use.GPU) {
-            Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) var[n].size() * Sizeof.SHORT);
-            cudaMemset(dVar_Pointer, 0,(long) var[n].size() * Sizeof.SHORT);
-
-            int p = var[n].size();
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derVar_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
-            int blockSize = Math.min(p, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) p / blockSize);
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                var[n].IsNan(var[n]);
-            }
-
-
-            CUfunction function2 = new CUfunction();
-            cuModuleGetFunction(function2, helperModule, "derVar_part_2");
-            Pointer kernelParameters2 = Pointer.to(Pointer.to(error.getData_gpu()), Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(derVariance.getData_gpu()),  Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
-            int blockSizeX = (int) Math.min(width, Math.pow(BLOCK_SIZE, 1));
-            gridSizeX = (int) Math.ceil((double) width / blockSizeX);
-
-            cuLaunchKernel(function2,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters2, null // Kernel- and extra parameters
-            );
-
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
-                derVariance.IsNan(derVariance);
-            }
-
-            p = derVariance.size();
-            CUfunction function3 = new CUfunction();
-            cuModuleGetFunction(function3, helperModule, "derVar_part_3");
-            Pointer kernelParameters3 = Pointer.to(Pointer.to(dVar_Pointer), Pointer.to(derVariance.getData_gpu()), Pointer.to(new int[]{p}));
-            blockSize = Math.min(p, BLOCK_SIZE);
-            gridSizeX = (int) Math.ceil((double) p / blockSize);
-            cuLaunchKernel(function3,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters3, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                derVariance.IsNan(derVariance);
-            }
-
-            JCuda.cudaFree(dVar_Pointer);
+        for (int i = 0; i < derVariance.size(); i++) {
+            derVariance.getData()[i] *= dVar[i];
         }
+
         return derVariance;
     }
 
     private NNVector derMean(NNMatrix error, NNVector derVar, int n) {
         NNVector derMean = new NNVector(mean[n].size());
 
-        if (Use.CPU) {
-            float[] dMean = new float[mean[n].size()];
-            float[] dVar = new float[var[n].size()];
+        float[] dMean = new float[mean[n].size()];
+        float[] dVar = new float[var[n].size()];
 
-            for (int i = 0; i < var[n].size(); i++) {
-                dMean[i] = (float) (-1.0f / Math.sqrt(var[n].get(i) + epsilon));
-            }
+        for (int i = 0; i < var[n].size(); i++) {
+            dMean[i] = (float) (-1.0f / Math.sqrt(var[n].get(i) + epsilon));
+        }
 
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    derMean.getData()[j] += error.get(index);
-                    dVar[j] += input[n].get(index) - mean[n].get(j);
-                }
-            }
-
-            for (int i = 0; i < derMean.size(); i++) {
-                derMean.getData()[i] *= dMean[i];
-                derMean.getData()[i] += ((-2.0f * derVar.get(i) * dVar[i]) / (depth));
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                derMean.getData()[j] += error.get(index);
+                dVar[j] += input[n].get(index) - mean[n].get(j);
             }
         }
 
-        if (Use.GPU) {
-            Pointer dMean_Pointer = new Pointer();
-            cudaMalloc(dMean_Pointer, (long) mean[n].size() * Sizeof.SHORT);
-            cudaMemset(dMean_Pointer, 0, (long) mean[n].size() * Sizeof.SHORT);
-
-            int p = var[n].size();
-
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derMean_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()), Pointer.to(dMean_Pointer), Pointer.to(new int[]{p}));
-            int blockSizeX = Math.min(p, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) p / blockSizeX);
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                var[n].IsNan(var[n]);
-            }
-
-            Pointer dVar_Pointer = new Pointer();
-            cudaMalloc(dVar_Pointer, (long) p * Sizeof.SHORT);
-            cudaMemset(dVar_Pointer, 0, (long) p * Sizeof.SHORT);
-
-            CUfunction function2 = new CUfunction();
-            cuModuleGetFunction(function2, helperModule, "derMean_part_2");
-            Pointer kernelParameters2 = Pointer.to(Pointer.to(error.getData_gpu()), Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(derMean.getData_gpu()), Pointer.to(dVar_Pointer), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}));
-            blockSizeX = Math.min(width, BLOCK_SIZE);
-            gridSizeX = (int) Math.ceil((double) width / blockSizeX);
-
-            cuLaunchKernel(function2,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters2, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                error.IsNan(error);
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
-                derMean.IsNan(derMean);
-            }
-
-            p = derMean.size();
-            CUfunction function3 = new CUfunction();
-            cuModuleGetFunction(function3, helperModule, "derMean_part_3");
-            Pointer kernelParameters3 = Pointer.to(Pointer.to(dMean_Pointer), Pointer.to(derVar.getData_gpu()), Pointer.to(dVar_Pointer), Pointer.to(new int[]{depth}), Pointer.to(derMean.getData_gpu()), Pointer.to(new int[]{p}));
-            blockSizeX = Math.min(p, BLOCK_SIZE);
-            gridSizeX = (int) Math.ceil((double) p / blockSizeX);
-            cuLaunchKernel(function3,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters3, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                derVar.IsNan(derVar);
-                derMean.IsNan(derMean);
-            }
-
-            JCuda.cudaFree(dMean_Pointer);
-            JCuda.cudaFree(dVar_Pointer);
-            JCuda.cudaFree(kernelParameters);
+        for (int i = 0; i < derMean.size(); i++) {
+            derMean.getData()[i] *= dMean[i];
+            derMean.getData()[i] += ((-2.0f * derVar.get(i) * dVar[i]) / (depth));
         }
         return derMean;
     }
@@ -587,108 +382,26 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         errorMean.div(depth);
         errorVar.mul(2.0f / (depth));
 
-        if (Use.CPU) {
-            float[] dVar = new float[var[n].size()];
-            for (int i = 0; i < var[n].size(); i++) {
-                dVar[i] = (float) (1.0 / Math.sqrt(var[n].getData()[i] + epsilon));
-            }
-
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    error[n].getData()[index] = errors.getData()[index] * dVar[j] + errorVar.get(j) *
-                            ((float)(input[n].get(index) - mean[n].get(j))) + errorMean.get(j);
-                }
-            }
+        float[] dVar = new float[var[n].size()];
+        for (int i = 0; i < var[n].size(); i++) {
+            dVar[i] = (float) (1.0f / Math.sqrt(var[n].getData()[i] + epsilon));
         }
 
-        if (Use.GPU) {
-            int p = var[n].size();
-
-            Pointer dVar_Pointer = new Pointer();
-            short[] init2 = new short[p];
-            cudaMalloc(dVar_Pointer, (long) p * Sizeof.SHORT);
-            cudaMemcpy(dVar_Pointer, Pointer.to(init2), (long) p * Sizeof.SHORT, cudaMemcpyHostToDevice);
-
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derNorm_part_1");
-            Pointer kernelParameters = Pointer.to(Pointer.to(var[n].getData_gpu()),  Pointer.to(dVar_Pointer), Pointer.to(new int[]{p}));
-            int blockSize = Math.min(p, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) p / blockSize);
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSize, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                var[n].IsNan(var[n]);
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                error[n].getData()[index] = errors.getData()[index] * dVar[j] + errorVar.get(j) *
+                        ((float)(input[n].get(index) - mean[n].get(j))) + errorMean.get(j);
             }
-
-            int row = width;
-            int column = depth;
-            CUfunction function2 = new CUfunction();
-            cuModuleGetFunction(function2, helperModule, "derNorm_part_2");
-            Pointer kernelParameters2 = Pointer.to(Pointer.to(errors.getData_gpu()), Pointer.to(dVar_Pointer), Pointer.to(errorVar.getData_gpu()), Pointer.to(input[n].getData_gpu()), Pointer.to(mean[n].getData_gpu()), Pointer.to(errorMean.getData_gpu()), Pointer.to(error[n].getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
-
-            cuLaunchKernel(function2,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters2, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                errors.IsNan(errors);
-                errorVar.IsNan(errorVar);
-                input[n].IsNan(input[n]);
-                mean[n].IsNan(mean[n]);
-                error[n].IsNan(error[n]);
-            }
-
-            JCuda.cudaFree(dVar_Pointer);
         }
     }
 
     private void derivativeWeight(NNMatrix error, int n) {
-        if (Use.CPU) {
-            int index = 0;
-            for (int j = 0; j < width; j++) {
-                for (int k = 0; k < depth; k++, index++) {
-                    derBetta.getData()[k] += error.getData()[index];
-                    derGamma.getData()[k] += error.getData()[index] * ((output[n].getData()[index] - betta.get(k)) / gamma.get(k));
-                    //derGamma.getData()[k] += error.getData()[index] * ((output[n].getData()[index] - mean[n].getData()[j]) * var[n].getData()[j]);
-                }
-            }
-        }
-        if (Use.GPU) {
-            int row = width;
-            int column = depth;
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "derivativeWeight_2");
-            Pointer kernelParameters = Pointer.to(Pointer.to(error.getData_gpu()), Pointer.to(output[n].getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(gamma.getData_gpu()), Pointer.to(derBetta.getData_gpu()), Pointer.to(derGamma.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(column, BLOCK_SIZE);
-            int gridSizeX = (int) Math.ceil((double) column / blockSizeX);
-
-            cuLaunchKernel(function,
-                    gridSizeX, 1, 1,      // Grid dimension
-                    blockSizeX, 1, 1,      // Block dimension
-                    0, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );
-            if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                error.IsNan(error);
-                output[n].IsNan(output[n]);
-                betta.IsNan(betta);
-                gamma.IsNan(gamma);
-                derBetta.IsNan(derBetta);
-                derGamma.IsNan(derGamma);
+        int index = 0;
+        for (int j = 0; j < width; j++) {
+            for (int k = 0; k < depth; k++, index++) {
+                derBetta.getData()[k] += error.getData()[index];
+                derGamma.getData()[k] += error.getData()[index] * ((output[n].getData()[index] - betta.get(k)) / gamma.get(k));
             }
         }
     }

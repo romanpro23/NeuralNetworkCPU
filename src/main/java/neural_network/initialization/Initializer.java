@@ -30,25 +30,61 @@ public abstract class Initializer {
         }
 
         if (Use.GPU) {
-            if (Use.CPU) {
-                cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getSdata()), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            if (!weight.isHalf()) {
+                float[] temp = new float[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    temp[i] = (float) (random.nextGaussian() * range);
+                    if (Use.CPU) {
+                        weight.set(i, temp[i]);
+                    }
+                }
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
             } else {
                 short[] temp = new short[weight.size()];
                 for (int i = 0; i < weight.size(); i++) {
-                    temp[i] = Float.floatToFloat16((float) (random.nextGaussian() * range));
+                    float val = (float) (random.nextGaussian() * range);
+                    if ((Math.abs(val) > 0.0001f)) {
+                        temp[i] = Float.floatToFloat16(val);
+                    } else {
+                        temp[i] = Float.floatToFloat16(0.0001f);
+                    }
                 }
+
                 cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
             }
         }
     }
 
     protected void initializeUniform(NNArray weight) {
-        for (int i = 0; i < weight.size(); i++) {
-            weight.set(i, (float) ((Math.random() - 0.5) * range));
+        if (Use.CPU) {
+            for (int i = 0; i < weight.size(); i++) {
+                weight.set(i, (float) (random.nextGaussian() * range));
+            }
         }
 
         if (Use.GPU) {
-            cudaMemcpy(weight.getData_gpu(), Pointer.to(weight.getSdata()), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            if (!weight.isHalf()) {
+                float[] temp = new float[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    temp[i] = (float) (random.nextGaussian() * range);
+                    if (Use.CPU) {
+                        weight.set(i, temp[i]);
+                    }
+                }
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
+            } else {
+                short[] temp = new short[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    float val = (float) (random.nextGaussian() * range);
+                    if ((Math.abs(val) > 0.0001f)) {
+                        temp[i] = Float.floatToFloat16(val);
+                    } else {
+                        temp[i] = Float.floatToFloat16(0.0001f);
+                    }
+                }
+
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            }
         }
     }
 

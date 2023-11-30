@@ -39,6 +39,7 @@ public abstract class NeuralLayer {
     @Getter
     protected boolean trainable;
     protected ArrayList<NeuralLayer> nextLayers;
+    protected boolean half = false;
 
     public NeuralLayer(){
         nextLayers = new ArrayList<>();
@@ -120,6 +121,8 @@ public abstract class NeuralLayer {
                 case "Embedding layer 3D" -> layers.add(EmbeddingLayer3D.read(scanner));
                 case "Deformable convolution layer 3D" -> layers.add(DeformableConvolutionLayer.read(scanner));
                 case "Modulated deformable convolution layer 3D" -> layers.add(DeformableV2ConvolutionLayer.read(scanner));
+                case "Float to half 2D" -> layers.add(Float2Half2D.read(scanner));
+                case "Half to float 2D" -> layers.add(Half2Float2D.read(scanner));
             }
             layer = scanner.nextLine();
         }
