@@ -118,7 +118,7 @@ public class DenseLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
@@ -148,7 +148,7 @@ public class DenseLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {

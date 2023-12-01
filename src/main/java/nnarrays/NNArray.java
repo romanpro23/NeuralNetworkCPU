@@ -2008,11 +2008,25 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void dot_VectorAndMatrix(TYPE* C, const TYPE* __restrict__ B, const TYPE* __restrict__ A, int rows, int columns)\n" +
+                    "__global__ void dot_VectorAndMatrix(float* C, const float* __restrict__ B, const float* __restrict__ A, int rows, int columns)\n" +
                     "{\n" +
                     "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (h < rows) {\n" +
-                    "       TYPE s = sh[0];\n" +
+                    "       float s = 0.0f;\n" +
+                    "       int index = h * columns;\n" +
+                    "       for (int j = 0; j < columns; j++, index++) {\n" +
+                    "           s += B[j] * A[index];\n" +
+                    "       }\n" +
+                    "       C[h] = s;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void dot_VectorAndMatrix_half(half* C, const half* __restrict__ B, const half* __restrict__ A, int rows, int columns)\n" +
+                    "{\n" +
+                    "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (h < rows) {\n" +
+                    "       half s = sh[0];\n" +
                     "       for (int j = 0; j < columns; j++) {\n" +
                     "           s += B[j] * A[h * columns + j];\n" +
                     "       }\n" +
@@ -2144,6 +2158,20 @@ public class NNArray {
                     "    int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (j < columns) {\n" +
                     "       float sum = sh[0];\n" +
+                    "       for (int i = 0; i < rows; i++) {\n" +
+                    "            int index = i * columns + j;\n" +
+                    "            sum += A[i] * B[index];\n" +
+                    "       }\n" +
+                    "       C[j] = sum;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void dotT_VectorAndMatrix_half(const half* __restrict__ A, const half* __restrict__ B, half* C, int rows, int columns)\n" +
+                    "{\n" +
+                    "    int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (j < columns) {\n" +
+                    "       half sum = sh[0];\n" +
                     "       for (int i = 0; i < rows; i++) {\n" +
                     "            int index = i * columns + j;\n" +
                     "            sum += A[i] * B[index];\n" +
@@ -2573,11 +2601,11 @@ public class NNArray {
                     "{\n" +
                     "    const int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    const int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    const int index = x * blockDim.y * gridDim.y + y;\n" +
-                    "    if (index < row * m_col)\n" +
+                    "    if (x < row && y < m_col)\n" +
                     "    {\n" +
                     "        const int indexIn = x * col + start * m_col + y;\n" +
-                    "        data[indexIn] = matrix[index];\n" +
+                    "        const int indexOut = x * m_col + y;\n" +
+                    "        data[indexIn] = matrix[indexOut];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -2586,11 +2614,11 @@ public class NNArray {
                     "{\n" +
                     "    const int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    const int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
-                    "    const int index = x * blockDim.y * gridDim.y + y;\n" +
-                    "    if (index < row * m_col)\n" +
+                    "    if (x < row && y < m_col)\n" +
                     "    {\n" +
                     "        const int indexIn = x * col + start * m_col + y;\n" +
-                    "        data[indexIn] = matrix[index];\n" +
+                    "        const int indexOut = x * m_col + y;\n" +
+                    "        data[indexIn] = matrix[indexOut];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -3108,10 +3136,10 @@ public class NNArray {
                     "{\n" +
                     "    const int x = blockIdx.x * blockDim.x + threadIdx.x;\n" +
                     "    const int y = blockIdx.y * blockDim.y + threadIdx.y;\n" +
-                    "    const int index = x * blockDim.y * gridDim.y + y;\n" +
-                    "    if (index < row * column) {\n" +
+                    "    if (x < row && y < column) {\n" +
                     "       const int indexOut = x * m_column + start * column + y;\n" +
-                    "       data[index] = matrix[indexOut];\n" +
+                    "       const int indexIn = x * column + y;\n" +
+                    "       data[indexIn] = matrix[indexOut];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -3120,10 +3148,10 @@ public class NNArray {
                     "{\n" +
                     "    const int x = blockIdx.x * blockDim.x + threadIdx.x;\n" +
                     "    const int y = blockIdx.y * blockDim.y + threadIdx.y;\n" +
-                    "    const int index = x * blockDim.y * gridDim.y + y;\n" +
-                    "    if (index < row * column) {\n" +
+                    "    if (x < row && y < column) {\n" +
                     "       const int indexOut = x * m_column + start * column + y;\n" +
-                    "       data[index] = matrix[indexOut];\n" +
+                    "       const int indexIn = x * column + y;\n" +
+                    "       data[indexIn] = matrix[indexOut];\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -3161,7 +3189,18 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void fillUnderDiagonal(int column, half val, half* data, int numElements)\n" +
+                    "__global__ void fillUnderDiagonal(int column, float val, float* data, int numElements)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < numElements) {\n" +
+                    "        for (int j = 0; j < i + 1; j++) {\n" +
+                    "            data[i * column + j] = val;\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void fillUnderDiagonal_half(int column, half val, half* data, int numElements)\n" +
                     "{\n" +
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements) {\n" +
@@ -3206,32 +3245,96 @@ public class NNArray {
                     "        C[r * Q + c] = value;\n" +
                     "    }\n" +
                     "}\n" +*/
+                    "__device__ static __forceinline__ float _shfl_up(float var, unsigned int delta, int width=32, unsigned mask=0xffffffff)\n" +
+                    "{\n" +
+                        "#if ( __CUDA_ARCH__ >= 300)\n" +
+                        "#if (__CUDACC_VER_MAJOR__ >= 9)\n" +
+
+                        "   var = __shfl_up_sync(mask, var, delta, width);\n" +
+                        "#else\n" +
+                        "   var = __shfl_up(var, delta, width);\n" +
+                        "#endif\n" +
+                        "#endif\n" +
+                        "return var;\n" +
+                    "}\n" +
+
+                    "__device__ const int BLOCK_SIZE = 32;\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void matvec_kernel(const float * __restrict__ dA, const float * __restrict__ dx, float * __restrict__ dy, const unsigned int nRows, const unsigned int nCols)\n" +
+                    "{\n" +
+                    "    const unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;\n" +
+                    "    __shared__ float x_shared[BLOCK_SIZE];\n" +
+                    "    float y_val = 0.0;\n" +
+                    "    #pragma unroll\n" +
+                    "    for (unsigned int m = 0; m < ((nCols + BLOCK_SIZE - 1)/ BLOCK_SIZE); ++m)\n" +
+                    "    {\n" +
+                    "        if ((m * BLOCK_SIZE + threadIdx.x) <  nCols) \n" +
+                    "           x_shared[threadIdx.x] = dx[threadIdx.x + m * BLOCK_SIZE];\n" +
+                    "        else\n" +
+                    "            x_shared[threadIdx.x] = 0.f;\n" +
+                    "        __syncthreads();\n" +
+                    "    #pragma unroll\n" +
+                    "        for (unsigned int e = 0; e < BLOCK_SIZE; ++e) {\n" +
+                            // --- Column-major ordering - faster
+                    //"        y_val += dA[tid + (e + BLOCK_SIZE * m) * nRows] * x_shared[e];\n" +
+                            // --- Row-major ordering - slower
+                    "        y_val += dA[tid * nCols + (e + BLOCK_SIZE * m)] * x_shared[e];\n" +
+                    "    }\n" +
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+                    "    if (tid < nRows) dy[tid] = y_val;\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void matvec_kernel_half(const half* __restrict__ dA, const half* __restrict__ dx, half* __restrict__ dy, const unsigned int nRows, const unsigned int nCols)\n" +
+                    "{\n" +
+                    "    const unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;\n" +
+                    "    __shared__ half x_shared[BLOCK_SIZE];\n" +
+                    "    half y_val = 0.0;\n" +
+                    "    #pragma unroll\n" +
+                    "    for (unsigned int m = 0; m < ((nCols + BLOCK_SIZE - 1)/ BLOCK_SIZE); ++m)\n" +
+                    "    {\n" +
+                    "        if ((m * BLOCK_SIZE + threadIdx.x) <  nCols) \n" +
+                    "           x_shared[threadIdx.x] = dx[threadIdx.x + m * BLOCK_SIZE];\n" +
+                    "        else\n" +
+                    "            x_shared[threadIdx.x] = 0.f;\n" +
+                    "        __syncthreads();\n" +
+                    "    #pragma unroll\n" +
+                    "        for (unsigned int e = 0; e < BLOCK_SIZE; ++e) {\n" +
+                    // --- Column-major ordering - faster
+                    //"        y_val += dA[tid + (e + BLOCK_SIZE * m) * nRows] * x_shared[e];\n" +
+                    // --- Row-major ordering - slower
+                    "        y_val += dA[tid * nCols + (e + BLOCK_SIZE * m)] * x_shared[e];\n" +
+                    "    }\n" +
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+                    "    if (tid < nRows) dy[tid] = y_val;\n" +
+                    "}\n" +
 
                     "extern \"C\"\n" +
                     "__global__ void Softmax(const float* __restrict__ input, float* data, int row, int column)\n" +
                     "{\n" +
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    int g = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int g = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (k < row && g < column)\n" +
                     "    {\n" +
-                    "       __shared__ float max;\n" +
-                    "       __shared__ float sum;\n" +
-                    "       max = 0.0f;\n" +
-                    "       sum = 0.0f;\n" +
-                    "       __syncthreads();\n" +
+                    "       __shared__ float max[512];\n" +
+                    "       __shared__ float sum[512];\n" +
                     "       int index = k * column + g;\n" +
                     "       float inx = input[index];\n" +
-                    "       if (max < inx)\n" +
-                    "           max = inx;\n" +
+                    "       max[k] = inx;\n" +
+                    "       sum[k] = 0.0f;\n" +
                     "       __syncthreads();\n" +
-                    "       index = k * column + g;\n" +
-                    "       float d = __expf(input[index] - max);\n" +
-                    "       sum += d;\n" +
+                    "       if (max[k] < inx)\n" +
+                    "           max[k] = inx;\n" +
+                    "       __syncthreads();\n" +
+                    "       float d = __expf(inx - max[k]);\n" +
+                    "       atomicAdd(&sum[k], d);\n" +
                     "       data[index] = d;\n" +
                     "       __syncthreads();\n" +
-                    "       index = k * column + g;\n" +
-                    "       if (sum != 0.0f) {\n" +
-                    "           data[index] /= sum;\n" +
+                    "       if (sum[k] != 0.0f) {\n" +
+                    "           data[index] /= sum[k];\n" +
                     "       } " +
                     "       else {\n" +
                     "           data[index] /= 0.0000001f;\n" +
@@ -3243,29 +3346,25 @@ public class NNArray {
                     "__global__ void Softmax_half(const half* __restrict__ input, half* data, int row, int column)\n" +
                     "{\n" +
                     "    int k = blockDim.x * blockIdx.x + threadIdx.x;\n" +
-                    "    int g = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int g = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (k < row && g < column)\n" +
                     "    {\n" +
-                    "       __shared__ half max;\n" +
-                    "       __shared__ half sum;\n" +
-                    "       max = sh[0];\n" +
-                    "       sum = sh[0];\n" +
-                    "       __syncthreads();\n" +
+                    "       __shared__ half max[512];\n" +
+                    "       __shared__ half sum[512];\n" +
                     "       int index = k * column + g;\n" +
                     "       half inx = input[index];\n" +
-                    "       if (max < inx)\n" +
-                    "           max = inx;\n" +
+                    "       max[k] = inx;\n" +
+                    "       sum[k] = sh[0];\n" +
                     "       __syncthreads();\n" +
-                    "       index = k * column + g;\n" +
-                    "       half d = hexp(input[index] - max);\n" +
-                    "       d = InfinityCheck(d);\n" +
-                    "       sum += d;\n" +
+                    "       if (max[k] < inx)\n" +
+                    "           max[k] = inx;\n" +
+                    "       __syncthreads();\n" +
+                    "       half d = __expf(inx - max[k]);\n" +
+                    "       atomicAdd(&sum[k], d);\n" +
                     "       data[index] = d;\n" +
-                    "       sum = InfinityCheck(sum);\n" +
                     "       __syncthreads();\n" +
-                    "       index = k * column + g;\n" +
-                    "       if (sum != sh[0]) {\n" +
-                    "           data[index] /= sum;\n" +
+                    "       if (sum[k] != sh[0]) {\n" +
+                    "           data[index] /= sum[k];\n" +
                     "       } " +
                     "       else {\n" +
                     "           data[index] /= 0.0000001f;\n" +

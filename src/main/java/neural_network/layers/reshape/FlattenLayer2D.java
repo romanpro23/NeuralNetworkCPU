@@ -59,17 +59,17 @@ public class FlattenLayer2D extends NeuralLayer {
         input = NNArrays.isMatrix(inputs);
         output = new NNVector[inputs.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNVector(input[i].getData(), input[i].getSdata());
+                output[i] = new NNVector(input[i].getData(), input[i].getSdata(), half);
             }
             GPU_WakeUp();
         }
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNVector(input[i].size());
+                output[i] = new NNVector(input[i].size(), half);
                 output[i].copy(input[i]);
             }
             CallGarbageCollector();
@@ -87,14 +87,14 @@ public class FlattenLayer2D extends NeuralLayer {
         error = new NNMatrix[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
-            if (Use.CPU) {
+            if ((Use.CPU) && (!Use.GPU)) {
                 GPU_Sleep();
-                error[i] = new NNMatrix(width, depth, errorNL[i].getData(), errorNL[i].getSdata());
+                error[i] = new NNMatrix(width, depth, errorNL[i].getData(), errorNL[i].getSdata(), half);
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
-                error[i] = new NNMatrix(width, depth);
+                error[i] = new NNMatrix(width, depth, half);
                 error[i].copy(errorNL[i]);
             }
         }

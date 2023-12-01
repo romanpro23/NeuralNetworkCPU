@@ -50,13 +50,13 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(output.length);
             for (int t = 0; t < output.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    this.output[i] = new NNMatrix(this.input[i]);
+                    this.output[i] = new NNMatrix(this.input[i], half);
                     this.output[i].copy(this.input[i]);
                     this.output[i].add(weight);
                 });
@@ -69,7 +69,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                this.output[i] = new NNMatrix(this.input[i]);
+                this.output[i] = new NNMatrix(this.input[i], half);
                 this.output[i].copy(this.input[i]);
                 this.output[i].add(weight);
             }
@@ -80,7 +80,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     public void generateError(NNArray[] errors) {
         errorNL = getErrorNextLayer(errors);
         if(trainable){
-            if (Use.CPU) {
+            if ((Use.CPU) && (!Use.GPU)) {
                 GPU_Sleep();
                 ExecutorService executor = Executors.newFixedThreadPool(errors.length);
                 for (int t = 0; t < errors.length; t++) {

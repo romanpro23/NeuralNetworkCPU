@@ -147,11 +147,24 @@ __global__ void add3_half(const half* __restrict__ A, half* C, int rows, int col
     }
 }
 extern "C"
-__global__ void dot_VectorAndMatrix(TYPE* C, const TYPE* __restrict__ B, const TYPE* __restrict__ A, int rows, int columns)
+__global__ void dot_VectorAndMatrix(float* C, const float* __restrict__ B, const float* __restrict__ A, int rows, int columns)
 {
     int h = blockDim.x * blockIdx.x + threadIdx.x;
     if (h < rows) {
-       TYPE s = sh[0];
+       float s = 0.0f;
+       int index = h * columns;
+       for (int j = 0; j < columns; j++, index++) {
+           s += B[j] * A[index];
+       }
+       C[h] = s;
+    }
+}
+extern "C"
+__global__ void dot_VectorAndMatrix_half(half* C, const half* __restrict__ B, const half* __restrict__ A, int rows, int columns)
+{
+    int h = blockDim.x * blockIdx.x + threadIdx.x;
+    if (h < rows) {
+       half s = sh[0];
        for (int j = 0; j < columns; j++) {
            s += B[j] * A[h * columns + j];
        }
@@ -245,6 +258,19 @@ __global__ void dotT_VectorAndMatrix(const float* __restrict__ A, const float* _
     int j = blockDim.x * blockIdx.x + threadIdx.x;
     if (j < columns) {
        float sum = sh[0];
+       for (int i = 0; i < rows; i++) {
+            int index = i * columns + j;
+            sum += A[i] * B[index];
+       }
+       C[j] = sum;
+    }
+}
+extern "C"
+__global__ void dotT_VectorAndMatrix_half(const half* __restrict__ A, const half* __restrict__ B, half* C, int rows, int columns)
+{
+    int j = blockDim.x * blockIdx.x + threadIdx.x;
+    if (j < columns) {
+       half sum = sh[0];
        for (int i = 0; i < rows; i++) {
             int index = i * columns + j;
             sum += A[i] * B[index];
@@ -449,11 +475,11 @@ __global__ void addCopy(const float* __restrict__ matrix, float* data, int row, 
 {
     const int x = blockDim.x * blockIdx.x + threadIdx.x;
     const int y = blockDim.y * blockIdx.y + threadIdx.y;
-    const int index = x * blockDim.y * gridDim.y + y;
-    if (index < row * m_col)
+    if (x < row && y < m_col)
     {
         const int indexIn = x * col + start * m_col + y;
-        data[indexIn] = matrix[index];
+        const int indexOut = x * m_col + y;
+        data[indexIn] = matrix[indexOut];
     }
 }
 extern "C"
@@ -461,11 +487,11 @@ __global__ void addCopy_half(const half* __restrict__ matrix, half* data, int ro
 {
     const int x = blockDim.x * blockIdx.x + threadIdx.x;
     const int y = blockDim.y * blockIdx.y + threadIdx.y;
-    const int index = x * blockDim.y * gridDim.y + y;
-    if (index < row * m_col)
+    if (x < row && y < m_col)
     {
         const int indexIn = x * col + start * m_col + y;
-        data[indexIn] = matrix[index];
+        const int indexOut = x * m_col + y;
+        data[indexIn] = matrix[indexOut];
     }
 }
 extern "C"
@@ -804,10 +830,10 @@ __global__ void addBackCopy(const float* __restrict__ matrix, int m_column, int 
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
-    const int index = x * blockDim.y * gridDim.y + y;
-    if (index < row * column) {
+    if (x < row && y < column) {
        const int indexOut = x * m_column + start * column + y;
-       data[index] = matrix[indexOut];
+       const int indexIn = x * column + y;
+       data[indexIn] = matrix[indexOut];
     }
 }
 extern "C"
@@ -815,10 +841,10 @@ __global__ void addBackCopy_half(const half* __restrict__ matrix, int m_column, 
 {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
-    const int index = x * blockDim.y * gridDim.y + y;
-    if (index < row * column) {
+    if (x < row && y < column) {
        const int indexOut = x * m_column + start * column + y;
-       data[index] = matrix[indexOut];
+       const int indexIn = x * column + y;
+       data[indexIn] = matrix[indexOut];
     }
 }
 extern "C"
@@ -852,7 +878,17 @@ __global__ void mask_half(const half* __restrict__ A, half val, half newVal, hal
     }
 }
 extern "C"
-__global__ void fillUnderDiagonal(int column, half val, half* data, int numElements)
+__global__ void fillUnderDiagonal(int column, float val, float* data, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        for (int j = 0; j < i + 1; j++) {
+            data[i * column + j] = val;
+        }
+    }
+}
+extern "C"
+__global__ void fillUnderDiagonal_half(int column, half val, half* data, int numElements)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements) {
@@ -881,31 +917,63 @@ __global__ void derGelu_half(const half* __restrict__ input, const half* __restr
         data[idx] = error[idx] * sh[3] * (sh[4] + val + x * (sh[4] - val * val) * (sh[10] + sh[11] * x * x));
     }
 }
+__device__ static __forceinline__ float _shfl_up(float var, unsigned int delta, int width=32, unsigned mask=0xffffffff)
+{
+#if ( __CUDA_ARCH__ >= 300)
+#if (__CUDACC_VER_MAJOR__ >= 9)
+   var = __shfl_up_sync(mask, var, delta, width);
+#else
+   var = __shfl_up(var, delta, width);
+#endif
+#endif
+return var;
+}
+__device__ const int BLOCK_SIZE = 32;
+extern "C"
+__global__ void matvec_kernel(const float * __restrict__ dA, const float * __restrict__ dx, float * __restrict__ dy, const unsigned int nRows, const unsigned int nCols)
+{
+    const unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    __shared__ float x_shared[BLOCK_SIZE];
+    float y_val = 0.0;
+    #pragma unroll
+    for (unsigned int m = 0; m < ((nCols + BLOCK_SIZE - 1)/ BLOCK_SIZE); ++m)
+    {
+        if ((m * BLOCK_SIZE + threadIdx.x) <  nCols) 
+           x_shared[threadIdx.x] = dx[threadIdx.x + m * BLOCK_SIZE];
+        else
+            x_shared[threadIdx.x] = 0.f;
+        __syncthreads();
+    #pragma unroll
+        for (unsigned int e = 0; e < BLOCK_SIZE; ++e) {
+        y_val += dA[tid * nCols + (e + BLOCK_SIZE * m)] * x_shared[e];
+    }
+        __syncthreads();
+    }
+    if (tid < nRows) dy[tid] = y_val;
+}
 extern "C"
 __global__ void Softmax(const float* __restrict__ input, float* data, int row, int column)
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
-    int g = blockDim.x * blockIdx.x + threadIdx.x;
+    int g = blockDim.y * blockIdx.y + threadIdx.y;
     if (k < row && g < column)
     {
-       __shared__ float max;
-       __shared__ float sum;
-       max = 0.0f;
-       sum = 0.0f;
-       __syncthreads();
+       __shared__ float max[512];
+       __shared__ float sum[512];
        int index = k * column + g;
        float inx = input[index];
-       if (max < inx)
-           max = inx;
+       max[k] = inx;
+       sum[k] = 0.0f;
        __syncthreads();
-       index = k * column + g;
-       float d = __expf(input[index] - max);
-       sum += d;
+       if (max[k] < inx)
+           max[k] = inx;
+       __syncthreads();
+       float d = __expf(inx - max[k]);
+       atomicAdd(&sum[k], d);
        data[index] = d;
        __syncthreads();
-       index = k * column + g;
-       if (sum != 0.0f) {
-           data[index] /= sum;
+       if (sum[k] != 0.0f) {
+           data[index] /= sum[k];
        }        else {
            data[index] /= 0.0000001f;
        }     }
@@ -914,29 +982,25 @@ extern "C"
 __global__ void Softmax_half(const half* __restrict__ input, half* data, int row, int column)
 {
     int k = blockDim.x * blockIdx.x + threadIdx.x;
-    int g = blockDim.x * blockIdx.x + threadIdx.x;
+    int g = blockDim.y * blockIdx.y + threadIdx.y;
     if (k < row && g < column)
     {
-       __shared__ half max;
-       __shared__ half sum;
-       max = sh[0];
-       sum = sh[0];
-       __syncthreads();
+       __shared__ half max[512];
+       __shared__ half sum[512];
        int index = k * column + g;
        half inx = input[index];
-       if (max < inx)
-           max = inx;
+       max[k] = inx;
+       sum[k] = sh[0];
        __syncthreads();
-       index = k * column + g;
-       half d = hexp(input[index] - max);
-       d = InfinityCheck(d);
-       sum += d;
+       if (max[k] < inx)
+           max[k] = inx;
+       __syncthreads();
+       half d = __expf(inx - max[k]);
+       atomicAdd(&sum[k], d);
        data[index] = d;
-       sum = InfinityCheck(sum);
        __syncthreads();
-       index = k * column + g;
-       if (sum != sh[0]) {
-           data[index] /= sum;
+       if (sum[k] != sh[0]) {
+           data[index] /= sum[k];
        }        else {
            data[index] /= 0.0000001f;
        }     }

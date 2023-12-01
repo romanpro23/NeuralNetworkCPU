@@ -218,7 +218,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             outputDecoder = NNArrays.isMatrix(encoderLayer.getOutput());
         }
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
@@ -353,7 +353,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             errorDecoder = new NNMatrix[errors.length];
         }
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {

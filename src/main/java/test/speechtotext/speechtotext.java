@@ -40,30 +40,30 @@ public class speechtotext {
                 .setTrainable(true)
                 .create();*/
 
-        /*network = new NeuralNetwork();
+        network = new NeuralNetwork();
         network.addInputLayer(24, 480)
         .addLayer(new Half2Float2D())
         .addLayer(new VITPositionalEmbeddingLayer())
         .addLayer(new NormalizationLayer2D())
-        .addLayer(new Float2Half2D())
+        //.addLayer(new Float2Half2D())
         .addLayer(new AdditionBlock()
-           .addLayer(new MultiHeadAttentionLayer(4, 260, true).setMask())
+           .addLayer(new MultiHeadAttentionLayer(4, 260, false).setMask())
         )
-        .addLayer(new Half2Float2D())
+        //.addLayer(new Half2Float2D())
         .addLayer(new NormalizationLayer2D())
-        .addLayer(new DenseLayer2D(960, false))
+        .addLayer(new DenseLayer2D(480, false))
         .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
         .addLayer(new FlattenLayer2D())
         .addLayer(new DenseLayer(176))
         .setOptimizer(optimizer)
         .setFunctionLoss(new FunctionLoss.MSE())
         .setTrainable(true)
-        .create();*/
+        .create();
 
-        network = new NeuralNetwork();
+        /*network = new NeuralNetwork();
         network.addInputLayer(24, 480)
         .addLayer(new Half2Float2D())
-       // .addLayer(new VITPositionalEmbeddingLayer())
+        .addLayer(new VITPositionalEmbeddingLayer())
         //1////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new NormalizationLayer2D())
         //.addLayer(new Float2Half2D())
@@ -123,7 +123,7 @@ public class speechtotext {
         .setOptimizer(optimizer)
         .setFunctionLoss(new FunctionLoss.MSE())
         .setTrainable(true)
-        .create();
+        .create();*/
 
        //optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
@@ -153,7 +153,7 @@ public class speechtotext {
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 50, 1, new DataMetric.Top1());
+            trainer.train(network, 1, 1, new DataMetric.Top1());
 
             network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt"));

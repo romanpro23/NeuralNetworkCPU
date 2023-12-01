@@ -28,7 +28,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(input);
         this.output = new NNMatrix[input.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
@@ -57,7 +57,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(error);
         this.error = new NNMatrix[errorNL.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {

@@ -131,11 +131,11 @@ public class PositionLoader extends DataLoader2D {
 
                     NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);
 
-                    inputsData.ClearCpuData();
-                    inputsData = null;
-                    inputsDataNew.ClearCpuData();
+                    //inputsData.ClearCpuData();
+                    //inputsData = null;
+                    //inputsDataNew.ClearCpuData();
 
-                    Use.CPU = false;
+                    //Use.CPU = false;
 
                     NNVector output = codeString(label.toString(), false);
 
@@ -153,7 +153,7 @@ public class PositionLoader extends DataLoader2D {
                     wwq++;
                 }
 
-                Use.CPU = false;
+                //Use.CPU = false;
             }
         }
     }

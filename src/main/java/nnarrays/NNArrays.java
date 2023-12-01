@@ -37,12 +37,12 @@ public final class NNArrays {
         for (int i = 0; i < arr.length; i++) {
             if (Use.CPU) {
                 GPU_Sleep();
-                arr[i] = new NNVector(batch[i]);
+                arr[i] = new NNVector(batch[i], batch[i].half);
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
-                arr[i] = new NNVector(batch[i].size);
+                arr[i] = new NNVector(batch[i].size, batch[i].half);
                 arr[i].copy(batch[i]);
             }
         }
@@ -431,7 +431,7 @@ public final class NNArrays {
             throw new Exception("Half problem!!!");
         }
 
-        NNArray result = new NNArray(first.size);
+        NNArray result = new NNArray(first.size, first.half);
 
         if (Use.CPU) {
             for (int i = 0; i < result.size; i++) {

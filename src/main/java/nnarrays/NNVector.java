@@ -42,8 +42,18 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
+    public NNVector(NNVector vector, boolean half) {
+        super(vector.size, half);
+        countAxes = 1;
+    }
+
     public NNVector(NNArray array) {
         super(array.data, array.sdata);
+        countAxes = 1;
+    }
+
+    public NNVector(NNArray array, boolean half) {
+        super(array.data, array.sdata, half);
         countAxes = 1;
     }
 
@@ -63,7 +73,7 @@ public class NNVector extends NNArray {
     }
 
     public NNVector dot(NNMatrix matrix) {
-        NNVector result = new NNVector(matrix.getRow());
+        NNVector result = new NNVector(matrix.getRow(), matrix.half);
 
         if (Use.CPU) {
             for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -79,7 +89,27 @@ public class NNVector extends NNArray {
 
             int SUCCESS = 0;
             if (!matrix.half) {
-                int PType = cudaDataType.CUDA_R_32F;
+                CUfunction function = new CUfunction();
+                if (!matrix.isHalf()) {
+                    cuModuleGetFunction(function, helperModule, "matvec_kernel");
+                }
+                else
+                {
+                    cuModuleGetFunction(function, helperModule, "matvec_kernel_half");
+                }
+                Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{matrix.getRow()}), Pointer.to(new int[]{matrix.getColumn()}));
+                int BDIM = 32;
+                int gridSizeX = (int) Math.ceil((double) matrix.getRow() / BDIM);
+
+                SUCCESS = cuLaunchKernel(function,
+                        gridSizeX, 1, 1,      // Grid dimension
+                        BDIM, 1, 1,      // Block dimension
+                        0, null,               // Shared memory size and stream
+                        kernelParameters, null // Kernel- and extra parameters
+                );
+
+
+                /*int PType = cudaDataType.CUDA_R_32F;
                 int CComputeType = cublasComputeType.CUBLAS_COMPUTE_32F;
 
                 int N = matrix.getRow();
@@ -93,11 +123,11 @@ public class NNVector extends NNArray {
                     IsNan_float();
                     IsNan_float(matrix);
                     IsNan_float(result);
-                }
+                }*/
             }
             else
             {
-                int PType = cudaDataType.CUDA_R_16F;
+                /*int PType = cudaDataType.CUDA_R_16F;
                 int CComputeType = cublasComputeType.CUBLAS_COMPUTE_16F;
 
                 int N = matrix.getRow();
@@ -111,7 +141,7 @@ public class NNVector extends NNArray {
                     IsNan();
                     IsNan(matrix);
                     IsNan(result);
-                }
+                }*/
             }
 
             if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS)

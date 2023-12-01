@@ -107,12 +107,12 @@ public class DenseLayer extends DenseNeuralLayer {
         if (size.length != 1) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-        derThreshold = new NNVector(countNeuron);
-        derWeight = new NNMatrix(countNeuron, size[0]);
+        derThreshold = new NNVector(countNeuron, half);
+        derWeight = new NNMatrix(countNeuron, size[0], half);
 
         if (!loadWeight) {
-            threshold = new NNVector(countNeuron);
-            weight = new NNMatrix(countNeuron, size[0]);
+            threshold = new NNVector(countNeuron, half);
+            weight = new NNMatrix(countNeuron, size[0], half);
             initializer.initialize(weight);
         }
     }
@@ -123,7 +123,7 @@ public class DenseLayer extends DenseNeuralLayer {
         this.input = NNArrays.isVector(inputs);
         this.output = new NNVector[input.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
             for (int t = 0; t < inputs.length; t++) {
@@ -202,7 +202,7 @@ public class DenseLayer extends DenseNeuralLayer {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNVector[errors.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {
@@ -278,9 +278,17 @@ public class DenseLayer extends DenseNeuralLayer {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                input.IsNan_float(input);
-                error.IsNan_float(error);
-                derWeight.IsNan_float(derWeight);
+                if (!input.isHalf()) {
+                    input.IsNan_float(input);
+                    error.IsNan_float(error);
+                    derWeight.IsNan_float(derWeight);
+                }
+                else
+                {
+                    input.IsNan(input);
+                    error.IsNan(error);
+                    derWeight.IsNan(derWeight);
+                }
             }
         }
         derThreshold.add(error);
