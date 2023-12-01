@@ -3216,7 +3216,7 @@ public class NNArray {
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
                     "        float x = input[idx];\n" +
-                    "        float val = __tanf(0.7978846f * x + 0.0356774f * x * x * x);\n" +
+                    "        float val = tanh(0.7978846f * x + 0.0356774f * x * x * x);\n" +
                     "        data[idx] = error[idx] * 0.5f * (1.0f + val + x * (1.0f - val * val) * (0.79788846f + 0.1070322f * x * x));\n" +
                     "    }\n" +
                     "}\n" +

@@ -131,11 +131,11 @@ public class PositionLoader extends DataLoader2D {
 
                     NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);
 
-                    //inputsData.ClearCpuData();
-                    //inputsData = null;
-                    //inputsDataNew.ClearCpuData();
+                    inputsData.ClearCpuData();
+                    inputsData = null;
+                    inputsDataNew.ClearCpuData();
 
-                    //Use.CPU = false;
+                    Use.CPU = false;
 
                     NNVector output = codeString(label.toString(), false);
 
@@ -153,7 +153,7 @@ public class PositionLoader extends DataLoader2D {
                     wwq++;
                 }
 
-                //Use.CPU = false;
+                Use.CPU = false;
             }
         }
     }
@@ -173,7 +173,7 @@ public class PositionLoader extends DataLoader2D {
                 float[] sm = new float[input.size()];
                 for (int j = 0; j < input.size(); j++) {
                     try {
-                        sm[j] = ((float) codeUaChars.get(chars[j])/* / 10 + 1*/);
+                        sm[j] = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
                     } catch (Exception e) {
                         int ss = 0;
                     }
@@ -188,7 +188,7 @@ public class PositionLoader extends DataLoader2D {
                     float value = 0;
 
                     try {
-                        value = ((float) codeUaChars.get(chars[j])/* / 10 + 1*/);
+                        value = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
                         sm[j] = Float.floatToFloat16(value);
                     } catch (Exception e) {
                         int ss = 0;
@@ -205,7 +205,7 @@ public class PositionLoader extends DataLoader2D {
     public String decodeString(float[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/)/* * 10*/))));
+            Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/) * 100))));
             if (Char != null) {
                 string.append(Char);
             }
@@ -216,7 +216,7 @@ public class PositionLoader extends DataLoader2D {
     public String decodeString_half(short[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round((Float.float16ToFloat(input[i])/* - 1*/)/* * 10*/))));
+            Character Char = (uaChars.get((int) (Math.round((Float.float16ToFloat(input[i])/* - 1*/) * 100))));
             if (Char != null) {
                 string.append(Char);
             }

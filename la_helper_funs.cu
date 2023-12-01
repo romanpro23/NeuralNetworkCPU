@@ -903,7 +903,7 @@ __global__ void derGelu(const float* __restrict__ input, const float* __restrict
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
         float x = input[idx];
-        float val = __tanf(0.7978846f * x + 0.0356774f * x * x * x);
+        float val = tanh(0.7978846f * x + 0.0356774f * x * x * x);
         data[idx] = error[idx] * 0.5f * (1.0f + val + x * (1.0f - val * val) * (0.79788846f + 0.1070322f * x * x));
     }
 }
@@ -935,6 +935,28 @@ __global__ void matvec_kernel(const float * __restrict__ dA, const float * __res
     const unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
     __shared__ float x_shared[BLOCK_SIZE];
     float y_val = 0.0;
+    #pragma unroll
+    for (unsigned int m = 0; m < ((nCols + BLOCK_SIZE - 1)/ BLOCK_SIZE); ++m)
+    {
+        if ((m * BLOCK_SIZE + threadIdx.x) <  nCols) 
+           x_shared[threadIdx.x] = dx[threadIdx.x + m * BLOCK_SIZE];
+        else
+            x_shared[threadIdx.x] = 0.f;
+        __syncthreads();
+    #pragma unroll
+        for (unsigned int e = 0; e < BLOCK_SIZE; ++e) {
+        y_val += dA[tid * nCols + (e + BLOCK_SIZE * m)] * x_shared[e];
+    }
+        __syncthreads();
+    }
+    if (tid < nRows) dy[tid] = y_val;
+}
+extern "C"
+__global__ void matvec_kernel_half(const half* __restrict__ dA, const half* __restrict__ dx, half* __restrict__ dy, const unsigned int nRows, const unsigned int nCols)
+{
+    const unsigned int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    __shared__ half x_shared[BLOCK_SIZE];
+    half y_val = 0.0;
     #pragma unroll
     for (unsigned int m = 0; m < ((nCols + BLOCK_SIZE - 1)/ BLOCK_SIZE); ++m)
     {

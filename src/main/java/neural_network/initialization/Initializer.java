@@ -23,7 +23,7 @@ public abstract class Initializer {
     public abstract void initialize(NNTensor4D weight);
 
     protected void initializeNormal(NNArray weight) {
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             for (int i = 0; i < weight.size(); i++) {
                 weight.set(i, (float) (random.nextGaussian() * range));
             }
@@ -47,6 +47,9 @@ public abstract class Initializer {
                         temp[i] = Float.floatToFloat16(val);
                     } else {
                         temp[i] = Float.floatToFloat16(0.0001f);
+                    }
+                    if (Use.CPU) {
+                        weight.set(i, Float.float16ToFloat(temp[i]));
                     }
                 }
 
