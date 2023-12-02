@@ -12,6 +12,10 @@ import java.util.Scanner;
 
 public class DigitCapsuleLayer extends FlattenLayer2D {
 
+    public DigitCapsuleLayer(boolean half) {
+        super(half);
+    }
+
     public void initialize(int[] size) {
         if (size.length != 2) {
             throw new ExceptionInInitializerError("Error size pre layer!");
@@ -53,6 +57,6 @@ public class DigitCapsuleLayer extends FlattenLayer2D {
     }
 
     public static DigitCapsuleLayer read(Scanner scanner) {
-        return new DigitCapsuleLayer();
+        return new DigitCapsuleLayer(false);
     }
 }

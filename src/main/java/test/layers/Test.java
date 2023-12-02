@@ -29,7 +29,7 @@ public class Test {
 
         Optimizer optimizer = new AdamOptimizer();
 
-        DenseLayer layer = new DenseLayer(outputSize);
+        DenseLayer layer = new DenseLayer(outputSize, false);
         layer.initialize(new int[]{inputSize});
         layer.initialize(optimizer);
 

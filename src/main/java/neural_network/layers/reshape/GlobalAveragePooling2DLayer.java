@@ -7,6 +7,11 @@ import java.io.IOException;
 import java.util.Scanner;
 
 public class GlobalAveragePooling2DLayer extends FlattenLayer2D {
+
+    public GlobalAveragePooling2DLayer(boolean half) {
+        super(half);
+    }
+
     @Override
     public int info() {
         System.out.println("Global averg|  " + width + ",\t" + depth + "\t\t|  " + countNeuron + "\t\t\t|");
@@ -52,6 +57,6 @@ public class GlobalAveragePooling2DLayer extends FlattenLayer2D {
     }
 
     public static GlobalAveragePooling2DLayer read(Scanner scanner){
-        return new GlobalAveragePooling2DLayer();
+        return new GlobalAveragePooling2DLayer(false);
     }
 }

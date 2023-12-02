@@ -129,13 +129,13 @@ public class SEBlock extends LayersBlock {
     }
 
     public SEBlock addDenseLayer(int countNeurons) {
-        DenseLayer denseLayer = new DenseLayer(countNeurons);
+        DenseLayer denseLayer = new DenseLayer(countNeurons, false);
         addDenseLayer(denseLayer);
         return this;
     }
 
     public SEBlock addDenseLayer(int countNeurons, FunctionActivation functionActivation) {
-        DenseLayer denseLayer = new DenseLayer(countNeurons);
+        DenseLayer denseLayer = new DenseLayer(countNeurons, false);
         addDenseLayer(denseLayer);
         addActivationLayer(functionActivation);
         return this;

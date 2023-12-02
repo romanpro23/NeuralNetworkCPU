@@ -49,11 +49,12 @@ public class DenseLayer extends DenseNeuralLayer {
     private NNVector threshold;
     private NNVector derThreshold;
 
-    public DenseLayer(int countNeuron) {
+    public DenseLayer(int countNeuron, boolean half) {
         super();
         this.countNeuron = countNeuron;
         this.trainable = true;
         initializer = new Initializer.HeNormal();
+        this.half = half;
     }
 
     @Override
@@ -91,6 +92,7 @@ public class DenseLayer extends DenseNeuralLayer {
     public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer\n");
         writer.write(countNeuron + "\n");
+        writer.write(this.half + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -295,7 +297,7 @@ public class DenseLayer extends DenseNeuralLayer {
     }
 
     public static DenseLayer read(Scanner scanner) {
-        DenseLayer denseLayer = new DenseLayer(Integer.parseInt(scanner.nextLine()));
+        DenseLayer denseLayer = new DenseLayer(Integer.parseInt(scanner.nextLine()), Boolean.parseBoolean(scanner.nextLine()));
         denseLayer.threshold = NNVector.read(scanner);
         denseLayer.weight = NNMatrix.read(scanner);
         denseLayer.setRegularization(Regularization.read(scanner));

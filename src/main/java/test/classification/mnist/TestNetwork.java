@@ -17,7 +17,7 @@ public class TestNetwork {
     public static void main(String[] args) {
         NeuralNetwork network = new NeuralNetwork()
                 .addInputLayer(32)
-                .addLayer(new DenseLayer(14 * 14 * 4).setTrainable(true))
+                .addLayer(new DenseLayer(14 * 14 * 4, false).setTrainable(true))
                 .addLayer(new ActivationLayer(new FunctionActivation.ReLU()))
                 .addLayer(new ReshapeLayer3D(7, 7, 16))
                 .addLayer(new ConvolutionTransposeLayer(8, 4, 2, 1).setTrainable(false))

@@ -8,6 +8,10 @@ import java.util.Scanner;
 
 public class GlobalMaxPooling2DLayer extends FlattenLayer2D {
 
+    public GlobalMaxPooling2DLayer(boolean half) {
+        super(half);
+    }
+
     @Override
     public int info() {
         System.out.println("Global max  |  " + width + ",\t" + depth + "\t\t|  " + countNeuron + "\t\t\t|");
@@ -53,6 +57,6 @@ public class GlobalMaxPooling2DLayer extends FlattenLayer2D {
     }
 
     public static GlobalMaxPooling2DLayer read(Scanner scanner){
-        return new GlobalMaxPooling2DLayer();
+        return new GlobalMaxPooling2DLayer(false);
     }
 }

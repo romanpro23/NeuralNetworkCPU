@@ -33,11 +33,11 @@ public class TestSSAdversialAutoencoders {
                 .create();
 
         LayersBlock classificationBlock = new LayersBlock()
-                .addLayer(new DenseLayer(10))
+                .addLayer(new DenseLayer(10, false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()));
 
         LayersBlock styleBlock = new LayersBlock()
-                .addLayer(new DenseLayer(32));
+                .addLayer(new DenseLayer(32, false));
 
         NeuralNetwork decoder = new NeuralNetwork()
                 .addInputLayer(42)

@@ -31,7 +31,7 @@ public class TestMNIST3D {
                 .addLayer(new FlattenLayer3D())
 //                .addLayer(new DenseLayer(256).setTrainable(false))
 //                .addLayer(new ActivationLayer(new FunctionActivation.ReLU()))
-                .addLayer(new DenseLayer(10).setTrainable(false))
+                .addLayer(new DenseLayer(10, false).setTrainable(false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(optimizer)
                 .setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy())

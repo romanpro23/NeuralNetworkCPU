@@ -31,8 +31,9 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     private NNMatrix weight;
     private NNMatrix derWeight;
 
-    public VITPositionalEmbeddingLayer() {
+    public VITPositionalEmbeddingLayer(boolean half) {
         trainable = true;
+        this.half = half;
     }
 
     @Override
@@ -122,6 +123,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("VIT positional embedding layer\n");
+        writer.write(this.half + "\n");
         weight.save(writer);
         if(regularization != null) {
             regularization.write(writer);
@@ -133,7 +135,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     }
 
     public static VITPositionalEmbeddingLayer read(Scanner scanner) {
-        VITPositionalEmbeddingLayer layer = new VITPositionalEmbeddingLayer();
+        VITPositionalEmbeddingLayer layer = new VITPositionalEmbeddingLayer(Boolean.parseBoolean(scanner.nextLine()));
         layer.weight = NNMatrix.read(scanner);
         layer.setRegularization(Regularization.read(scanner));
         layer.setTrainable(Boolean.parseBoolean(scanner.nextLine()));

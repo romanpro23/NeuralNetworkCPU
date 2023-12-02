@@ -1,5 +1,6 @@
 package neural_network.layers.reshape;
 
+import neural_network.initialization.Initializer;
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.*;
@@ -22,6 +23,11 @@ public class FlattenLayer2D extends NeuralLayer {
     protected NNMatrix[] error;
     protected NNVector[] errorNL;
 
+    public FlattenLayer2D(boolean half) {
+        super();
+        this.half = half;
+    }
+
     @Override
     public int[] size() {
         return new int[]{countNeuron};
@@ -41,6 +47,7 @@ public class FlattenLayer2D extends NeuralLayer {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Flatten layer 2D\n");
+        writer.write(this.half + "\n");
         writer.flush();
     }
 
@@ -124,6 +131,6 @@ public class FlattenLayer2D extends NeuralLayer {
     }
 
     public static FlattenLayer2D read(Scanner scanner){
-        return new FlattenLayer2D();
+        return new FlattenLayer2D(Boolean.parseBoolean(scanner.nextLine()));
     }
 }

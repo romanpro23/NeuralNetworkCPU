@@ -34,7 +34,7 @@ public class TestConvAutoencoders {
                 .addLayer(new FlattenLayer3D())
                 .addDenseLayer(256)
                 .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(32))
+                .addLayer(new DenseLayer(32, false))
                 .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();

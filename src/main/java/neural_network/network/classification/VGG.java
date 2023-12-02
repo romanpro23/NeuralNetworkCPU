@@ -58,7 +58,7 @@ public class VGG {
         if (vgg.getOutputSize().length != 1) {
             vgg.addLayer(new FlattenLayer3D());
         }
-        vgg.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
+        vgg.addLayer(new DenseLayer(countNeuron, false).setInitializer(new Initializer.XavierNormal()));
         vgg.addLayer(new ActivationLayer(functionActivation));
 
         return this;

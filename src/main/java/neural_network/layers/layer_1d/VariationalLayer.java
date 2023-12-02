@@ -31,8 +31,8 @@ public class VariationalLayer extends DenseNeuralLayer {
     public VariationalLayer(int countNeuron) {
         this();
         this.countNeuron = countNeuron;
-        mu = new DenseLayer(countNeuron);
-        gamma = new DenseLayer(countNeuron);
+        mu = new DenseLayer(countNeuron, false);
+        gamma = new DenseLayer(countNeuron, false);
     }
 
     @Override

@@ -29,7 +29,7 @@ public class TestCapsuleNet {
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                 .addLayer(new PrimaryCapsuleLayer(8, 8, 9, 2, 0).setTrainable(true))
                 .addLayer(new CapsuleLayer(10, 16).setTrainable(true))
-                .addLayer(new DigitCapsuleLayer())
+                .addLayer(new DigitCapsuleLayer(false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
 //                .setStopGradient(3)
                 .setOptimizer(new AdamOptimizer())

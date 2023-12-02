@@ -59,7 +59,7 @@ public class DenseNet {
         if (densenet.getOutputSize().length != 1) {
             densenet.addLayer(new FlattenLayer3D());
         }
-        densenet.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
+        densenet.addLayer(new DenseLayer(countNeuron, false).setInitializer(new Initializer.XavierNormal()));
         densenet.addLayer(new ActivationLayer(functionActivation));
 
         return this;

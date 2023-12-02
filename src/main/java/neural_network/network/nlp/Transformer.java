@@ -65,7 +65,7 @@ public class Transformer {
 
         AdditionBlock additionBlock = new AdditionBlock()
                 .addLayer(new DenseLayer2D(sizeDense, false))
-                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU(), false))
                 .addLayer(new DenseLayer2D(depth, false));
 
         if (dropout != 0) {
@@ -104,7 +104,7 @@ public class Transformer {
 
         AdditionBlock additionBlock = new AdditionBlock()
                 .addLayer(new DenseLayer2D(sizeDense, false))
-                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU()))
+                .addLayer(new ActivationLayer2D(new FunctionActivation.ReLU(), false))
                 .addLayer(new DenseLayer2D(depth, false));
 
         if (dropout != 0) {

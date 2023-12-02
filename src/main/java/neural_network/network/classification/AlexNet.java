@@ -76,7 +76,7 @@ public class AlexNet {
         if (alexnet.getOutputSize().length != 1) {
             alexnet.addLayer(new FlattenLayer3D());
         }
-        alexnet.addLayer(new DenseLayer(countNeuron));
+        alexnet.addLayer(new DenseLayer(countNeuron, false));
         alexnet.addLayer(new ActivationLayer(functionActivation));
 
         return this;

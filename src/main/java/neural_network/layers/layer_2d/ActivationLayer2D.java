@@ -19,8 +19,9 @@ import static utilities.Use.*;
 public class ActivationLayer2D extends NeuralLayer2D {
     private final FunctionActivation functionActivation;
 
-    public ActivationLayer2D(FunctionActivation functionActivation) {
+    public ActivationLayer2D(FunctionActivation functionActivation, boolean half) {
         this.functionActivation = functionActivation;
+        this.half = half;
     }
 
     @Override
@@ -90,11 +91,12 @@ public class ActivationLayer2D extends NeuralLayer2D {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer 2D\n");
+        writer.write(this.half + "\n");
         functionActivation.save(writer);
         writer.flush();
     }
 
     public static ActivationLayer2D read(Scanner scanner) {
-        return new ActivationLayer2D(FunctionActivation.read(scanner));
+        return new ActivationLayer2D(FunctionActivation.read(scanner), Boolean.parseBoolean(scanner.nextLine()));
     }
 }

@@ -58,7 +58,7 @@ public class ResNet {
         if (resnet.getOutputSize().length != 1) {
             resnet.addLayer(new FlattenLayer3D());
         }
-        resnet.addLayer(new DenseLayer(countNeuron).setInitializer(new Initializer.XavierNormal()));
+        resnet.addLayer(new DenseLayer(countNeuron, false).setInitializer(new Initializer.XavierNormal()));
         resnet.addLayer(new ActivationLayer(functionActivation));
 
         return this;

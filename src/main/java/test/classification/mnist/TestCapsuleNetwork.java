@@ -30,7 +30,7 @@ public class TestCapsuleNetwork {
                 .addLayer(new ActivationLayer3D(new FunctionActivation.ReLU()))
                 .addLayer(new PrimaryCapsuleLayer(8, 32, 9, 2, 0))
                 .addLayer(new CapsuleLayer(10, 16))
-                .addLayer(new DigitCapsuleLayer())
+                .addLayer(new DigitCapsuleLayer(false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.MSE())
@@ -38,7 +38,7 @@ public class TestCapsuleNetwork {
 
         NeuralNetwork decoder = new NeuralNetwork()
                 .addInputLayer(10, 16)
-                .addLayer(new FlattenLayer2D())
+                .addLayer(new FlattenLayer2D(false))
                 .addDenseLayer(512, new FunctionActivation.ReLU())
                 .addDenseLayer(1024, new FunctionActivation.ReLU())
                 .addDenseLayer(784, new FunctionActivation.Sigmoid())

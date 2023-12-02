@@ -25,7 +25,7 @@ public class TestAutoencoders {
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addDenseLayer(128)
                 .addActivationLayer(new FunctionActivation.ReLU())
-                .addLayer(new DenseLayer(32))
+                .addLayer(new DenseLayer(32, false))
                 .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .create();

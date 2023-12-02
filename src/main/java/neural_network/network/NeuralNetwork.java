@@ -382,11 +382,11 @@ public class NeuralNetwork {
     }
 
     public NeuralNetwork addDenseLayer(int countNeuron) {
-        return addLayer(new DenseLayer(countNeuron));
+        return addLayer(new DenseLayer(countNeuron, false));
     }
 
     public NeuralNetwork addDenseLayer(int countNeuron, FunctionActivation functionActivation) {
-        addLayer(new DenseLayer(countNeuron));
+        addLayer(new DenseLayer(countNeuron, false));
         return addActivationLayer(functionActivation);
     }
 

@@ -55,7 +55,7 @@ public class MobileNet {
         if (mobilenet.getOutputSize().length != 1) {
             mobilenet.addLayer(new FlattenLayer3D());
         }
-        mobilenet.addLayer(new DenseLayer(countNeuron)
+        mobilenet.addLayer(new DenseLayer(countNeuron, false)
                 .setInitializer(new Initializer.XavierNormal()));
         mobilenet.addLayer(new ActivationLayer(functionActivation));
 

@@ -35,7 +35,7 @@ public class TestCapsule {
                 .addLayer(new SquashActivationLayer())
                 .addLayer(cl = new CapsuleLayer(64, 12))
                 .addLayer(cl = new CapsuleLayer(10, 16))
-                .addLayer(new DigitCapsuleLayer())
+                .addLayer(new DigitCapsuleLayer( false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
                 .setOptimizer(new AdamOptimizer())
                 .setFunctionLoss(new FunctionLoss.Capsule())
