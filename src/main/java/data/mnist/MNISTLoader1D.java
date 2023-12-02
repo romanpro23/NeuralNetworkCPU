@@ -86,7 +86,7 @@ public class MNISTLoader1D extends DataLoader1D {
                 generateInput();
                 NNVector output = new NNVector(batchMNIST.getCountClass());
                 output.set(trueNumb, 1);
-                train.add(new ImageData1D(new NNVector(inputsData), output));
+                train.add(new ImageData1D(new NNVector(inputsData, null), output));
             }
         }
 //        Collections.shuffle(train);
@@ -101,7 +101,7 @@ public class MNISTLoader1D extends DataLoader1D {
                 generateInput();
                 NNVector output = new NNVector(batchMNIST.getCountClass());
                 output.set(trueNumb, 1);
-                test.add(new ImageData1D(new NNVector(inputsData), output));
+                test.add(new ImageData1D(new NNVector(inputsData, null), output));
             }
         }
 //        Collections.shuffle(test);

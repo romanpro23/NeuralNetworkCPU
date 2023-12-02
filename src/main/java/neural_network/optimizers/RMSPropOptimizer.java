@@ -17,6 +17,7 @@ public class RMSPropOptimizer extends Optimizer {
     }
 
     public RMSPropOptimizer(double decayRate) {
+        super();
         this.decayRate = (float) decayRate;
         this.countParam = 2;
     }

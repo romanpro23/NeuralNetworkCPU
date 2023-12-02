@@ -105,7 +105,7 @@ public class StyleTransfer {
 
         for (NeuralLayer styleLayer : styleLayers) {
             int[] size = styleLayer.size();
-            NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], styleLayer.getOutput()[0].getData());
+            NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], styleLayer.getOutput()[0].getData(), styleLayer.getOutput()[0].getSdata());
 
             styleGrammar.add(grammarMatrix(style_result));
         }
@@ -178,7 +178,7 @@ public class StyleTransfer {
     private NNMatrix errorStyle(NeuralLayer layer, NNMatrix grammar, double styleVal) {
         float styleV = (float) (styleVal / styleLayers.size());
         int[] size = layer.size();
-        NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], layer.getOutput()[0].getData());
+        NNMatrix style_result = new NNMatrix(size[1] * size[0], size[2], layer.getOutput()[0].getData(), layer.getOutput()[0].getSdata());
         NNMatrix grammar_result = grammarMatrix(style_result);
 
         accuracy += loss.findAccuracy(new NNMatrix[]{grammar_result}, new NNMatrix[]{grammar}) * styleV / style_result.size();

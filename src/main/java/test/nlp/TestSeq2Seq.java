@@ -33,7 +33,7 @@ public class TestSeq2Seq {
                 .addLayer(new EmbeddingLayer(10000, 64).setTrainable(true))
                 .addLayer(new LSTMBahdAttentionLayer(128, 128,0.2, true)
                         .setEncoderLayer(gru))
-                .addLayer(new DenseLayer2D(10000).setTrainable(true))
+                .addLayer(new DenseLayer2D(10000, false).setTrainable(true))
                 .addLayer(new SoftmaxLayer2D())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())
                 .setOptimizer(optDecoder = new AdamOptimizer())

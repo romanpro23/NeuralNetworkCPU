@@ -17,6 +17,8 @@ import java.util.Scanner;
 
 public class TestGANApple {
     public static void main(String[] args) throws Exception {
+        boolean gpu = false;
+
 //        NeuralNetwork discriminator = new NeuralNetwork()
 //                .addInputLayer(28, 28, 1)
 //                .addLayer(new ConvolutionLayer(16, 5, 2, 2))

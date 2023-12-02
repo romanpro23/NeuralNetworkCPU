@@ -37,6 +37,7 @@ public class AdamNormOptimizer extends Optimizer {
     }
 
     public AdamNormOptimizer(double beta1, double beta2, double learningRate, double gamma) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;

@@ -35,6 +35,7 @@ public class AdaBoundOptimizer extends Optimizer {
     }
 
     public AdaBoundOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;

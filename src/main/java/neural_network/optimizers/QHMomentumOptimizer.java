@@ -22,6 +22,7 @@ public class QHMomentumOptimizer extends Optimizer {
     }
 
     public QHMomentumOptimizer(double learningRate, double retentionRate, double v) {
+        super();
         this.learningRate = (float) learningRate;
         this.retentionRate = (float) retentionRate;
         this.v = (float) v;

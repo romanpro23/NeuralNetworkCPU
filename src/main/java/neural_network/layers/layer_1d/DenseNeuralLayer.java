@@ -32,7 +32,7 @@ public abstract class DenseNeuralLayer extends NeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        //no have initialize element
+
     }
 
     @Override

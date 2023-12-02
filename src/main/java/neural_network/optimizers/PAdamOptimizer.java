@@ -32,6 +32,7 @@ public class PAdamOptimizer extends Optimizer {
     }
 
     public PAdamOptimizer(double beta1, double beta2, double learningRate, double p) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -60,7 +61,6 @@ public class PAdamOptimizer extends Optimizer {
         weight.subDivPowNorm(additionParam[0], additionParam[1], learningRate, b1t, b2t, p);
         deltaWeight.clear();
     }
-
 
     private void max(NNArray v_, NNArray v) {
         for (int i = 0; i < v.size(); i++) {

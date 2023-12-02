@@ -3,6 +3,13 @@ package trainer;
 import data.loaders.DataLoader;
 import data.network_train.NNData;
 import neural_network.network.NeuralNetwork;
+import nnarrays.NNMatrix;
+import utilities.Use;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static neural_network.layers.NeuralLayer.CallGarbageCollector;
 
 public class DataTrainer {
     private DataLoader loader;
@@ -33,7 +40,6 @@ public class DataTrainer {
             System.out.print(" [");
             for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
-
                 accuracy += network.train(data.getInput(), data.getOutput(), false);
                 counter += dataMetric.quality(data.getOutput(), network.getOutputs());
                 cu++;
@@ -47,10 +53,10 @@ public class DataTrainer {
                 }
             }
             System.out.println("]");
-            System.out.println("\t\t\t" + (i + 1) + " ЕПОХА ");
-            System.out.println("Результат навчального датасету: ");
-            System.out.println("Відсоток правильних відповідей: " + String.format("%.2f", counter * 1.0 / sizeTrainEpoch * 100) + " %");
-            System.out.println("Точність на навчальном датасеті: " + String.format("%.5f", accuracy / sizeTrainEpoch));
+            System.out.println("\t\t\t" + (i + 1) + " ერა ");
+            System.out.println("ტრენინგის მონაცემთა ნაკრების შედეგი: ");
+            System.out.println("სწორი პასუხების პროცენტი (მხოლოდ კლასიფიკაციისთვის)" + String.format("%.2f", counter * 1.0 / sizeTrainEpoch * 100) + " %");
+            System.out.println("სიზუსტე ტრენინგის მონაცემთა ბაზაში: " + String.format("%.5f", accuracy / sizeTrainEpoch));
 
             //score(network, dataMetric);
         }

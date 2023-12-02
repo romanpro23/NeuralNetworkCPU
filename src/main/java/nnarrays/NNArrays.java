@@ -1,12 +1,33 @@
 package nnarrays;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.cudaDataType;
+import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
+import jcuda.jcublas.JCublas2;
+import jcuda.jcublas.cublasStatus;
+import jcuda.runtime.JCuda;
 import lombok.SneakyThrows;
+import utilities.Use;
 
 import java.util.Arrays;
 
 import static java.lang.Math.log;
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.jcublas.JCublas2.cublasSasum;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.BLOCK_SIZE;
+import static utilities.GPUInit.cublasHandle;
+import static utilities.GPUInit.helperModule;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public final class NNArrays {
+
     public static NNVector[] isVector(NNArray[] batch) {
         return (NNVector[]) batch;
     }
@@ -14,7 +35,16 @@ public final class NNArrays {
     public static NNVector[] toVector(NNArray[] batch) {
         NNVector[] arr = new NNVector[batch.length];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = new NNVector(batch[i]);
+            if (Use.CPU) {
+                GPU_Sleep();
+                arr[i] = new NNVector(batch[i], batch[i].half);
+                GPU_WakeUp();
+            }
+
+            if (Use.GPU) {
+                arr[i] = new NNVector(batch[i].size, batch[i].half);
+                arr[i].copy(batch[i]);
+            }
         }
 
         return arr;
@@ -61,7 +91,7 @@ public final class NNArrays {
     public static NNTensor[] toTensor(NNArray[] batch, int depth, int height, int width) {
         NNTensor[] arr = new NNTensor[batch.length];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = new NNTensor(depth, height, width, batch[i].data);
+            arr[i] = new NNTensor(depth, height, width, batch[i].data, batch[i].sdata);
         }
 
         return arr;
@@ -70,7 +100,7 @@ public final class NNArrays {
     public static NNMatrix[] toMatrix(NNArray[] batch, int height, int width) {
         NNMatrix[] arr = new NNMatrix[batch.length];
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = new NNMatrix(height, width, batch[i].data);
+            arr[i] = new NNMatrix(height, width, batch[i].data, batch[i].sdata);
         }
 
         return arr;
@@ -110,10 +140,14 @@ public final class NNArrays {
         NNVector[] result = new NNVector[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
+            short[] sdata = new short[first[i].size + second[i].size];
 
             System.arraycopy(first[i].data, 0, data, 0, first[i].size);
             System.arraycopy(second[i].data, 0, data, first[i].size, second[i].size);
-            result[i] = new NNVector(data);
+
+            System.arraycopy(first[i].sdata, 0, sdata, 0, first[i].size);
+            System.arraycopy(second[i].sdata, 0, sdata, first[i].size, second[i].size);
+            result[i] = new NNVector(data, sdata);
         }
         return result;
     }
@@ -123,9 +157,12 @@ public final class NNArrays {
         NNVector[] result = new NNVector[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
+            short[] sdata = new short[second[i].size];
 
             System.arraycopy(first[i].data, startIndex, data, 0, second[i].size);
-            result[i] = new NNVector(data);
+            System.arraycopy(first[i].sdata, startIndex, sdata, 0, second[i].size);
+
+            result[i] = new NNVector(data, sdata);
         }
         return result;
     }
@@ -135,6 +172,7 @@ public final class NNArrays {
         NNMatrix[] result = new NNMatrix[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
+            short[] sdata = new short[second[i].size];
 
             int size = second[i].shape()[0];
             int startDepth = startIndex / size;
@@ -147,10 +185,11 @@ public final class NNArrays {
                 indexF = j * first[i].shape()[1] + startDepth;
                 for (int k = 0; k < column; k++, index++, indexF++) {
                     data[index] = first[i].data[indexF];
+                    sdata[index] = first[i].sdata[indexF];
                 }
             }
 
-            result[i] = new NNMatrix(depth, column, data);
+            result[i] = new NNMatrix(depth, column, data, sdata);
         }
         return result;
     }
@@ -163,6 +202,7 @@ public final class NNArrays {
         NNMatrix[] result = new NNMatrix[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
+            short[] sdata = new short[first[i].size + second[i].size];
 
             int size = first[i].shape()[0];
             int columnF = first[i].shape()[1], columnS = second[i].shape()[1];
@@ -178,10 +218,17 @@ public final class NNArrays {
                 for (int k = 0; k < columnS; k++, index++, indexS++) {
                     data[index] = second[i].data[indexS];
                 }
+
+                for (int k = 0; k < columnF; k++, index++, indexF++) {
+                    sdata[index] = first[i].sdata[indexF];
+                }
+                for (int k = 0; k < columnS; k++, index++, indexS++) {
+                    sdata[index] = second[i].sdata[indexS];
+                }
             }
 
             int row = first[i].shape()[0];
-            result[i] = new NNMatrix(row, column, data);
+            result[i] = new NNMatrix(row, column, data, sdata);
         }
         return result;
     }
@@ -191,6 +238,7 @@ public final class NNArrays {
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[second[i].size];
+            short[] sdata = new short[second[i].size];
 
             int size = second[i].shape()[0] * second[i].shape()[1];
             int startDepth = startIndex / size;
@@ -204,10 +252,11 @@ public final class NNArrays {
                 indexF = j * first[i].shape()[2] + startDepth;
                 for (int k = 0; k < column; k++, index++, indexF++) {
                     data[index] = first[i].data[indexF];
+                    sdata[index] = first[i].sdata[indexF];
                 }
             }
 
-            result[i] = new NNTensor(depth, row, column, data);
+            result[i] = new NNTensor(depth, row, column, data, sdata);
         }
         return result;
     }
@@ -265,6 +314,7 @@ public final class NNArrays {
         NNTensor[] result = new NNTensor[first.length];
         for (int i = 0; i < first.length; i++) {
             float[] data = new float[first[i].size + second[i].size];
+            short[] sdata = new short[first[i].size + second[i].size];
 
             int size = first[i].shape()[0] * first[i].shape()[1];
             int columnF = first[i].shape()[2], columnS = second[i].shape()[2];
@@ -280,11 +330,18 @@ public final class NNArrays {
                 for (int k = 0; k < columnS; k++, index++, indexS++) {
                     data[index] = second[i].data[indexS];
                 }
+
+                for (int k = 0; k < columnF; k++, index++, indexF++) {
+                    sdata[index] = first[i].sdata[indexF];
+                }
+                for (int k = 0; k < columnS; k++, index++, indexS++) {
+                    sdata[index] = second[i].sdata[indexS];
+                }
             }
 
             int depth = first[i].shape()[0];
             int row = first[i].shape()[1];
-            result[i] = new NNTensor(depth, row, column, data);
+            result[i] = new NNTensor(depth, row, column, data, sdata);
         }
         return result;
     }
@@ -323,8 +380,42 @@ public final class NNArrays {
 
     public static float sum(NNArray array) {
         float sum = 0;
-        for (int i = 0; i < array.size; i++) {
-            sum += array.data[i];
+
+        if (Use.CPU) {
+            for (int i = 0; i < array.size; i++) {
+                sum += array.data[i];
+            }
+        }
+
+        if (Use.GPU) {
+            float[] sum_gpu = new float[1];
+
+            int PType;
+            if (!array.half) {
+                PType = cudaDataType.CUDA_R_32F;
+            }
+            else {
+                PType = cudaDataType.CUDA_R_16F;
+            }
+            int ResultType = cudaDataType.CUDA_R_32F;
+            int ExecutionType = cudaDataType.CUDA_R_32F;
+            int SUCCESS = JCublas2.cublasAsumEx(cublasHandle, array.size, array.data_gpu, PType, 1, Pointer.to(sum_gpu), ResultType, ExecutionType);
+            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS) {
+                throw new ArithmeticException("Error!");
+            }
+
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                if (!array.half) {
+                    array.IsNan_float(array);
+                }
+                else
+                {
+                    array.IsNan(array);
+                }
+            }
+
+            sum = sum_gpu[0];
         }
 
         return sum;
@@ -335,13 +426,131 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
-        NNArray result = new NNArray(first.size);
-        for (int i = 0; i < result.size; i++) {
-            result.data[i] = first.data[i] - second.data[i];
+        if (first.half != second.half)
+        {
+            throw new Exception("Half problem!!!");
+        }
+
+        NNArray result = new NNArray(first.size, first.half);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = first.data[i] - second.data[i];
+            }
+        }
+
+        if (Use.GPU) {
+            int n = result.size;
+            CUfunction function = new CUfunction();
+            if (!first.half) {
+                cuModuleGetFunction(function, helperModule, "sub_gpu");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "sub_gpu_half");
+            }
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                if (!first.half) {
+                    first.IsNan_float(first);
+                    second.IsNan_float(second);
+                    result.IsNan_float(result);
+                }
+                else
+                {
+                    first.IsNan(first);
+                    second.IsNan(second);
+                    result.IsNan(result);
+                }
+            }
         }
 
         return result;
     }
+
+    @SneakyThrows
+    public static NNArray sub_half_float(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = first.data[i] - second.data[i];
+            }
+        }
+
+        if (Use.GPU) {
+            int n = result.size;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "sub_half_float_gpu");
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                first.IsNan_float(first);
+                second.IsNan_float(second);
+                result.IsNan_float(result);
+            }
+        }
+
+        return result;
+    }
+
+    @SneakyThrows
+    public static NNArray sub_float_half(NNArray first, NNArray second) {
+        if (first.size != second.size) {
+            throw new Exception("Vector has difference size");
+        }
+        NNArray result = new NNArray(first.size);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = first.data[i] - second.data[i];
+            }
+        }
+
+        if (Use.GPU) {
+            int n = result.size;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "sub_float_half_gpu");
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                first.IsNan_float(first);
+                second.IsNan_float(second);
+                result.IsNan_float(result);
+            }
+        }
+
+        return result;
+    }
+
 
     @SneakyThrows
     public static NNArray capsLoss(NNArray first, NNArray second) {
@@ -469,9 +678,45 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
+        if (first.half != second.half)
+        {
+            throw new Exception("Half problem!!!");
+        }
+
+
         NNArray result = new NNArray(first.size);
-        for (int i = 0; i < result.size; i++) {
-            result.data[i] = Math.abs(first.data[i] - second.data[i]);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = Math.abs(first.data[i] - second.data[i]);
+            }
+        }
+
+        if (Use.GPU) {
+            int n = first.size;
+            CUfunction function = new CUfunction();
+            if (!first.half) {
+                cuModuleGetFunction(function, helperModule, "subAbs");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "subAbs_half");
+            }
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                first.IsNan_float(first);
+                second.IsNan_float(second);
+                result.IsNan_float(result);
+            }
         }
 
         return result;
@@ -495,10 +740,35 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
+
         NNArray result = new NNArray(first.size);
-        for (int i = 0; i < result.size; i++) {
-            float diff = first.data[i] - second.data[i];
-            result.data[i] = diff / (Math.abs(diff) + 0.00000001f);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                float diff = first.data[i] - second.data[i];
+                result.data[i] = diff / (Math.abs(diff) + 0.00000001f);
+            }
+        }
+
+        if (Use.GPU) {
+            int n = first.size / 2;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "derAbs");
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                first.IsNan_float(first);
+                second.IsNan_float(second);
+                result.IsNan_float(result);
+            }
         }
 
         return result;

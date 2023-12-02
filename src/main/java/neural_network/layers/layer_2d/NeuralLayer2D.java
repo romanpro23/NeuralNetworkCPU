@@ -1,5 +1,6 @@
 package neural_network.layers.layer_2d;
 
+import lombok.SneakyThrows;
 import neural_network.layers.NeuralLayer;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
@@ -34,7 +35,7 @@ public abstract class NeuralLayer2D extends NeuralLayer {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        //no have initialize element
+
     }
 
     @Override

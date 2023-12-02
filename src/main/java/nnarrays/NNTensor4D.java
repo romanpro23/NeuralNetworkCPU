@@ -1,11 +1,16 @@
 package nnarrays;
 
 import lombok.Getter;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public class NNTensor4D extends NNArray {
     @Getter
@@ -35,16 +40,19 @@ public class NNTensor4D extends NNArray {
         depthIndex = new int[depth];
         lengthIndex = new int[length];
         rowIndex = new int[row];
-        int sq = column * row * length;
-        int sql = column * row;
-        for (int i = 0; i < depth; i++) {
-            depthIndex[i] = i * sq;
-        }
-        for (int i = 0; i < length; i++) {
-            lengthIndex[i] = i * sql;
-        }
-        for (int i = 0; i < row; i++) {
-            rowIndex[i] = i * column;
+
+        if (Use.CPU) {
+            int sq = column * row * length;
+            int sql = column * row;
+            for (int i = 0; i < depth; i++) {
+                depthIndex[i] = i * sq;
+            }
+            for (int i = 0; i < length; i++) {
+                lengthIndex[i] = i * sql;
+            }
+            for (int i = 0; i < row; i++) {
+                rowIndex[i] = i * column;
+            }
         }
     }
 

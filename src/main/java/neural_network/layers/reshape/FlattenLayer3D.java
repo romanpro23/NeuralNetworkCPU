@@ -58,7 +58,7 @@ public class FlattenLayer3D extends NeuralLayer {
         output = new NNVector[inputs.length];
 
         for (int i = 0; i < output.length; i++) {
-            output[i] = new NNVector(input[i].getData());
+            output[i] = new NNVector(input[i].getData(), input[i].getSdata());
         }
     }
 
@@ -73,7 +73,7 @@ public class FlattenLayer3D extends NeuralLayer {
         error = new NNTensor[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
-            error[i] = new NNTensor(height, width, depth, errorNL[i].getData());
+            error[i] = new NNTensor(height, width, depth, errorNL[i].getData(), errorNL[i].getSdata());
         }
     }
 

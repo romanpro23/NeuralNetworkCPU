@@ -55,20 +55,20 @@ public class AppleToOrangeLoader3D extends Img2ImgDataLoader3D {
 
     @SneakyThrows
     private void loadData() {
-        File dir = new File("D:/datasets/apple_orange/trainA_" + sizeImage + "/");
+        File dir = new File("C:/datasets/apple_orange/trainA_" + sizeImage + "/");
         for (File file : dir.listFiles()) {
             trainA.add(loadImage("trainA", file.getName()));
         }
-        dir = new File("D:/datasets/apple_orange/trainB_" + sizeImage + "/");
+        dir = new File("C:/datasets/apple_orange/trainB_" + sizeImage + "/");
         for (File file : dir.listFiles()) {
             trainB.add(loadImage("trainB", file.getName()));
         }
 
-        dir = new File("D:/datasets/apple_orange/testA_" + sizeImage + "/");
+        dir = new File("C:/datasets/apple_orange/testA_" + sizeImage + "/");
         for (File file : dir.listFiles()) {
             testA.add(loadImage("testA", file.getName()));
         }
-        dir = new File("D:/datasets/apple_orange/testB_" + sizeImage + "/");
+        dir = new File("C:/datasets/apple_orange/testB_" + sizeImage + "/");
         for (File file : dir.listFiles()) {
             testB.add(loadImage("testB", file.getName()));
         }
@@ -83,7 +83,7 @@ public class AppleToOrangeLoader3D extends Img2ImgDataLoader3D {
     @SneakyThrows
     private NNTensor loadImage(String str, String fileName) {
         NNTensor input = new NNTensor(sizeImage, sizeImage, 3);
-        BufferedImage image = ImageIO.read(new File("D:/datasets/apple_orange/" + str + "_" + sizeImage + "/" + fileName));
+        BufferedImage image = ImageIO.read(new File("C:/datasets/apple_orange/" + str + "_" + sizeImage + "/" + fileName));
         BufferedImage scaledImg = Scalr.resize(image, Scalr.Method.ULTRA_QUALITY, (int) (sizeImage * 1.1), (int) (sizeImage * 1.1));
 
         int i0 = (int) (Math.random() * (scaledImg.getHeight() - sizeImage));

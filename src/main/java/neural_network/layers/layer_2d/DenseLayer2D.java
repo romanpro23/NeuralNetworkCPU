@@ -1,5 +1,6 @@
 package neural_network.layers.layer_2d;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import neural_network.initialization.Initializer;
@@ -9,12 +10,16 @@ import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNMatrix;
 import nnarrays.NNVector;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.*;
 
 public class DenseLayer2D extends NeuralLayer2D {
     //trainable parts
@@ -32,17 +37,18 @@ public class DenseLayer2D extends NeuralLayer2D {
     private NNVector threshold;
     private NNVector derThreshold;
 
-    public DenseLayer2D(int countNeuron) {
+    public DenseLayer2D(int countNeuron, boolean half) {
         super();
         this.countNeuron = countNeuron;
         this.trainable = true;
         initializer = new Initializer.HeNormal();
+        this.half = half;
     }
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(weight, derWeight);
-        optimizer.addDataOptimize(threshold, derThreshold);
+        optimizer.addDataOptimize(weight, derWeight, "Dense layer 2D");
+        optimizer.addDataOptimize(threshold, derThreshold, "Dense layer 2D");
     }
 
     public DenseLayer2D setTrainable(boolean trainable) {
@@ -74,6 +80,7 @@ public class DenseLayer2D extends NeuralLayer2D {
     public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer 2D\n");
         writer.write(countNeuron + "\n");
+        writer.write(this.half + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -95,12 +102,12 @@ public class DenseLayer2D extends NeuralLayer2D {
         outWidth = width;
         outDepth = countNeuron;
 
-        derThreshold = new NNVector(countNeuron);
-        derWeight = new NNMatrix(depth, countNeuron);
+        derThreshold = new NNVector(countNeuron, this.half);
+        derWeight = new NNMatrix(depth, countNeuron, this.half);
 
         if (!loadWeight) {
-            threshold = new NNVector(countNeuron);
-            weight = new NNMatrix(depth, countNeuron);
+            threshold = new NNVector(countNeuron, this.half);
+            weight = new NNMatrix(depth, countNeuron, this.half);
             initializer.initialize(weight);
         }
     }
@@ -111,16 +118,27 @@ public class DenseLayer2D extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         this.output = new NNMatrix[input.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if ((Use.CPU) && (!Use.GPU)) {
+            GPU_Sleep();
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
                     output[i] = input[i].dot(weight);
                     output[i].add(threshold);
-            });
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+            GPU_WakeUp();
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
+                output[i] = input[i].dot(weight);
+                output[i].add(threshold);
+            }
         }
     }
 
@@ -130,19 +148,33 @@ public class DenseLayer2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         this.error = new NNMatrix[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if ((Use.CPU) && (!Use.GPU)) {
+            GPU_Sleep();
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = errorNL[i].dotT(weight);
+                    if (trainable) {
+                        derWeight.add(input[i].transpose().dot(errorNL[i]));
+                        derThreshold.add(errorNL[i]);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+            GPU_WakeUp();
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = errorNL[i].dotT(weight);
                 if (trainable) {
                     derWeight.add(input[i].transpose().dot(errorNL[i]));
                     derThreshold.add(errorNL[i]);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {
@@ -152,7 +184,7 @@ public class DenseLayer2D extends NeuralLayer2D {
     }
 
     public static DenseLayer2D read(Scanner scanner) {
-        DenseLayer2D denseLayer = new DenseLayer2D(Integer.parseInt(scanner.nextLine()));
+        DenseLayer2D denseLayer = new DenseLayer2D(Integer.parseInt(scanner.nextLine()), Boolean.parseBoolean(scanner.nextLine()));
         denseLayer.threshold = NNVector.read(scanner);
         denseLayer.weight = NNMatrix.read(scanner);
         denseLayer.setRegularization(Regularization.read(scanner));

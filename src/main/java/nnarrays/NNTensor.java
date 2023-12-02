@@ -1,12 +1,28 @@
 package nnarrays;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
+import jcuda.jcublas.JCublas2;
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Scanner;
+
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static utilities.GPUInit.*;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class NNTensor extends NNArray {
     @Getter
@@ -35,19 +51,21 @@ public class NNTensor extends NNArray {
     }
 
     private void initialize() {
-        rowsIndex = new int[rows];
-        columnsIndex = new int[columns];
-        int sq = depth * columns;
-        for (int i = 0; i < rows; i++) {
-            rowsIndex[i] = i * sq;
-        }
-        for (int i = 0; i < columns; i++) {
-            columnsIndex[i] = i * depth;
+        if (Use.CPU) {
+            rowsIndex = new int[rows];
+            columnsIndex = new int[columns];
+            int sq = depth * columns;
+            for (int i = 0; i < rows; i++) {
+                rowsIndex[i] = i * sq;
+            }
+            for (int i = 0; i < columns; i++) {
+                columnsIndex[i] = i * depth;
+            }
         }
     }
 
-    public NNTensor(int rows, int columns, int depth, float[] data) {
-        super(data);
+    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata) {
+        super(data, sdata);
         this.depth = depth;
         this.columns = columns;
         this.rows = rows;
@@ -66,7 +84,28 @@ public class NNTensor extends NNArray {
     }
 
     public void set(int i, int j, int k, float value) {
-        data[rowsIndex[i] + columnsIndex[j] + k] = value;
+        if (Use.CPU) {
+            data[rowsIndex[i] + columnsIndex[j] + k] = value;
+            sdata[rowsIndex[i] + columnsIndex[j] + k] = Float.floatToFloat16(value);
+        }
+
+        if (Use.GPU) {
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "set2");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new short[]{Float.floatToFloat16(value)}));
+            int blockSize = 1;
+            int gridSizeX = 1;
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan();
+            }
+        }
     }
 
     public NNTensor mul(NNVector vector) {
@@ -111,14 +150,46 @@ public class NNTensor extends NNArray {
         return output;
     }
 
+    public void ClearCpuData()
+    {
+        data = null;
+        sdata = null;
+    }
+
     public NNTensor reverse() {
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < columns; j++) {
-                for (int k = 0; k < depth; k++) {
-                    float val = get(i, j, k);
-                    set(i, j, k, get(rows - 1 - i, j, k));
-                    set(rows - 1 - i, j, k, val);
+        if (Use.CPU) {
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < columns; j++) {
+                    for (int k = 0; k < depth; k++) {
+                        float val = get(i, j, k);
+                        set(i, j, k, get(rows - 1 - i, j, k));
+                        set(rows - 1 - i, j, k, val);
+                    }
                 }
+            }
+        }
+
+        if (Use.GPU) {
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "reverse");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}));
+            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(depth, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
+            int gridSizeZ = (int) Math.ceil((double) depth / blockSizeZ);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan();
             }
         }
         return this;
@@ -590,37 +661,94 @@ public class NNTensor extends NNArray {
         int row = (rows / sizeKernel) * (columns / sizeKernel);
         int col = sizeKernel * sizeKernel * depth;
         NNMatrix result = new NNMatrix(row, col);
-        int index = 0, indexInput;
 
-        for (int h = 0; h < rows; h+=sizeKernel) {
-            for (int w = 0; w < columns; w+=sizeKernel) {
-                for (int j = 0; j < sizeKernel; j++) {
-                    for (int k = 0; k < sizeKernel; k++) {
-                        indexInput = rowsIndex[h+j]+columnsIndex[w+k];
-                        for (int c = 0; c < depth; c++, index++, indexInput++) {
-                            result.data[index] = data[indexInput];
+        if (Use.CPU) {
+            int index = 0, indexInput;
+
+            for (int h = 0; h < rows; h += sizeKernel) {
+                for (int w = 0; w < columns; w += sizeKernel) {
+                    for (int j = 0; j < sizeKernel; j++) {
+                        for (int k = 0; k < sizeKernel; k++) {
+                            indexInput = rowsIndex[h + j] + columnsIndex[w + k];
+                            for (int c = 0; c < depth; c++, index++, indexInput++) {
+                                result.data[index] = data[indexInput];
+                            }
                         }
                     }
                 }
             }
+        }
+
+        if (Use.GPU) {
+            int Rows = rows;
+            int Cols = columns;
+            //long start0 = System.nanoTime();
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "imageVector");
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{Rows}), Pointer.to(new int[]{Cols}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
+            int blockSizeX = (int) Math.min((double) Rows / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min((double) Cols / sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) Rows / blockSizeX / sizeKernel);
+            int gridSizeY = (int) Math.ceil((double) Cols / blockSizeY / sizeKernel);
+            int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan(result);
+                IsNan();
+            }
+            //System.out.println(" ! " + (System.nanoTime() - start0) / 1000 + " ! ");
         }
         return result;
     }
 
     public NNTensor backImageVector(NNMatrix error ,int sizeKernel) {
         NNTensor result = new NNTensor(rows, columns, depth);
-        int index = 0, indexInput;
+        if (Use.CPU) {
+            int index = 0, indexInput;
 
-        for (int h = 0; h < rows; h+=sizeKernel) {
-            for (int w = 0; w < columns; w+=sizeKernel) {
-                for (int j = 0; j < sizeKernel; j++) {
-                    for (int k = 0; k < sizeKernel; k++) {
-                        indexInput = rowsIndex[h+j]+columnsIndex[w+k];
-                        for (int c = 0; c < depth; c++, index++, indexInput++) {
-                            result.data[indexInput] = error.data[index];
+            for (int h = 0; h < rows; h += sizeKernel) {
+                for (int w = 0; w < columns; w += sizeKernel) {
+                    for (int j = 0; j < sizeKernel; j++) {
+                        for (int k = 0; k < sizeKernel; k++) {
+                            indexInput = rowsIndex[h + j] + columnsIndex[w + k];
+                            for (int c = 0; c < depth; c++, index++, indexInput++) {
+                                result.data[indexInput] = error.data[index];
+                            }
                         }
                     }
                 }
+            }
+        }
+
+        if (Use.GPU) {
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "backImageVector");
+            Pointer kernelParameters = Pointer.to(Pointer.to(error.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{rows}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{sizeKernel}));
+            int blockSizeX = (int) Math.min(rows, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeY = (int) Math.min(columns, Math.pow(BLOCK_SIZE, (double) 1 / 2.5));
+            int blockSizeZ = (int) Math.min(sizeKernel, Math.pow(BLOCK_SIZE, (double) 1 / 5));
+            int gridSizeX = (int) Math.ceil((double) rows / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) columns / blockSizeY);
+            int gridSizeZ = (int) Math.ceil((double) sizeKernel / blockSizeZ);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, gridSizeZ,      // Grid dimension
+                    blockSizeX, blockSizeY, blockSizeZ,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                IsNan(error);
+                IsNan(result);
             }
         }
         return result;
@@ -628,7 +756,7 @@ public class NNTensor extends NNArray {
 
     public NNMatrix convolutionImg2Col(NNTensor input, NNTensor4D weight, int step, int padY, int padX) {
         data = null;
-        NNMatrix weightM = new NNMatrix(weight.depth(), weight.size / weight.depth(), weight.getData());
+        NNMatrix weightM = new NNMatrix(weight.depth(), weight.size / weight.depth(), weight.getData(), weight.getSdata());
         NNMatrix inputM = img2col(input, weight, step, padY, padX);
         data = inputM.dotT(weightM).data;
         return inputM;
@@ -1172,11 +1300,23 @@ public class NNTensor extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
+        short[] hostData = null;
+        if (Use.GPU) {
+            hostData = GetAllHalfValues(data_gpu, size);
+        }
+
         writer.write(rows + " " + columns + " " + depth + "\n");
         for (int d = 0; d < rows; d++) {
             for (int i = 0; i < columns; i++) {
                 for (int j = 0; j < depth; j++) {
-                    writer.write(get(d, i, j) + " ");
+                    if (Use.CPU) {
+                        writer.write(get(d, i, j) + " ");
+                    }
+                    else
+                    {
+                        assert hostData != null;
+                        writer.write(hostData[d * depth * columns + i * depth + j] + " ");
+                    }
                 }
             }
             writer.write("\n");
@@ -1187,15 +1327,42 @@ public class NNTensor extends NNArray {
     public static NNTensor read(Scanner scanner) {
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
         NNTensor tensor = new NNTensor(size[0], size[1], size[2]);
-        int index = 0;
-        for (int d = 0; d < tensor.rows; d++) {
-            double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
-            for (double v : arr) {
-                tensor.data[index] = (float) v;
-                index++;
+        if (Use.CPU) {
+            int index = 0;
+            for (int d = 0; d < tensor.rows; d++) {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                for (double v : arr) {
+                    tensor.data[index] = (float) v;
+                    index++;
+                }
             }
         }
 
+        if (Use.GPU) {
+            int index = 0;
+            short[] hostdata = new short[tensor.size];
+            for (int d = 0; d < tensor.rows; d++) {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
+                for (double v : arr) {
+                    hostdata[index] = (short) v;
+                    index++;
+                }
+            }
+
+            cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * tensor.size, cudaMemcpyHostToDevice);
+        }
+
         return tensor;
+    }
+    public float[] toArray() {
+        float[] data_h = new float[this.rows * this.columns * this.depth];
+        JCublas2.cublasGetVector(data_h.length, Sizeof.FLOAT, data_gpu, 1, Pointer.to(data_h), 1);
+        return data_h;
+    }
+
+    public void free() {
+        //if (data_gpu != null) JCuda.cudaFree(data_gpu);
+        //if (rowsIndex_gpu != null) JCuda.cudaFree(rowsIndex_gpu);
+        //if (columnsIndex_gpu != null) JCuda.cudaFree(columnsIndex_gpu);
     }
 }

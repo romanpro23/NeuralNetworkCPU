@@ -1,17 +1,21 @@
 package neural_network.optimizers;
 
+import jcuda.driver.JCudaDriver;
 import lombok.Data;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import nnarrays.NNArray;
+import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.JCudaHelper.CONTEXT;
+import static utilities.Use.*;
 
 @Data
 public abstract class Optimizer {
@@ -70,28 +74,51 @@ public abstract class Optimizer {
         if (optimizeData.isEmpty()) {
             return;
         }
-        ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
-        for (int t = 0; t < optimizeData.size(); t++) {
-            final int finalT = t;
-            executor.execute(() -> {
-                DataOptimize data = optimizeData.get(finalT);
+
+        if (Use.CPU) {
+            GPU_Sleep();
+            ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
+            for (int t = 0; t < optimizeData.size(); t++) {
+                final int finalT = t;
+                executor.execute(() -> {
+                    DataOptimize data = optimizeData.get(finalT);
+                    if (clipValue != 0) {
+                        data.getDerWeight().clip(clipValue);
+                    }
+                    updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+            GPU_WakeUp();
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < optimizeData.size(); i++) {
+                DataOptimize data = optimizeData.get(i);
                 if (clipValue != 0) {
                     data.getDerWeight().clip(clipValue);
                 }
                 updateWeight(data.getWeight(), data.getDerWeight(), data.getAdditionParam());
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
     }
 
     public void addDataOptimize(NNArray weight, NNArray derWeight) {
         NNArray[] additionParam = new NNArray[countParam];
         for (int i = 0; i < countParam; i++) {
-            additionParam[i] = new NNArray(weight.size());
+            additionParam[i] = new NNArray(weight.size(), weight.isHalf());
         }
         optimizeData.add(new DataOptimize(weight, derWeight, additionParam));
+    }
+
+    public void addDataOptimize(NNArray weight, NNArray derWeight, String Name) {
+        NNArray[] additionParam = new NNArray[countParam];
+        for (int i = 0; i < countParam; i++) {
+            additionParam[i] = new NNArray(weight.size(), weight.isHalf());
+        }
+        optimizeData.add(new DataOptimize(weight, derWeight, additionParam, Name));
     }
 
     protected abstract void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam);

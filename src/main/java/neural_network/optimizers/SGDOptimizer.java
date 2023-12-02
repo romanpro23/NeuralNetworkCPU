@@ -12,6 +12,7 @@ public class SGDOptimizer extends Optimizer {
     private float learningRate;
 
     public SGDOptimizer(double learningRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.countParam = 0;
     }

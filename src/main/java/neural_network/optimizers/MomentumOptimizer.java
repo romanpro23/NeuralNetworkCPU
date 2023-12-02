@@ -13,6 +13,7 @@ public class MomentumOptimizer extends Optimizer {
     private final float retentionRate;
 
     public MomentumOptimizer(double learningRate, double retentionRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.retentionRate = (float) retentionRate;
         this.countParam = 1;

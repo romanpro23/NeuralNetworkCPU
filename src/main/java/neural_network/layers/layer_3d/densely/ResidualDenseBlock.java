@@ -40,7 +40,6 @@ public class ResidualDenseBlock extends NeuralLayer3D {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-
         height = size[0];
         width = size[1];
         depth = size[2];

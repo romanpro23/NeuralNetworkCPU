@@ -22,6 +22,7 @@ public class AdaDeltaOptimizer extends Optimizer {
     }
 
     public AdaDeltaOptimizer(double learningRate, double decayRate) {
+        super();
         this.decayRate = (float) decayRate;
         this.learningRate = (float) learningRate;
         this.countParam = 1;

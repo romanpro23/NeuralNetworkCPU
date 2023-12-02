@@ -37,6 +37,7 @@ public class QHAdamOptimizer extends Optimizer {
     }
 
     public QHAdamOptimizer(double beta1, double beta2, double v1, double v2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;

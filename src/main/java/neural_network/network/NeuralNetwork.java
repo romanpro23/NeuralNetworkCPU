@@ -1,5 +1,6 @@
 package neural_network.network;
 
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.NeuralLayer;
@@ -14,13 +15,20 @@ import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNTensor;
+import utilities.GPUInit;
+import utilities.Use;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public class NeuralNetwork {
     @Getter
@@ -32,6 +40,8 @@ public class NeuralNetwork {
     protected int stopGradient;
 
     protected FunctionLoss functionLoss;
+
+    protected static boolean gpu = false;
 
     public NeuralNetwork() {
         layers = new ArrayList<>();
@@ -210,9 +220,13 @@ public class NeuralNetwork {
     }
 
     public NNArray[] queryTrain(NNArray[] input) {
+        //long start0 = System.nanoTime();
         layers.get(0).generateTrainOutput(input);
+        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
         for (int i = 1; i < layers.size(); i++) {
+            //long start = System.nanoTime();
             layers.get(i).generateTrainOutput(layers.get(i - 1).getOutput());
+            //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
         }
 
         return getOutputs();
@@ -244,11 +258,15 @@ public class NeuralNetwork {
     }
 
     public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
+        //long start = System.nanoTime();
         queryTrain(input);
+
         backpropagation(findDerivative(idealOutput, lambda));
         if (update) {
             update();
         }
+
+        //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! ");
         return lambda * functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
@@ -327,9 +345,13 @@ public class NeuralNetwork {
     }
 
     protected void backpropagation(NNArray[] error) {
+        //long start0 = System.nanoTime();
         layers.get(layers.size() - 1).generateError(error);
+        //System.out.println(" ! " + (System.nanoTime() - start0) / 1000000 + " ! " + 0);
         for (int i = layers.size() - 2; i >= stopGradient; i--) {
+            //long start = System.nanoTime();
             layers.get(i).generateError(layers.get(i + 1).getError());
+            //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! " + i);
         }
     }
 

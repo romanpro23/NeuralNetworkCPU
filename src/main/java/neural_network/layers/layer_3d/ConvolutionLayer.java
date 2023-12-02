@@ -63,7 +63,7 @@ public class ConvolutionLayer extends NeuralLayer3D {
     public void initialize(int[] size) {
         if (size.length != 3) {
             throw new ExceptionInInitializerError("Error size pre layer!");
-        }
+        };
         this.depth = size[2];
         this.height = size[0];
         this.width = size[1];

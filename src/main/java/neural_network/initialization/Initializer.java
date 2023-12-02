@@ -1,8 +1,14 @@
 package neural_network.initialization;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
 import nnarrays.*;
+import utilities.Use;
 
 import java.util.Random;
+
+import static jcuda.runtime.JCuda.cudaMemcpy;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 
 public abstract class Initializer {
     protected float range;
@@ -12,19 +18,76 @@ public abstract class Initializer {
 
     public abstract void initialize(NNMatrix weight);
 
-    public abstract void initialize(NNTensor weight);
+    public abstract void initialize(NNTensor weightu);
 
     public abstract void initialize(NNTensor4D weight);
 
     protected void initializeNormal(NNArray weight) {
-        for (int i = 0; i < weight.size(); i++) {
-            weight.set(i, (float) (random.nextGaussian() * range));
+        if ((Use.CPU) && (!Use.GPU)) {
+            for (int i = 0; i < weight.size(); i++) {
+                weight.set(i, (float) (random.nextGaussian() * range));
+            }
+        }
+
+        if (Use.GPU) {
+            if (!weight.isHalf()) {
+                float[] temp = new float[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    temp[i] = (float) (random.nextGaussian() * range);
+                    if (Use.CPU) {
+                        weight.set(i, temp[i]);
+                    }
+                }
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
+            } else {
+                short[] temp = new short[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    float val = (float) (random.nextGaussian() * range);
+                    if ((Math.abs(val) > 0.0001f)) {
+                        temp[i] = Float.floatToFloat16(val);
+                    } else {
+                        temp[i] = Float.floatToFloat16(0.0001f);
+                    }
+                    if (Use.CPU) {
+                        weight.set(i, Float.float16ToFloat(temp[i]));
+                    }
+                }
+
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            }
         }
     }
 
     protected void initializeUniform(NNArray weight) {
-        for (int i = 0; i < weight.size(); i++) {
-            weight.set(i, (float) ((Math.random() - 0.5) * range));
+        if (Use.CPU) {
+            for (int i = 0; i < weight.size(); i++) {
+                weight.set(i, (float) (random.nextGaussian() * range));
+            }
+        }
+
+        if (Use.GPU) {
+            if (!weight.isHalf()) {
+                float[] temp = new float[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    temp[i] = (float) (random.nextGaussian() * range);
+                    if (Use.CPU) {
+                        weight.set(i, temp[i]);
+                    }
+                }
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.FLOAT * weight.size(), cudaMemcpyHostToDevice);
+            } else {
+                short[] temp = new short[weight.size()];
+                for (int i = 0; i < weight.size(); i++) {
+                    float val = (float) (random.nextGaussian() * range);
+                    if ((Math.abs(val) > 0.0001f)) {
+                        temp[i] = Float.floatToFloat16(val);
+                    } else {
+                        temp[i] = Float.floatToFloat16(0.0001f);
+                    }
+                }
+
+                cudaMemcpy(weight.getData_gpu(), Pointer.to(temp), (long) Sizeof.SHORT * weight.size(), cudaMemcpyHostToDevice);
+            }
         }
     }
 

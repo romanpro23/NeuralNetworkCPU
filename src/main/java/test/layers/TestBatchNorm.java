@@ -12,15 +12,15 @@ public class TestBatchNorm {
         NNVector[] input = new NNVector[4];
         NNVector[] error = new NNVector[input.length];
 
-        input[0] = new NNVector(new float[]{4, 2, 1, 5});
-        input[1] = new NNVector(new float[]{3, 5, -1, 7});
-        input[2] = new NNVector(new float[]{-2, 3, 8, -5});
-        input[3] = new NNVector(new float[]{9, -3, 0, 6});
+        input[0] = new NNVector(new float[]{4, 2, 1, 5}, new short[]{4, 2, 1, 5});
+        input[1] = new NNVector(new float[]{3, 5, -1, 7}, new short[]{3, 5, -1, 7});
+        input[2] = new NNVector(new float[]{-2, 3, 8, -5}, new short[]{-2, 3, 8, -5});
+        input[3] = new NNVector(new float[]{9, -3, 0, 6}, new short[]{9, -3, 0, 6});
 
-        error[0] = new NNVector(new float[]{1, 2, 2, -1});
-        error[1] = new NNVector(new float[]{3, -1, -2, 3});
-        error[2] = new NNVector(new float[]{1, 4, -1, 2});
-        error[3] = new NNVector(new float[]{2, 2, 5, -3});
+        error[0] = new NNVector(new float[]{1, 2, 2, -1}, new short[]{1, 2, 2, -1});
+        error[1] = new NNVector(new float[]{3, -1, -2, 3}, new short[]{3, -1, -2, 3});
+        error[2] = new NNVector(new float[]{1, 4, -1, 2}, new short[]{1, 4, -1, 25});
+        error[3] = new NNVector(new float[]{2, 2, 5, -3}, new short[]{2, 2, 5, -3});
 
 
         Optimizer optimizer = new AdamOptimizer();

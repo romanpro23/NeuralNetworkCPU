@@ -15,6 +15,7 @@ public class AdaGradOptimizer extends Optimizer {
     }
 
     public AdaGradOptimizer(double learningRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.countParam = 1;
     }

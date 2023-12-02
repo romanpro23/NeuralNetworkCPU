@@ -1,6 +1,5 @@
 package neural_network.optimizers;
 
-import lombok.Data;
 import nnarrays.NNArray;
 
 public class NesterovOptimizer extends Optimizer {
@@ -14,6 +13,7 @@ public class NesterovOptimizer extends Optimizer {
     private final float retentionRate;
 
     public NesterovOptimizer(double learningRate, double retentionRate) {
+        super();
         this.learningRate = (float) learningRate;
         this.retentionRate = (float) retentionRate;
         this.countParam = 1;

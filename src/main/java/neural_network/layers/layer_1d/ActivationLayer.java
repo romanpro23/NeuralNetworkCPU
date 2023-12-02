@@ -1,6 +1,7 @@
 package neural_network.layers.layer_1d;
 
 import neural_network.activation.FunctionActivation;
+import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
 import nnarrays.NNVector;

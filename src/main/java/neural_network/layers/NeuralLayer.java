@@ -1,5 +1,7 @@
 package neural_network.layers;
 
+import jcuda.Pointer;
+import jcuda.runtime.JCuda;
 import lombok.Getter;
 import neural_network.layers.capsule.*;
 import neural_network.layers.layer_2d.*;
@@ -19,16 +21,25 @@ import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.*;
 import neural_network.optimizers.Optimizer;
 import nnarrays.NNArray;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static utilities.GPUInit.allocated;
+import static utilities.GPUInit.allocatedUse;
 
 public abstract class NeuralLayer {
     @Getter
     protected boolean trainable;
     protected ArrayList<NeuralLayer> nextLayers;
+    protected boolean half = false;
 
     public NeuralLayer(){
         nextLayers = new ArrayList<>();
@@ -110,6 +121,8 @@ public abstract class NeuralLayer {
                 case "Embedding layer 3D" -> layers.add(EmbeddingLayer3D.read(scanner));
                 case "Deformable convolution layer 3D" -> layers.add(DeformableConvolutionLayer.read(scanner));
                 case "Modulated deformable convolution layer 3D" -> layers.add(DeformableV2ConvolutionLayer.read(scanner));
+                case "Float to half 2D" -> layers.add(Float2Half2D.read(scanner));
+                case "Half to float 2D" -> layers.add(Half2Float2D.read(scanner));
             }
             layer = scanner.nextLine();
         }
@@ -145,5 +158,49 @@ public abstract class NeuralLayer {
 
     public void trainable(boolean trainable){
         this.trainable = trainable;
+    }
+
+    private static void runGarbageCollection()
+    {
+        for( WeakReference<Object> ref = new WeakReference<>( new Object() ); ; )
+        {
+            Runtime.getRuntime().gc();
+            if( ref.get() == null )
+                break;
+            Thread.yield();
+        }
+    }
+
+    public static void CallGarbageCollector()
+    {
+        if (Use.GPU) {
+            List<String> listString = new ArrayList<>();
+            ExecutorService executor = Executors.newFixedThreadPool(1);
+            executor.execute(() -> {
+                Runtime.getRuntime().gc();
+            });
+            executor.shutdown();
+
+            allocated.forEach((key, value) ->
+            {
+                Object arr = ((WeakReference<Object>) value).get();
+                if (arr == null) {
+                    Use U = allocatedUse.get(key);
+                    if (U != null) {
+                        if (U.data_gpu != null) JCuda.cudaFree(U.data_gpu);
+                    }
+
+                    listString.add(key);
+                }
+            });
+
+            listString.forEach((key) ->
+            {
+                allocated.remove(key);
+                allocatedUse.remove(key);
+            });
+
+            listString.clear();
+        }
     }
 }

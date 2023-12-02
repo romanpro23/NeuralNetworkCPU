@@ -1,10 +1,24 @@
 package neural_network.loss;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
+import jcuda.driver.CUfunction;
+import jcuda.driver.JCudaDriver;
+import jcuda.jcublas.JCublas2;
+import jcuda.runtime.JCuda;
 import lombok.NoArgsConstructor;
 import nnarrays.NNArray;
 import nnarrays.NNArrays;
+import utilities.Use;
 
 import static java.lang.Math.log;
+import static jcuda.driver.JCudaDriver.cuLaunchKernel;
+import static jcuda.driver.JCudaDriver.cuModuleGetFunction;
+import static jcuda.runtime.JCuda.*;
+import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyDeviceToHost;
+import static utilities.GPUInit.helperModule;
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public interface FunctionLoss {
     float findAccuracy(NNArray[] outputs, NNArray[] idealOutputs);
@@ -35,7 +49,7 @@ public interface FunctionLoss {
             float accuracy = 0;
 
             for (int i = 0; i < outputs.length; i++) {
-                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / outputs[i].size();
+                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
             }
 
             return accuracy;

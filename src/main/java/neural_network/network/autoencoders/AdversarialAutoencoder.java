@@ -91,7 +91,7 @@ public class AdversarialAutoencoder {
         //generate data for generator
         NNVector[] label = new NNVector[input.length];
         for (int i = 0; i < label.length; i++) {
-            label[i] = new NNVector(new float[]{1});
+            label[i] = new NNVector(new float[]{1}, new short[]{1});
         }
 
         //trainA generator

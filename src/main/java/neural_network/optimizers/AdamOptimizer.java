@@ -1,6 +1,8 @@
 package neural_network.optimizers;
 
+import jcuda.driver.JCudaDriver;
 import nnarrays.NNArray;
+import utilities.Use;
 
 import java.util.Arrays;
 
@@ -33,6 +35,7 @@ public class AdamOptimizer extends Optimizer {
     }
 
     public AdamOptimizer(double beta1, double beta2, double learningRate) {
+        super();
         this.beta1 = (float) beta1;
         this.beta2 = (float) beta2;
         this.learningRate = (float) learningRate;
@@ -44,12 +47,15 @@ public class AdamOptimizer extends Optimizer {
         this(0.9, 0.999, learningRate);
     }
 
+    NNArray weight = null;
+
     @Override
     public void updateWeight(NNArray weight, NNArray deltaWeight, NNArray[] additionParam) {
         additionParam[0].momentum(deltaWeight, beta1);
         additionParam[1].momentumPow2(deltaWeight, beta2);
 
         weight.subDivSqrtNorm(additionParam[0], additionParam[1], learningRate, b1t, b2t);
+
         deltaWeight.clear();
     }
 }
