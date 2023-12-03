@@ -65,7 +65,7 @@ __global__ void gelu_half(const half* __restrict__ A, half* C, int numElements)
     const int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements) {
         half a = A[i];
-        half t = __tanf(sh[1] * a + sh[2] * (a * a * a));
+        half t = tanh(sh[1] * a + sh[2] * (a * a * a));
         C[i] = sh[3] * a * (sh[4] + t);
     }
 }
@@ -342,6 +342,24 @@ __device__ void atomicMax(float* const address, const float value)
         old = atomicCAS(addressAsI, assumed, __float_as_int(value));
     } while (assumed != old);
 }
+__device__ void atomicMax(half* const address, const half value)
+{
+    if (*address >= value)
+    {
+        return;
+    }
+    int* const addressAsI = (int*)address;
+    int old = *addressAsI, assumed;
+    do
+    {
+        assumed = old;
+        if (__float2half(__int_as_float(assumed)) >= value)
+        {
+            break;
+        }
+        old = atomicCAS(addressAsI, assumed, __float_as_int(__half2float(value)));
+    } while (assumed != old);
+}
 extern "C"
 __global__ void reduceMaxIdxOptimizedShared(const float* __restrict__ input, const int size, float* maxOut, int* maxIdxOut)
 {
@@ -358,6 +376,41 @@ __global__ void reduceMaxIdxOptimizedShared(const float* __restrict__ input, con
     for (int i = threadIdx.x; i < size; i += blockDim.x)
     {
         float val = input[i];
+        if (localMax < val)
+        {
+            localMax = val;
+            localMaxIdx = i;
+        }
+    }
+    atomicMax(&sharedMax, localMax);
+    __syncthreads();
+    if (sharedMax == localMax)
+    {
+        sharedMaxIdx = localMaxIdx;
+    }
+    __syncthreads();
+    if (0 == threadIdx.x)
+    {
+        *maxOut = sharedMax;
+        *maxIdxOut = sharedMaxIdx;
+    }
+}
+extern "C"
+__global__ void reduceMaxIdxOptimizedShared_half(const half* __restrict__ input, const int size, half* maxOut, int* maxIdxOut)
+{
+    __shared__ half sharedMax;
+    __shared__ int sharedMaxIdx;
+    if (0 == threadIdx.x)
+    {
+        sharedMax = 0.f;
+        sharedMaxIdx = 0;
+    }
+    __syncthreads();
+    half localMax = 0.f;
+    int localMaxIdx = 0;
+    for (int i = threadIdx.x; i < size; i += blockDim.x)
+    {
+        half val = input[i];
         if (localMax < val)
         {
             localMax = val;
@@ -527,6 +580,39 @@ __global__ void NormalizationLayerForward2D(float*** P, const float* __restrict_
     }
 }
 extern "C"
+__global__ void NormalizationLayerForward_half_2D(half*** P, const half* __restrict__ gamma, const half* __restrict__ betta, int width, int depth, int n)
+{
+    int x = blockDim.x * blockIdx.x + threadIdx.x;
+    int y = blockDim.y * blockIdx.y + threadIdx.y;
+    if (x < n && y < width) {
+        half* input = P[0][x];
+        half mean = P[1][x][y];
+        half dep = __int2half_rn(depth);
+        int index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+           mean += input[index];
+        }
+        mean = mean / dep;
+        P[1][x][y] = mean;
+        half var = P[2][x][y];
+        half sub;
+        index = y * depth;
+        mean = P[1][x][y];
+        for (int k = 0; k < depth; k++, index++) {
+            sub = input[index] - mean;
+            var += sub * sub;
+        }
+        var = var / dep;
+        P[2][x][y] = var;
+        half varSqrt = hsqrt(var + sh[5]);
+        half* output = P[3][x];
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+             output[index] = ((input[index] - mean) / varSqrt) * gamma[k] + betta[k];
+        }
+    }
+}
+extern "C"
 __global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict__ gamma, const float* __restrict__ betta, float* derGamma, float* derBetta, int outWidth, int outDepth, int width, int depth, int n)
 {
     int x = blockDim.x * blockIdx.x + threadIdx.x;
@@ -558,6 +644,52 @@ __global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict
         derMean /= depth;
         derVariance *= 2.0f / (depth);
         float _dVar = 1.0f / sqrtf(var + 0.0000001f);
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;
+        }
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            atomicAdd(&derBetta[k], errorNL[index]);
+            atomicAdd(&derGamma[k], errorNL[index] * ((output[index] - betta[k]) / gamma[k]));
+        }
+    }
+}
+extern "C"
+__global__ void NormalizationLayerBackward_half_2D(half*** P, const half* __restrict__ gamma, const half* __restrict__ betta, half* derGamma, half* derBetta, int outWidth, int outDepth, int width, int depth, int n)
+{
+    int x = blockDim.x * blockIdx.x + threadIdx.x;
+    int y = blockDim.y * blockIdx.y + threadIdx.y;
+    if (x < n && y < width) {
+        half sh5 = sh[5];
+        half sh0 = sh[0];
+        half dep = __int2half_rn(depth);
+        half* errorNL = P[0][x];
+        half var = P[1][x][y];
+        half* input = P[2][x];
+        half mean = P[3][x][y];
+        half* error = P[4][x];
+        half* output = P[5][x];
+        half dVar_m = sh[6] * hexp2(sh[7] * hlog2(var + sh5));
+        int index = y * depth;
+        half derVariance = sh0;
+        for (int k = 0; k < depth; k++, index++) {
+            derVariance += errorNL[index] * gamma[k] * (input[index] - mean);
+        }
+        derVariance *= dVar_m;
+        dVar_m = sh0;
+        half derMean = sh0;
+        half dMean = sh[8] / hsqrt(var + sh5);
+        index = y * depth;
+        for (int k = 0; k < depth; k++, index++) {
+            derMean += errorNL[index] * gamma[k];
+            dVar_m += input[index] - mean;
+        }
+        derMean *= dMean;
+        derMean += (sh[9] * derVariance * dVar_m) / dep;
+        derMean /= dep;
+        derVariance *= (-sh[9]) / dep;
+        half _dVar = sh[4] / hsqrt(var + sh5);
         index = y * depth;
         for (int k = 0; k < depth; k++, index++) {
             error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;

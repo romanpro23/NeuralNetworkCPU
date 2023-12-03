@@ -46,6 +46,16 @@ public class NNTensor extends NNArray {
         initialize();
     }
 
+    public NNTensor(int rows, int columns, int depth, boolean half) {
+        super(depth * columns * rows, half);
+        this.depth = depth;
+        this.columns = columns;
+        this.rows = rows;
+        countAxes = 3;
+
+        initialize();
+    }
+
     public NNTensor(int[] size) {
         this(size[0], size[1], size[2]);
     }
@@ -66,6 +76,16 @@ public class NNTensor extends NNArray {
 
     public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata) {
         super(data, sdata);
+        this.depth = depth;
+        this.columns = columns;
+        this.rows = rows;
+        countAxes = 3;
+
+        initialize();
+    }
+
+    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata, boolean half) {
+        super(data, sdata, half);
         this.depth = depth;
         this.columns = columns;
         this.rows = rows;
@@ -1300,11 +1320,19 @@ public class NNTensor extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
-        short[] hostData = null;
+        float[] hostData = null;
+        short[] hostData_half = null;
         if (Use.GPU) {
-            hostData = GetAllHalfValues(data_gpu, size);
+            if (!half) {
+                hostData = GetFirstSingleValueFloat(data_gpu, size);
+            }
+            else
+            {
+                hostData_half = GetAllHalfValues(data_gpu, size);
+            }
         }
 
+        writer.write(half + "\n");
         writer.write(rows + " " + columns + " " + depth + "\n");
         for (int d = 0; d < rows; d++) {
             for (int i = 0; i < columns; i++) {
@@ -1314,8 +1342,15 @@ public class NNTensor extends NNArray {
                     }
                     else
                     {
-                        assert hostData != null;
-                        writer.write(hostData[d * depth * columns + i * depth + j] + " ");
+                        if (!half) {
+                            assert hostData != null;
+                            writer.write(hostData[d * depth * columns + i * depth + j] + " ");
+                        }
+                        else
+                        {
+                            assert hostData_half != null;
+                            writer.write(hostData_half[d * depth * columns + i * depth + j] + " ");
+                        }
                     }
                 }
             }
@@ -1325,8 +1360,9 @@ public class NNTensor extends NNArray {
     }
 
     public static NNTensor read(Scanner scanner) {
+        boolean half = Boolean.parseBoolean(scanner.nextLine());
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        NNTensor tensor = new NNTensor(size[0], size[1], size[2]);
+        NNTensor tensor = new NNTensor(size[0], size[1], size[2], half);
         if (Use.CPU) {
             int index = 0;
             for (int d = 0; d < tensor.rows; d++) {
@@ -1340,16 +1376,31 @@ public class NNTensor extends NNArray {
 
         if (Use.GPU) {
             int index = 0;
-            short[] hostdata = new short[tensor.size];
-            for (int d = 0; d < tensor.rows; d++) {
-                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
-                for (double v : arr) {
-                    hostdata[index] = (short) v;
-                    index++;
+            if (!tensor.half) {
+                float[] hostdata = new float[tensor.size];
+                for (int d = 0; d < tensor.rows; d++) {
+                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                    for (double v : arr) {
+                        hostdata[index] = (float) v;
+                        index++;
+                    }
                 }
-            }
 
-            cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * tensor.size, cudaMemcpyHostToDevice);
+                cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.FLOAT * tensor.size, cudaMemcpyHostToDevice);
+            }
+            else
+            {
+                short[] hostdata = new short[tensor.size];
+                for (int d = 0; d < tensor.rows; d++) {
+                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
+                    for (double v : arr) {
+                        hostdata[index] = (short) v;
+                        index++;
+                    }
+                }
+
+                cudaMemcpy(tensor.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * tensor.size, cudaMemcpyHostToDevice);
+            }
         }
 
         return tensor;

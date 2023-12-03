@@ -552,11 +552,19 @@ public class NNVector extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
-        short[] hostData = null;
+        float[] hostData = null;
+        short[] hostData_half = null;
         if (Use.GPU) {
-            hostData = GetAllHalfValues(data_gpu, size);
+            if (!half) {
+                hostData = GetFirstSingleValueFloat(data_gpu, size);
+            }
+            else
+            {
+                hostData_half = GetAllHalfValues(data_gpu, size);
+            }
         }
 
+        writer.write(half + "\n");
         writer.write(size + "\n");
         for (int i = 0; i < size; i++) {
             if (Use.CPU) {
@@ -564,8 +572,15 @@ public class NNVector extends NNArray {
             }
             else
             {
-                assert hostData != null;
-                writer.write(hostData[i] + " ");
+                if (!half) {
+                    assert hostData != null;
+                    writer.write(hostData[i] + " ");
+                }
+                else
+                {
+                    assert hostData_half != null;
+                    writer.write(hostData_half[i] + " ");
+                }
             }
             if (i % 1000 == 0) {
                 writer.flush();
@@ -585,8 +600,19 @@ public class NNVector extends NNArray {
         return ret;
     }
 
+    public static float[] toFloatArray(double[] arr) {
+        if (arr == null) return null;
+        int n = arr.length;
+        float[] ret = new float[n];
+        for (int i = 0; i < n; i++) {
+            ret[i] = (float) arr[i];
+        }
+        return ret;
+    }
+
     public static NNVector read(Scanner scanner) {
-        NNVector vector = new NNVector(Integer.parseInt(scanner.nextLine()));
+        boolean half = Boolean.parseBoolean(scanner.nextLine());
+        NNVector vector = new NNVector(Integer.parseInt(scanner.nextLine()), half);
         if (Use.CPU) {
             double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
             for (int j = 0; j < vector.size; j++) {
@@ -594,8 +620,15 @@ public class NNVector extends NNArray {
             }
         }
         else {
-            double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
-            cudaMemcpy(vector.data_gpu, Pointer.to(toShortArray(arr)), (long) Sizeof.SHORT * vector.size, cudaMemcpyHostToDevice);
+            if (!vector.half) {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                cudaMemcpy(vector.data_gpu, Pointer.to(toFloatArray(arr)), (long) Sizeof.FLOAT * vector.size, cudaMemcpyHostToDevice);
+            }
+            else
+            {
+                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
+                cudaMemcpy(vector.data_gpu, Pointer.to(toShortArray(arr)), (long) Sizeof.SHORT * vector.size, cudaMemcpyHostToDevice);
+            }
         }
 
         return vector;

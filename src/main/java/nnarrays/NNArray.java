@@ -935,30 +935,38 @@ public class NNArray {
             cudaMalloc(mId_gpu, Sizeof.INT);
             cudaMemset(mId_gpu, 0, Sizeof.INT);
 
+
+            int n = size;
+            CUfunction function = new CUfunction();
             if (!half) {
-                int n = size;
-                CUfunction function = new CUfunction();
                 cuModuleGetFunction(function, helperModule, "reduceMaxIdxOptimizedShared");
-                Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{n}), Pointer.to(m_gpu), Pointer.to(mId_gpu));
-                int blockSize = Math.min(n, BLOCK_SIZE);
-                int gridSizeX = (int) Math.ceil((double) n / blockSize);
-                cuLaunchKernel(function,
-                        gridSizeX, 1, 1,      // Grid dimension
-                        blockSize, 1, 1,      // Block dimension
-                        0, null,               // Shared memory size and stream
-                        kernelParameters, null // Kernel- and extra parameters
-                );
-
-                cudaMemcpy(Pointer.to(maxIndex), mId_gpu, Sizeof.INT, cudaMemcpyDeviceToHost);
-
-                if (Use.DEBUG_SYNC) {
-                    JCudaDriver.cuCtxSynchronize();
-                    IsNan_float();
-                }
             }
             else
             {
-                throw new ExceptionInInitializerError("Not supported yet!");
+                cuModuleGetFunction(function, helperModule, "reduceMaxIdxOptimizedShared_half");
+            }
+
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{n}), Pointer.to(m_gpu), Pointer.to(mId_gpu));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+
+            cudaMemcpy(Pointer.to(maxIndex), mId_gpu, Sizeof.INT, cudaMemcpyDeviceToHost);
+
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+                if (!half) {
+                    IsNan_float();
+                }
+                else
+                {
+                    IsNan();
+                }
             }
 
             index = maxIndex[0];
@@ -1093,11 +1101,9 @@ public class NNArray {
 
     public void momentum(NNArray array, final float decay) {
         if (Use.CPU) {
-            if (!Use.GPU) {
-                final float rt = 1.0f - decay;
-                for (int i = 0; i < size; i++) {
-                    data[i] = decay * data[i] + array.data[i] * rt;
-                }
+            final float rt = 1.0f - decay;
+            for (int i = 0; i < size; i++) {
+                data[i] = decay * data[i] + array.data[i] * rt;
             }
         }
 
@@ -1177,11 +1183,9 @@ public class NNArray {
 
     public void momentumPow2(NNArray vector, final float decay) {
         if (Use.CPU) {
-            if (!Use.GPU) {
-                final float dr = 1 - decay;
-                for (int i = 0; i < size; i++) {
-                    data[i] = decay * data[i] + dr * vector.data[i] * vector.data[i];
-                }
+            final float dr = 1 - decay;
+            for (int i = 0; i < size; i++) {
+                data[i] = decay * data[i] + dr * vector.data[i] * vector.data[i];
             }
         }
 
@@ -1242,11 +1246,9 @@ public class NNArray {
 
     public void subDivSqrtNorm(NNArray nominator, NNArray denominator, float lr, float normN, float normD) {
         if (Use.CPU) {
-            if (!Use.GPU) {
-                float cur_lr = lr / (normN + 0.0000001f);
-                for (int i = 0; i < size; i++) {
-                    data[i] -= (float) (cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f));
-                }
+            float cur_lr = lr / (normN + 0.0000001f);
+            for (int i = 0; i < size; i++) {
+                data[i] -= (float) (cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f));
             }
         }
 
@@ -1500,11 +1502,19 @@ public class NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
-        short[] hostData = null;
+        float[] hostData = null;
+        short[] hostData_half = null;
         if (Use.GPU) {
-            hostData = GetAllHalfValues(data_gpu, size);
+            if (!half) {
+                hostData = GetFirstSingleValueFloat(data_gpu, size);
+            }
+            else
+            {
+                hostData_half = GetAllHalfValues(data_gpu, size);
+            }
         }
-        writer.write(size + " " + half + "\n");
+        writer.write(size + "\n");
+        writer.write(half + "\n");
         int row = (int) Math.ceil(size / 1024.0);
         int column = 1024;
         for (int i = 0; i < row; i++) {
@@ -1516,8 +1526,15 @@ public class NNArray {
                 if (Use.CPU) {
                     writer.write(data[i_index] + " ");
                 } else {
-                    assert hostData != null;
-                    writer.write(hostData[i_index] + " ");
+                    if (!half) {
+                        assert hostData != null;
+                        writer.write(hostData[i_index] + " ");
+                    }
+                    else
+                    {
+                        assert hostData_half != null;
+                        writer.write(hostData_half[i_index] + " ");
+                    }
                 }
             }
             writer.write("\n");
@@ -1542,7 +1559,7 @@ public class NNArray {
                 float[] hostdata = new float[array.size];
                 for (int i = 0; i < row; i++) {
                     int i_index = i * 1024;
-                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
+                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
                     for (int j = 0; j < arr.length; j++, i_index++) {
                         hostdata[i_index] = (float) arr[j];
                     }
@@ -1913,7 +1930,7 @@ public class NNArray {
                     "    if (i < numElements) {\n" +
                     "        half a = A[i];\n" +
                     //"        half t = tanh(sh[1] * a + sh[2] * (a * a * a));\n" +
-                    "        half t = __tanf(sh[1] * a + sh[2] * (a * a * a));\n" +
+                    "        half t = tanh(sh[1] * a + sh[2] * (a * a * a));\n" +
                     "        C[i] = sh[3] * a * (sh[4] + t);\n" +
                     "    }\n" +
                     "}\n" +
@@ -2373,6 +2390,28 @@ public class NNArray {
                     "    } while (assumed != old);\n" +
                     "}\n" +
 
+                    "__device__ void atomicMax(half* const address, const half value)\n" +
+                    "{\n" +
+                    "    if (*address >= value)\n" +
+                    "    {\n" +
+                    "        return;\n" +
+                    "    }\n" +
+
+                    "    int* const addressAsI = (int*)address;\n" +
+                    "    int old = *addressAsI, assumed;\n" +
+
+                    "    do\n" +
+                    "    {\n" +
+                    "        assumed = old;\n" +
+                    "        if (__float2half(__int_as_float(assumed)) >= value)\n" +
+                    "        {\n" +
+                    "            break;\n" +
+                    "        }\n" +
+
+                    "        old = atomicCAS(addressAsI, assumed, __float_as_int(__half2float(value)));\n" +
+                    "    } while (assumed != old);\n" +
+                    "}\n" +
+
                     "extern \"C\"\n" +
                     "__global__ void reduceMaxIdxOptimizedShared(const float* __restrict__ input, const int size, float* maxOut, int* maxIdxOut)\n" +
                     "{\n" +
@@ -2393,6 +2432,54 @@ public class NNArray {
                     "    for (int i = threadIdx.x; i < size; i += blockDim.x)\n" +
                     "    {\n" +
                     "        float val = input[i];\n" +
+
+                    //"        if (localMax < abs(val))\n" +
+                    "        if (localMax < val)\n" +
+                    "        {\n" +
+                    //"            localMax = abs(val);\n" +
+                    "            localMax = val;\n" +
+                    "            localMaxIdx = i;\n" +
+                    "        }\n" +
+                    "    }\n" +
+
+                    "    atomicMax(&sharedMax, localMax);\n" +
+
+                    "    __syncthreads();\n" +
+
+                    "    if (sharedMax == localMax)\n" +
+                    "    {\n" +
+                    "        sharedMaxIdx = localMaxIdx;\n" +
+                    "    }\n" +
+
+                    "    __syncthreads();\n" +
+
+                    "    if (0 == threadIdx.x)\n" +
+                    "    {\n" +
+                    "        *maxOut = sharedMax;\n" +
+                    "        *maxIdxOut = sharedMaxIdx;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void reduceMaxIdxOptimizedShared_half(const half* __restrict__ input, const int size, half* maxOut, int* maxIdxOut)\n" +
+                    "{\n" +
+                    "    __shared__ half sharedMax;\n" +
+                    "    __shared__ int sharedMaxIdx;\n" +
+
+                    "    if (0 == threadIdx.x)\n" +
+                    "    {\n" +
+                    "        sharedMax = 0.f;\n" +
+                    "        sharedMaxIdx = 0;\n" +
+                    "    }\n" +
+
+                    "    __syncthreads();\n" +
+
+                    "    half localMax = 0.f;\n" +
+                    "    int localMaxIdx = 0;\n" +
+
+                    "    for (int i = threadIdx.x; i < size; i += blockDim.x)\n" +
+                    "    {\n" +
+                    "        half val = input[i];\n" +
 
                     //"        if (localMax < abs(val))\n" +
                     "        if (localMax < val)\n" +
@@ -2671,6 +2758,50 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
+                    "__global__ void NormalizationLayerForward_half_2D(half*** P, const half* __restrict__ gamma, const half* __restrict__ betta, int width, int depth, int n)\n" +
+                    "{\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (x < n && y < width) {\n" +
+                    "        half* input = P[0][x];\n" +
+                    "        half mean = P[1][x][y];\n" +
+                    "        half dep = __int2half_rn(depth);\n" +
+                    //       საშუალო მნიშვნელობის გამოთვლა
+                    //       find mean
+                    ////////////////////////////////////////////////////////////
+                    "        int index = y * depth;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "           mean += input[index];\n" +
+                    "        }\n" +
+                    "        mean = mean / dep;\n" +
+                    "        P[1][x][y] = mean;\n" +
+                    ////////////////////////////////////////////////////////////
+                    //       find variance
+                    ////////////////////////////////////////////////////////////
+                    "        half var = P[2][x][y];\n" +
+                    "        half sub;\n" +
+                    "        index = y * depth;\n" +
+                    "        mean = P[1][x][y];\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "            sub = input[index] - mean;\n" +
+                    "            var += sub * sub;\n" +
+                    "        }\n" +
+                    "        var = var / dep;\n" +
+                    "        P[2][x][y] = var;\n" +
+                    ////////////////////////////////////////////////////////////
+                    //       Normalization
+                    ////////////////////////////////////////////////////////////
+                    "        half varSqrt = hsqrt(var + sh[5]);\n" +
+                    "        half* output = P[3][x];\n" +
+                    "        index = y * depth;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "             output[index] = ((input[index] - mean) / varSqrt) * gamma[k] + betta[k];\n" +
+                    "        }\n" +
+                    ////////////////////////////////////////////////////////////
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
                     "__global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict__ gamma, const float* __restrict__ betta, float* derGamma, float* derBetta, int outWidth, int outDepth, int width, int depth, int n)\n" +
                     "{\n" +
                     "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
@@ -2714,6 +2845,70 @@ public class NNArray {
                     "        derVariance *= 2.0f / (depth);\n" +
 
                     "        float _dVar = 1.0f / sqrtf(var + 0.0000001f);\n" +
+                    "        index = y * depth;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "            error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;\n" +
+                    "        }\n" +
+                    //////////////////////////////////////////////////////////////////
+                    //       Derivative weight
+                    //////////////////////////////////////////////////////////////////
+                    "        index = y * depth;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "            atomicAdd(&derBetta[k], errorNL[index]);\n" +
+                    "            atomicAdd(&derGamma[k], errorNL[index] * ((output[index] - betta[k]) / gamma[k]));\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void NormalizationLayerBackward_half_2D(half*** P, const half* __restrict__ gamma, const half* __restrict__ betta, half* derGamma, half* derBetta, int outWidth, int outDepth, int width, int depth, int n)\n" +
+                    "{\n" +
+                    "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
+                    "    if (x < n && y < width) {\n" +
+                    "        half sh5 = sh[5];\n" +
+                    "        half sh0 = sh[0];\n" +
+                    "        half dep = __int2half_rn(depth);\n" +
+                    "        half* errorNL = P[0][x];\n" +
+                    "        half var = P[1][x][y];\n" +
+                    "        half* input = P[2][x];\n" +
+                    "        half mean = P[3][x][y];\n" +
+                    "        half* error = P[4][x];\n" +
+                    "        half* output = P[5][x];\n" +
+                    /////////////////////////////////////////////////////////////////
+                    //       Der var
+                    /////////////////////////////////////////////////////////////////
+                    //"        half dVar_m = sh[6] * pow(var + sh5, sh[7]);\n" +
+                    "        half dVar_m = sh[6] * hexp2(sh[7] * hlog2(var + sh5));\n" +
+
+                    "        int index = y * depth;\n" +
+                    "        half derVariance = sh0;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "            derVariance += errorNL[index] * gamma[k] * (input[index] - mean);\n" +
+                    "        }\n" +
+                    "        derVariance *= dVar_m;\n" +
+                    /////////////////////////////////////////////////////////////////
+                    //       Der mean
+                    /////////////////////////////////////////////////////////////////
+                    "        dVar_m = sh0;\n" +
+                    "        half derMean = sh0;\n" +
+                    "        half dMean = sh[8] / hsqrt(var + sh5);\n" +
+
+                    "        index = y * depth;\n" +
+                    "        for (int k = 0; k < depth; k++, index++) {\n" +
+                    "            derMean += errorNL[index] * gamma[k];\n" +
+                    "            dVar_m += input[index] - mean;\n" +
+                    "        }\n" +
+
+                    "        derMean *= dMean;\n" +
+                    "        derMean += (sh[9] * derVariance * dVar_m) / dep;\n" +
+                    //////////////////////////////////////////////////////////////////
+                    //       Der norm
+                    //////////////////////////////////////////////////////////////////
+                    "        derMean /= dep;\n" +
+                    "        derVariance *= (-sh[9]) / dep;\n" +
+
+                    "        half _dVar = sh[4] / hsqrt(var + sh5);\n" +
                     "        index = y * depth;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
                     "            error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;\n" +

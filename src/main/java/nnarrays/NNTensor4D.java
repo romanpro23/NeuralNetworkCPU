@@ -36,6 +36,17 @@ public class NNTensor4D extends NNArray {
         initialize();
     }
 
+    public NNTensor4D(int depth, int length, int row, int column, boolean half) {
+        super(depth * length * row * column, half);
+        this.column = column;
+        this.row = row;
+        this.depth = depth;
+        this.length = length;
+
+        countAxes = 4;
+        initialize();
+    }
+
     private void initialize() {
         depthIndex = new int[depth];
         lengthIndex = new int[length];
@@ -271,6 +282,7 @@ public class NNTensor4D extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
+        writer.write(half + "\n");
         writer.write(depth + " " + length + " " + row + " " + column + "\n");
         for (int d = 0; d < depth; d++) {
             for (int l = 0; l < length; l++) {
@@ -288,6 +300,7 @@ public class NNTensor4D extends NNArray {
     }
 
     public static NNTensor4D read(Scanner scanner) {
+        boolean half = Boolean.parseBoolean(scanner.nextLine());
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
         NNTensor4D tensor = new NNTensor4D(size[0], size[1], size[2], size[3]);
         int index = 0;

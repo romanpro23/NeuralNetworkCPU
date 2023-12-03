@@ -75,7 +75,7 @@ public abstract class Optimizer {
             return;
         }
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(optimizeData.size());
             for (int t = 0; t < optimizeData.size(); t++) {

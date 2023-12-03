@@ -61,7 +61,7 @@ public class Transformer {
     public Transformer addEncoderBlock(int countHead, int sizeKey, int sizeDense, short dropoutAttention, short dropout) {
         transformer.addLayer(new AdditionBlock()
                 .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention))
-        ).addLayer(new NormalizationLayer2D());
+        ).addLayer(new NormalizationLayer2D(false));
 
         AdditionBlock additionBlock = new AdditionBlock()
                 .addLayer(new DenseLayer2D(sizeDense, false))
@@ -73,7 +73,7 @@ public class Transformer {
         }
 
         transformer.addLayer(additionBlock)
-                .addLayer(new NormalizationLayer2D());
+                .addLayer(new NormalizationLayer2D(false));
 
         return this;
     }
@@ -97,10 +97,10 @@ public class Transformer {
     public Transformer addDecoderBlock(int countHead, int sizeKey, int sizeDense, short dropoutAttention, short dropout) {
         transformer.addLayer(new AdditionBlock()
                 .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention).setMask())
-        ).addLayer(new NormalizationLayer2D())
+        ).addLayer(new NormalizationLayer2D(false))
                 .addLayer(new AdditionBlock()
                 .addLayer(new MultiHeadAttentionLayer(countHead, sizeKey, false, dropoutAttention))
-        ).addLayer(new NormalizationLayer2D());
+        ).addLayer(new NormalizationLayer2D(false));
 
         AdditionBlock additionBlock = new AdditionBlock()
                 .addLayer(new DenseLayer2D(sizeDense, false))
@@ -112,7 +112,7 @@ public class Transformer {
         }
 
         transformer.addLayer(additionBlock)
-                .addLayer(new NormalizationLayer2D());
+                .addLayer(new NormalizationLayer2D(false));
 
         return this;
     }

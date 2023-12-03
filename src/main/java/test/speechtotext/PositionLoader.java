@@ -163,7 +163,7 @@ public class PositionLoader extends DataLoader2D {
         NNVector input = new NNVector(chars.length, half);
         if (Use.CPU) {
             for (int j = 0; j < input.size(); j++) {
-                float value = ((float) codeUaChars.get(chars[j]));
+                float value = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
                 input.set(j, value);
             }
         }

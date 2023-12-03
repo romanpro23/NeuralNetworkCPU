@@ -34,45 +34,44 @@ public class speechtotext {
         loader.setUseReverse(false);
 
         Optimizer optimizer = new AdamOptimizer();
-       /* network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
+        network = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
                 .setOptimizer(optimizer)
-                .setFunctionLoss(new FunctionLoss.MAE())
+                .setFunctionLoss(new FunctionLoss.MSE())
                 .setTrainable(true)
-                .create();*/
+                .create();
 
         /*network = new NeuralNetwork();
         network.addInputLayer(24, 480)
-        .addLayer(new Half2Float2D())
-        .addLayer(new VITPositionalEmbeddingLayer())
+        .addLayer(new VITPositionalEmbeddingLayer(true))
         .addLayer(new AdditionBlock()
-           .addLayer(new NormalizationLayer2D())
-           .addLayer(new Float2Half2D())
+           //.addLayer(new Half2Float2D())
+           .addLayer(new NormalizationLayer2D(true))
+           //.addLayer(new Float2Half2D())
            .addLayer(new MultiHeadAttentionLayer(4, 260, true).setMask())
-           .addLayer(new Half2Float2D())
-           .addLayer(new NormalizationLayer2D())
         )
-        .addLayer(new DenseLayer2D(480, false))
-        .addLayer(new ActivationLayer2D(new FunctionActivation.GELU()))
-        .addLayer(new FlattenLayer2D())
-        .addLayer(new DenseLayer(176))
+        .addLayer(new DenseLayer2D(480, true))
+        .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), true))
+        .addLayer(new Half2Float2D())
+        .addLayer(new FlattenLayer2D(false))
+        .addLayer(new DenseLayer(176, false))
         .setOptimizer(optimizer)
         .setFunctionLoss(new FunctionLoss.MSE())
         .setTrainable(true)
         .create();*/
 
-        network = new NeuralNetwork();
+        /*network = new NeuralNetwork();
         network.addInputLayer(24, 480)
         .addLayer(new VITPositionalEmbeddingLayer(true))
         //1////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new MultiHeadAttentionLayer(8, 260, true).setMask())
         )
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new DenseLayer2D(960, true))
             .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
@@ -81,13 +80,13 @@ public class speechtotext {
         //2////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new MultiHeadAttentionLayer(8, 260, true).setMask())
         )
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new DenseLayer2D(960, true))
             .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
@@ -96,13 +95,13 @@ public class speechtotext {
         //3////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new MultiHeadAttentionLayer(8, 260, true).setMask())
         )
         .addLayer(new AdditionBlock()
             .addLayer(new Half2Float2D())
-            .addLayer(new NormalizationLayer2D())
+            .addLayer(new NormalizationLayer2D(false))
             .addLayer(new Float2Half2D())
             .addLayer(new DenseLayer2D(960, true))
             .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
@@ -110,15 +109,15 @@ public class speechtotext {
         )
         ///////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new Half2Float2D())
-        .addLayer(new NormalizationLayer2D())
+        .addLayer(new NormalizationLayer2D(false))
         .addLayer(new FlattenLayer2D(false))
         .addLayer(new DenseLayer(176, false))
         .setOptimizer(optimizer)
         .setFunctionLoss(new FunctionLoss.MSE())
         .setTrainable(true)
-        .create();
+        .create();*/
 
-       //optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
+       optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
         /*for (int s = 0; s < 150; s++) {
             NNData3D Data3D = loader.getNextTestData(1);
@@ -142,7 +141,7 @@ public class speechtotext {
         network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf_.format(now_) + "_ka_speech_recognation.txt"));*/
 
         network.info();
-        DataTrainer trainer = new DataTrainer(5000, 5000, loader);
+        DataTrainer trainer = new DataTrainer(500, 500, loader);
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();

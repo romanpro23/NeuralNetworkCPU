@@ -47,9 +47,10 @@ public class NormalizationLayer2D extends NeuralLayer2D {
 
     private NNVector[] mean, var;
 
-    public NormalizationLayer2D() {
+    public NormalizationLayer2D(boolean half) {
         this.trainable = true;
         this.epsilon = 0.0000001f;
+        this.half = half;
     }
 
     @Override
@@ -64,12 +65,12 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         outDepth = depth;
         outWidth = width;
 
-        derBetta = new NNVector(depth);
-        derGamma = new NNVector(depth);
+        derBetta = new NNVector(depth, half);
+        derGamma = new NNVector(depth, half);
 
         if (!loadWeight) {
-            betta = new NNVector(depth);
-            gamma = new NNVector(depth);
+            betta = new NNVector(depth, half);
+            gamma = new NNVector(depth, half);
 
             //gamma.fill(1.0f);
             gamma.fill(0.01f);
@@ -90,9 +91,9 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         this.var = new NNVector[input.length];
 
         for (int i = 0; i < input.length; i++) {
-            output[i] = new NNMatrix(outWidth, outDepth);
-            mean[i] = new NNVector(width);
-            var[i] = new NNVector(width);
+            output[i] = new NNMatrix(outWidth, outDepth, half);
+            mean[i] = new NNVector(width, half);
+            var[i] = new NNVector(width, half);
         }
 
         if (Use.CPU) {
@@ -142,7 +143,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         cudaMemcpy(PArray, Pointer.to(Array), (long) P.length * Sizeof.POINTER, cudaMemcpyHostToDevice);
 
         CUfunction function = new CUfunction();
-        cuModuleGetFunction(function, helperModule, "NormalizationLayerForward2D");
+        if (!half) {
+            cuModuleGetFunction(function, helperModule, "NormalizationLayerForward2D");
+        }
+        else
+        {
+            cuModuleGetFunction(function, helperModule, "NormalizationLayerForward_half_2D");
+        }
         Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{numSteps}));
 
         int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -199,7 +206,13 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         cudaMemcpy(PArray, Pointer.to(Array), (long) P.length * Sizeof.POINTER, cudaMemcpyHostToDevice);
 
         CUfunction function = new CUfunction();
-        cuModuleGetFunction(function, helperModule, "NormalizationLayerBackward2D");
+        if (!half) {
+            cuModuleGetFunction(function, helperModule, "NormalizationLayerBackward2D");
+        }
+        else
+        {
+            cuModuleGetFunction(function, helperModule, "NormalizationLayerBackward_half_2D");
+        }
         Pointer kernelParameters = Pointer.to(Pointer.to(PArray), Pointer.to(gamma.getData_gpu()), Pointer.to(betta.getData_gpu()), Pointer.to(derGamma.getData_gpu()), Pointer.to(derBetta.getData_gpu()), Pointer.to(new int[]{outWidth}), Pointer.to(new int[]{outDepth}), Pointer.to(new int[]{width}), Pointer.to(new int[]{depth}), Pointer.to(new int[]{numSteps}));
         int blockSizeX = (int) Math.min(numSteps, Math.pow(BLOCK_SIZE, (double) 1 / 2));
         int blockSizeY = (int) Math.min(width, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -221,12 +234,23 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             JCudaDriver.cuCtxSynchronize();
 
             for(int k = 0; k < numSteps; k++) {
-                errorNL[k].IsNan_float();
-                var[k].IsNan_float();
-                input[k].IsNan_float();
-                mean[k].IsNan_float();
-                error[k].IsNan_float();
-                output[k].IsNan_float();
+                if (!half) {
+                    errorNL[k].IsNan_float();
+                    var[k].IsNan_float();
+                    input[k].IsNan_float();
+                    mean[k].IsNan_float();
+                    error[k].IsNan_float();
+                    output[k].IsNan_float();
+                }
+                else
+                {
+                    errorNL[k].IsNan();
+                    var[k].IsNan();
+                    input[k].IsNan();
+                    mean[k].IsNan();
+                    error[k].IsNan();
+                    output[k].IsNan();
+                }
             }
         }
     }
@@ -281,7 +305,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         this.error = new NNMatrix[errors.length];
 
         for (int i = 0; i < input.length; i++) {
-            error[i] = new NNMatrix(outWidth, outDepth);
+            error[i] = new NNMatrix(outWidth, outDepth, half);
         }
 
         if (Use.CPU) {
@@ -319,7 +343,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     private NNMatrix generateErrorNorm(int n) {
-        NNMatrix errorNorm = new NNMatrix(outWidth, outDepth);
+        NNMatrix errorNorm = new NNMatrix(outWidth, outDepth, half);
 
         int index = 0;
         for (int j = 0; j < width; j++) {
@@ -332,7 +356,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     private NNVector derVar(NNMatrix error, int n) {
-        NNVector derVariance = new NNVector(var[n].size());
+        NNVector derVariance = new NNVector(var[n].size(), half);
 
         float[] dVar = new float[var[n].size()];
         for (int i = 0; i < var[n].size(); i++) {
@@ -354,7 +378,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     private NNVector derMean(NNMatrix error, NNVector derVar, int n) {
-        NNVector derMean = new NNVector(mean[n].size());
+        NNVector derMean = new NNVector(mean[n].size(), half);
 
         float[] dMean = new float[mean[n].size()];
         float[] dVar = new float[var[n].size()];
@@ -429,6 +453,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Normalization layer 2D\n");
+        writer.write(this.half + "\n");
         gamma.save(writer);
         betta.save(writer);
 
@@ -442,7 +467,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
     }
 
     public static NormalizationLayer2D read(Scanner scanner) {
-        NormalizationLayer2D layer = new NormalizationLayer2D();
+        NormalizationLayer2D layer = new NormalizationLayer2D(Boolean.parseBoolean(scanner.nextLine()));
         layer.loadWeight = false;
         layer.gamma = NNVector.read(scanner);
         layer.betta = NNVector.read(scanner);

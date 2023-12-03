@@ -498,18 +498,19 @@ public class NNMatrix extends NNArray {
     }
 
     public void save(FileWriter writer) throws IOException {
-        short[] hostData = null;
+        float[] hostData = null;
+        short[] hostData_half = null;
         if (Use.GPU) {
-            hostData = GetAllHalfValues(data_gpu, size);
+            if (!half) {
+                hostData = GetFirstSingleValueFloat(data_gpu, size);
+            }
+            else
+            {
+                hostData_half = GetAllHalfValues(data_gpu, size);
+            }
         }
-
-        int ihalf = 0;
-        if (half)
-        {
-            ihalf = 1;
-        }
-
-        writer.write(row + " " + column + " " + ihalf + "\n");
+        writer.write(half + "\n");
+        writer.write(row + " " + column + "\n");
         for (int i = 0; i < row; i++) {
             for (int j = 0; j < column; j++) {
                 if (Use.CPU) {
@@ -517,8 +518,15 @@ public class NNMatrix extends NNArray {
                 }
                 else
                 {
-                    assert hostData != null;
-                    writer.write(hostData[i * column + j] + " ");
+                    if (!half) {
+                        assert hostData != null;
+                        writer.write(hostData[i * column + j] + " ");
+                    }
+                    else
+                    {
+                        assert hostData_half != null;
+                        writer.write(hostData_half[i * column + j] + " ");
+                    }
                 }
                 if (j % 1000 == 0) {
                     writer.flush();
@@ -742,13 +750,8 @@ public class NNMatrix extends NNArray {
     }
 
     public static NNMatrix read(Scanner scanner) {
+        boolean half = Boolean.parseBoolean(scanner.nextLine());
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        boolean half = false;
-        if (size[2] == 1)
-        {
-            half = true;
-        }
-
         NNMatrix matrix = new NNMatrix(size[0], size[1], half);
         if (Use.CPU) {
             for (int i = 0; i < matrix.row; i++) {
@@ -760,14 +763,27 @@ public class NNMatrix extends NNArray {
         }
         else
         {
-            short[] hostdata = new short[matrix.size];
-            for (int i = 0; i < matrix.row; i++) {
-                double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
-                for (int j = 0; j < matrix.column; j++) {
-                    hostdata[i * matrix.column + j] = (short) arr[j];
+            if (!matrix.half) {
+                float[] hostdata = new float[matrix.size];
+                for (int i = 0; i < matrix.row; i++) {
+                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
+                    for (int j = 0; j < matrix.column; j++) {
+                        hostdata[i * matrix.column + j] = (float) arr[j];
+                    }
                 }
+                cudaMemcpy(matrix.data_gpu, Pointer.to(hostdata), (long) Sizeof.FLOAT * matrix.size, cudaMemcpyHostToDevice);
             }
-            cudaMemcpy(matrix.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * matrix.size, cudaMemcpyHostToDevice);
+            else
+            {
+                short[] hostdata = new short[matrix.size];
+                for (int i = 0; i < matrix.row; i++) {
+                    double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Short::parseShort).toArray();
+                    for (int j = 0; j < matrix.column; j++) {
+                        hostdata[i * matrix.column + j] = (short) arr[j];
+                    }
+                }
+                cudaMemcpy(matrix.data_gpu, Pointer.to(hostdata), (long) Sizeof.SHORT * matrix.size, cudaMemcpyHostToDevice);
+            }
         }
         return matrix;
     }

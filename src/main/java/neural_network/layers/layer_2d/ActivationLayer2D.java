@@ -91,8 +91,8 @@ public class ActivationLayer2D extends NeuralLayer2D {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer 2D\n");
-        writer.write(this.half + "\n");
         functionActivation.save(writer);
+        writer.write(this.half + "\n");
         writer.flush();
     }
 

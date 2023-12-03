@@ -21,7 +21,7 @@ public class TestIMDBDeep {
                 .addLayer(new EmbeddingLayer(5000, 64).setTrainable(false))
                 .addLayer(new PositionalEmbeddingLayer())
                 .addLayer(new MultiHeadAttentionLayer(1, 64, false).setTrainable(true).setMask())
-                .addLayer(new NormalizationLayer2D().setTrainable(false))
+                .addLayer(new NormalizationLayer2D(false).setTrainable(false))
                 .addLayer(new FlattenLayer2D(false))
                 .addLayer(new DenseLayer(1, false).setTrainable(false))
                 .addActivationLayer(new FunctionActivation.Sigmoid())
