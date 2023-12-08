@@ -12,8 +12,8 @@ import java.util.Scanner;
 
 public class DigitCapsuleLayer extends FlattenLayer2D {
 
-    public DigitCapsuleLayer(boolean half) {
-        super(half);
+    public DigitCapsuleLayer(boolean TYPE) {
+        super(TYPE);
     }
 
     public void initialize(int[] size) {

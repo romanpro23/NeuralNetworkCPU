@@ -22,6 +22,7 @@ import static jcuda.driver.JCudaDriver.*;
 import static jcuda.jcublas.cublasMath.CUBLAS_TENSOR_OP_MATH;
 import static jcuda.runtime.JCuda.*;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.floatToBFloat16;
 
 public class GPUInit {
 
@@ -43,21 +44,24 @@ public class GPUInit {
         Use.GPU = true;
 
         short[] sh = new short[]{
-                Float.floatToFloat16(0.0f),//0
-                Float.floatToFloat16(0.7978846f),//1
-                Float.floatToFloat16(0.0356774f),//2
-                Float.floatToFloat16(0.5f),//3
-                Float.floatToFloat16(1.0f),//4
-                Float.floatToFloat16(0.0001f),//5
-                Float.floatToFloat16(-0.5f),//6
-                Float.floatToFloat16(-1.5f),//7
-                Float.floatToFloat16(-1.0f),//8
-                Float.floatToFloat16(-2.0f),//9
-                Float.floatToFloat16(0.79788846f),//10
-                Float.floatToFloat16(0.1070322f), //11
-                Float.floatToFloat16(65504.0f),
-                Float.floatToFloat16(65504.0f), //13
-        };//12
+                floatToBFloat16(0.0f),//0
+                floatToBFloat16(0.7978846f),//1
+                floatToBFloat16(0.0356774f),//2
+                floatToBFloat16(0.5f),//3
+                floatToBFloat16(1.0f),//4
+                floatToBFloat16(0.00000001f),//5
+                floatToBFloat16(-0.5f),//6
+                floatToBFloat16(-1.5f),//7
+                floatToBFloat16(-1.0f),//8
+                floatToBFloat16(-2.0f),//9
+                floatToBFloat16(0.79788846f),//10
+                floatToBFloat16(0.1070322f), //11
+                floatToBFloat16(65504.0f), //12
+                floatToBFloat16(65504.0f), //13
+                floatToBFloat16(100.0f), //14
+                floatToBFloat16(0.005f), //15
+                floatToBFloat16(0.5f), //16
+        };
 
         CUdeviceptr devPtr = new CUdeviceptr();
         int result = JCudaDriver.cuModuleGetGlobal(devPtr, new long[1], helperModule, "sh");

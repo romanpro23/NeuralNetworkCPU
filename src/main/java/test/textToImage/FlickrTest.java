@@ -42,7 +42,7 @@ public class FlickrTest {
 
         network.info();
 
-        int countEpoch = 1000;
+  /*      int countEpoch = 1000;
         for (int i = 0; i < countEpoch; i++) {
             for (int j = 0; j < 25; j++) {
                 NNData3D data = loader.getNextTrainData(64);
@@ -55,6 +55,6 @@ public class FlickrTest {
             ImageCreator.drawColorImage(NNArrays.isTensor(test.getInput())[0], 8, 8, i + "_real", "D:/NetworkTest/flickr/", true);
             System.out.println("Validation " + network.accuracy(test.getInput()));
             network.save(new FileWriter("D:/NetworkTest/flickr/flick_network_8.txt"));
-        }
+        }*/
     }
 }

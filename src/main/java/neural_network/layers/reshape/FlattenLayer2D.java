@@ -23,9 +23,9 @@ public class FlattenLayer2D extends NeuralLayer {
     protected NNMatrix[] error;
     protected NNVector[] errorNL;
 
-    public FlattenLayer2D(boolean half) {
+    public FlattenLayer2D(boolean TYPE) {
         super();
-        this.half = half;
+        this.TYPE = TYPE;
     }
 
     @Override
@@ -47,7 +47,7 @@ public class FlattenLayer2D extends NeuralLayer {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("Flatten layer 2D\n");
-        writer.write(this.half + "\n");
+        writer.write(this.TYPE + "\n");
         writer.flush();
     }
 
@@ -69,17 +69,17 @@ public class FlattenLayer2D extends NeuralLayer {
         if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNVector(input[i].getData(), input[i].getSdata(), half);
+                output[i] = new NNVector(input[i].getData(), input[i].getSdata(), TYPE);
             }
             GPU_WakeUp();
         }
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNVector(input[i].size(), half);
+                output[i] = new NNVector(input[i].size(), TYPE);
                 output[i].copy(input[i]);
             }
-            CallGarbageCollector();
+            //CallGarbageCollector();
         }
     }
 
@@ -96,12 +96,12 @@ public class FlattenLayer2D extends NeuralLayer {
         for (int i = 0; i < errors.length; i++) {
             if ((Use.CPU) && (!Use.GPU)) {
                 GPU_Sleep();
-                error[i] = new NNMatrix(width, depth, errorNL[i].getData(), errorNL[i].getSdata(), half);
+                error[i] = new NNMatrix(width, depth, errorNL[i].getData(), errorNL[i].getSdata(), TYPE);
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
-                error[i] = new NNMatrix(width, depth, half);
+                error[i] = new NNMatrix(width, depth, TYPE);
                 error[i].copy(errorNL[i]);
             }
         }

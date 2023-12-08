@@ -49,12 +49,12 @@ public class DenseLayer extends DenseNeuralLayer {
     private NNVector threshold;
     private NNVector derThreshold;
 
-    public DenseLayer(int countNeuron, boolean half) {
+    public DenseLayer(int countNeuron, boolean TYPE) {
         super();
         this.countNeuron = countNeuron;
         this.trainable = true;
         initializer = new Initializer.HeNormal();
-        this.half = half;
+        this.TYPE = TYPE;
     }
 
     @Override
@@ -92,7 +92,7 @@ public class DenseLayer extends DenseNeuralLayer {
     public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer\n");
         writer.write(countNeuron + "\n");
-        writer.write(this.half + "\n");
+        writer.write(this.TYPE + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -109,12 +109,12 @@ public class DenseLayer extends DenseNeuralLayer {
         if (size.length != 1) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
-        derThreshold = new NNVector(countNeuron, half);
-        derWeight = new NNMatrix(countNeuron, size[0], half);
+        derThreshold = new NNVector(countNeuron, TYPE);
+        derWeight = new NNMatrix(countNeuron, size[0], TYPE);
 
         if (!loadWeight) {
-            threshold = new NNVector(countNeuron, half);
-            weight = new NNMatrix(countNeuron, size[0], half);
+            threshold = new NNVector(countNeuron, TYPE);
+            weight = new NNMatrix(countNeuron, size[0], TYPE);
             initializer.initialize(weight);
         }
     }
@@ -258,13 +258,13 @@ public class DenseLayer extends DenseNeuralLayer {
             int column = input.size();
             CUfunction function = new CUfunction();
             Pointer kernelParameters = null;
-            if (!input.isHalf()) {
+            if (!input.isTYPE()) {
                 cuModuleGetFunction(function, helperModule, "derivativeWeight");
                 kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             }
             else
             {
-                cuModuleGetFunction(function, helperModule, "derivativeWeight_half");
+                cuModuleGetFunction(function, helperModule, "derivativeWeight_TYPE");
                 kernelParameters = Pointer.to(Pointer.to(input.getData_gpu()), Pointer.to(error.getData_gpu()), Pointer.to(derWeight.getData_gpu()), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             }
             int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
@@ -280,7 +280,7 @@ public class DenseLayer extends DenseNeuralLayer {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                if (!input.isHalf()) {
+                if (!input.isTYPE()) {
                     input.IsNan_float(input);
                     error.IsNan_float(error);
                     derWeight.IsNan_float(derWeight);

@@ -131,7 +131,7 @@ public class SNDenseLayer extends DenseNeuralLayer {
         u.addMul(v, weight);
         u.l2norm();
 
-        return 0.0000001f + NNArrays.sum(v.mul(u.dotT(weight)));
+        return 0.00000001f + NNArrays.sum(v.mul(u.dotT(weight)));
     }
 
     @SneakyThrows

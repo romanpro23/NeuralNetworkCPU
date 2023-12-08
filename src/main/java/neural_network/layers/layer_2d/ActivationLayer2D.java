@@ -19,9 +19,9 @@ import static utilities.Use.*;
 public class ActivationLayer2D extends NeuralLayer2D {
     private final FunctionActivation functionActivation;
 
-    public ActivationLayer2D(FunctionActivation functionActivation, boolean half) {
+    public ActivationLayer2D(FunctionActivation functionActivation, boolean TYPE) {
         this.functionActivation = functionActivation;
-        this.half = half;
+        this.TYPE = TYPE;
     }
 
     @Override
@@ -35,7 +35,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    this.output[i] = new NNMatrix(width, depth, half);
+                    this.output[i] = new NNMatrix(width, depth, TYPE);
                     functionActivation.activation(input[i], output[i]);
                 });
             }
@@ -47,7 +47,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
 
         if (Use.GPU) {
             for (int i = 0; i < input.length; i++) {
-                this.output[i] = new NNMatrix(width, depth, half);
+                this.output[i] = new NNMatrix(width, depth, TYPE);
                 functionActivation.activation(input[i], output[i]);
             }
         }
@@ -64,7 +64,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
             for (int t = 0; t < input.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    this.error[i] = new NNMatrix(width, depth, half);
+                    this.error[i] = new NNMatrix(width, depth, TYPE);
                     functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
                 });
             }
@@ -76,7 +76,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
 
         if (Use.GPU) {
             for (int i = 0; i < input.length; i++) {
-                this.error[i] = new NNMatrix(width, depth, half);
+                this.error[i] = new NNMatrix(width, depth, TYPE);
                 functionActivation.derivativeActivation(input[i], output[i], errorNL[i], this.error[i]);
             }
         }
@@ -92,7 +92,7 @@ public class ActivationLayer2D extends NeuralLayer2D {
     public void save(FileWriter writer) throws IOException {
         writer.write("Activation layer 2D\n");
         functionActivation.save(writer);
-        writer.write(this.half + "\n");
+        writer.write(this.TYPE + "\n");
         writer.flush();
     }
 

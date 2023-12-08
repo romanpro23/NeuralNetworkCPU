@@ -12,7 +12,7 @@ import java.util.Scanner;
 import static utilities.Use.GPU_Sleep;
 import static utilities.Use.GPU_WakeUp;
 
-public class Float2Half2D extends NeuralLayer2D {
+public class TYPE2Float2D extends NeuralLayer2D {
     protected int depth, width;
     protected int countNeuron;
     protected NNMatrix[] input;
@@ -38,7 +38,7 @@ public class Float2Half2D extends NeuralLayer2D {
 
     @Override
     public void save(FileWriter writer) throws IOException {
-        writer.write("Float to half 2D\n");
+        writer.write("TYPE to float 2D\n");
         writer.flush();
     }
 
@@ -47,6 +47,7 @@ public class Float2Half2D extends NeuralLayer2D {
         if (size.length != 2) {
             throw new ExceptionInInitializerError("Error size pre layer!");
         }
+
         depth = size[1];
         width = size[0];
         countNeuron = depth * width;
@@ -57,18 +58,18 @@ public class Float2Half2D extends NeuralLayer2D {
         input = NNArrays.isMatrix(inputs);
         output = new NNMatrix[inputs.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn(), input[i].getData(), input[i].getSdata(), true);
+                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn(), input[i].getData(), input[i].getSdata());
             }
             GPU_WakeUp();
         }
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn(), true);
-                output[i].float2HalfVector(input[i]);
+                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn());
+                output[i].TYPE2FloatVector(input[i]);
             }
         }
     }
@@ -83,18 +84,16 @@ public class Float2Half2D extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         error = new NNMatrix[errors.length];
 
-        if (Use.CPU) {
-            for (int i = 0; i < errors.length; i++) {
+        for (int i = 0; i < errors.length; i++) {
+            if (Use.CPU) {
                 GPU_Sleep();
-                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn(), errorNL[i].getData(), errorNL[i].getSdata());
+                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn(), errorNL[i].getData(), errorNL[i].getSdata(), true);
                 GPU_WakeUp();
             }
-        }
 
-        if (Use.GPU) {
-            for (int i = 0; i < output.length; i++) {
-                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn());
-                error[i].half2FloatVector(errorNL[i]);
+            if (Use.GPU) {
+                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn(), true);
+                error[i].float2TYPEVector(errorNL[i]);
             }
         }
     }
@@ -122,7 +121,7 @@ public class Float2Half2D extends NeuralLayer2D {
         return error;
     }
 
-    public static Float2Half2D read(Scanner scanner){
-        return new Float2Half2D();
+    public static TYPE2Float2D read(Scanner scanner){
+        return new TYPE2Float2D();
     }
 }

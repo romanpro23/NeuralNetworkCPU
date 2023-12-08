@@ -19,12 +19,16 @@ import java.util.*;
 
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.bFloat16ToFloat;
+import static nnarrays.NNArray.floatToBFloat16;
 
 public class PositionLoader extends DataLoader2D {
     private LinkedHashMap<Integer, Character> uaChars;
     private LinkedHashMap<Character, Integer> codeUaChars;
 
     private int sizeBuffer = 5000;
+
+    float constant = 1.0f;
 
     public PositionLoader(int countChars) throws Exception {
         uaChars = new LinkedHashMap<>();
@@ -102,6 +106,13 @@ public class PositionLoader extends DataLoader2D {
                     }
                 }
 
+                /*for (int xx = 0; xx < width; xx++) {
+                    for (int yy = 0; yy < height; yy++) {
+                        Color color = new Color(img.getRGB(xx, yy));
+                        inputsData.set(xx, yy, transformData.transformR(color.getRed()));
+                    }
+                }*/
+
                 Use.GPU = true;
 
                 StringBuilder label = new StringBuilder();
@@ -131,13 +142,13 @@ public class PositionLoader extends DataLoader2D {
 
                     NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);
 
-                    inputsData.ClearCpuData();
+                    inputsDataNew.ClearCpuData();
                     inputsData = null;
                     inputsDataNew.ClearCpuData();
 
                     Use.CPU = false;
 
-                    NNVector output = codeString(label.toString(), false);
+                    NNVector output = codeString(label.toString(), true);
 
                     train.add(new ImageData2D(inputsDataNew, output));
                     test.add(new ImageData2D(inputsDataNew, output));
@@ -146,9 +157,9 @@ public class PositionLoader extends DataLoader2D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 99) {
-                      return;
-                    }
+                    //if (wwq == 99) {
+                    //  return;
+                    //}
 
                     wwq++;
                 }
@@ -158,22 +169,22 @@ public class PositionLoader extends DataLoader2D {
         }
     }
 
-    public NNVector codeString(String text, boolean half) {
+    public NNVector codeString(String text, boolean TYPE) {
         char[] chars = text.toCharArray();
-        NNVector input = new NNVector(chars.length, half);
+        NNVector input = new NNVector(chars.length, TYPE);
         if (Use.CPU) {
             for (int j = 0; j < input.size(); j++) {
-                float value = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
+                float value = ((float) codeUaChars.get(chars[j]) / constant/* + 1*/);
                 input.set(j, value);
             }
         }
 
         if (Use.GPU) {
-            if (!half) {
+            if (!TYPE) {
                 float[] sm = new float[input.size()];
                 for (int j = 0; j < input.size(); j++) {
                     try {
-                        sm[j] = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
+                        sm[j] = ((float) codeUaChars.get(chars[j]) / constant/* + 1*/);
                     } catch (Exception e) {
                         int ss = 0;
                     }
@@ -188,8 +199,8 @@ public class PositionLoader extends DataLoader2D {
                     float value = 0;
 
                     try {
-                        value = ((float) codeUaChars.get(chars[j]) / 100/* + 1*/);
-                        sm[j] = Float.floatToFloat16(value);
+                        value = ((float) codeUaChars.get(chars[j]) / constant/* + 1*/);
+                        sm[j] = floatToBFloat16(value);
                     } catch (Exception e) {
                         int ss = 0;
                     }
@@ -205,7 +216,7 @@ public class PositionLoader extends DataLoader2D {
     public String decodeString(float[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/) * 100))));
+            Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/) * constant))));
             if (Char != null) {
                 string.append(Char);
             }
@@ -213,10 +224,10 @@ public class PositionLoader extends DataLoader2D {
         return string.toString();
     }
 
-    public String decodeString_half(short[] input) {
+    public String decodeString_TYPE(short[] input) {
         StringBuilder string = new StringBuilder();
         for (int i = 0; i < input.length; i++) {
-            Character Char = (uaChars.get((int) (Math.round((Float.float16ToFloat(input[i])/* - 1*/) * 100))));
+            Character Char = (uaChars.get((int) (Math.round((bFloat16ToFloat(input[i])/* - 1*/) * constant))));
             if (Char != null) {
                 string.append(Char);
             }

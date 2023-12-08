@@ -245,19 +245,19 @@ public class NeuralNetwork {
         return query(new NNTensor[]{input})[0];
     }
 
-    public float train(NNArray[] input, NNArray[] idealOutput) {
-        return train(input, idealOutput, true);
+    public void train(NNArray[] input, NNArray[] idealOutput) {
+        train(input, idealOutput, true);
     }
 
-    public float train(NNArray[] input, NNArray[] idealOutput, float lambda) {
-        return train(input, idealOutput, true, lambda);
+    public void train(NNArray[] input, NNArray[] idealOutput, float lambda) {
+        train(input, idealOutput, true, lambda);
     }
 
-    public float train(NNArray[] input, NNArray[] idealOutput, boolean update) {
-        return train(input, idealOutput, update, 1);
+    public void train(NNArray[] input, NNArray[] idealOutput, boolean update) {
+        train(input, idealOutput, update, 1);
     }
 
-    public float train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
+    public void train(NNArray[] input, NNArray[] idealOutput, boolean update, float lambda) {
         //long start = System.nanoTime();
         queryTrain(input);
 
@@ -267,7 +267,6 @@ public class NeuralNetwork {
         }
 
         //System.out.println(" ! " + (System.nanoTime() - start) / 1000000 + " ! ");
-        return lambda * functionLoss.findAccuracy(layers.get(layers.size() - 1).getOutput(), idealOutput);
     }
 
     public float trainOutput(NNArray[] idealOutput) {

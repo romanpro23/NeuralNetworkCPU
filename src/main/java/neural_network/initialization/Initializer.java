@@ -9,6 +9,8 @@ import java.util.Random;
 
 import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
+import static nnarrays.NNArray.bFloat16ToFloat;
+import static nnarrays.NNArray.floatToBFloat16;
 
 public abstract class Initializer {
     protected float range;
@@ -30,7 +32,7 @@ public abstract class Initializer {
         }
 
         if (Use.GPU) {
-            if (!weight.isHalf()) {
+            if (!weight.isTYPE()) {
                 float[] temp = new float[weight.size()];
                 for (int i = 0; i < weight.size(); i++) {
                     temp[i] = (float) (random.nextGaussian() * range);
@@ -43,13 +45,9 @@ public abstract class Initializer {
                 short[] temp = new short[weight.size()];
                 for (int i = 0; i < weight.size(); i++) {
                     float val = (float) (random.nextGaussian() * range);
-                    if ((Math.abs(val) > 0.0001f)) {
-                        temp[i] = Float.floatToFloat16(val);
-                    } else {
-                        temp[i] = Float.floatToFloat16(0.0001f);
-                    }
+                    temp[i] = floatToBFloat16(val);
                     if (Use.CPU) {
-                        weight.set(i, Float.float16ToFloat(temp[i]));
+                        weight.set(i, val);
                     }
                 }
 
@@ -66,7 +64,7 @@ public abstract class Initializer {
         }
 
         if (Use.GPU) {
-            if (!weight.isHalf()) {
+            if (!weight.isTYPE()) {
                 float[] temp = new float[weight.size()];
                 for (int i = 0; i < weight.size(); i++) {
                     temp[i] = (float) (random.nextGaussian() * range);
@@ -79,10 +77,9 @@ public abstract class Initializer {
                 short[] temp = new short[weight.size()];
                 for (int i = 0; i < weight.size(); i++) {
                     float val = (float) (random.nextGaussian() * range);
-                    if ((Math.abs(val) > 0.0001f)) {
-                        temp[i] = Float.floatToFloat16(val);
-                    } else {
-                        temp[i] = Float.floatToFloat16(0.0001f);
+                    temp[i] = floatToBFloat16(val);
+                    if (Use.CPU) {
+                        weight.set(i, val);
                     }
                 }
 

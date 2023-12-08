@@ -39,13 +39,13 @@ public class TestVGGOrange {
         NNVector result = new NNVector(200);
         result.set(32, 1f);
         for (int i = 0; i < 100; i++) {
-            orange.clip(-1, 1);
+            /*orange.clip(-1, 1);
             ImageCreator.drawColorImage(orange, 64, 64, "test_orange_" + i, "D:/NetworkTest/ST", true);
             System.out.println(vgg.train(new NNTensor[]{orange}, new NNVector[]{result}, false));
             System.out.println(Arrays.toString(vgg.getOutputs()[0].indexMaxElement(5)));
             delta.clear();
             delta.add(vgg.getError()[0]);
-            optimizer.update();
+            optimizer.update();*/
         }
     }
 

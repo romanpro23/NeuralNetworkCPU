@@ -32,8 +32,8 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector(int length, boolean half) {
-        super(length, half);
+    public NNVector(int length, boolean TYPE) {
+        super(length, TYPE);
         countAxes = 1;
     }
 
@@ -42,8 +42,8 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector(NNVector vector, boolean half) {
-        super(vector.size, half);
+    public NNVector(NNVector vector, boolean TYPE) {
+        super(vector.size, TYPE);
         countAxes = 1;
     }
 
@@ -52,8 +52,8 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector(NNArray array, boolean half) {
-        super(array.data, array.sdata, half);
+    public NNVector(NNArray array, boolean TYPE) {
+        super(array.data, array.sdata, TYPE);
         countAxes = 1;
     }
 
@@ -62,8 +62,8 @@ public class NNVector extends NNArray {
         countAxes = 1;
     }
 
-    public NNVector(float[] _data, short[] _sdata, boolean half) {
-        super(_data, _sdata, half);
+    public NNVector(float[] _data, short[] _sdata, boolean TYPE) {
+        super(_data, _sdata, TYPE);
         countAxes = 1;
     }
 
@@ -73,7 +73,7 @@ public class NNVector extends NNArray {
     }
 
     public NNVector dot(NNMatrix matrix) {
-        NNVector result = new NNVector(matrix.getRow(), matrix.half);
+        NNVector result = new NNVector(matrix.getRow(), matrix.TYPE);
 
         if (Use.CPU) {
             for (int i = 0, index = 0; i < matrix.getRow(); i++) {
@@ -88,14 +88,14 @@ public class NNVector extends NNArray {
             float beta = 0.0f;
 
             int SUCCESS = 0;
-            if (!matrix.half) {
+            if (!matrix.TYPE) {
                 CUfunction function = new CUfunction();
-                if (!matrix.isHalf()) {
+                if (!matrix.isTYPE()) {
                     cuModuleGetFunction(function, helperModule, "matvec_kernel");
                 }
                 else
                 {
-                    cuModuleGetFunction(function, helperModule, "matvec_kernel_half");
+                    cuModuleGetFunction(function, helperModule, "matvec_kernel_TYPE");
                 }
                 Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{matrix.getRow()}), Pointer.to(new int[]{matrix.getColumn()}));
                 int BDIM = 32;
@@ -132,8 +132,8 @@ public class NNVector extends NNArray {
 
                 int N = matrix.getRow();
                 int K = matrix.getColumn();
-                SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_N, N, M, K, Pointer.to(new short[]{Float.floatToFloat16(alpha)}), matrix.data_gpu, PType, K, data_gpu,
-                        PType, size(), Pointer.to(new short[]{Float.floatToFloat16(beta)}), result.data_gpu, PType, N, CComputeType,
+                SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_N, N, M, K, Pointer.to(new short[]{floatToBFloat16(alpha)}), matrix.data_gpu, PType, K, data_gpu,
+                        PType, size(), Pointer.to(new short[]{floatToBFloat16(beta)}), result.data_gpu, PType, N, CComputeType,
                         cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
 
                 if (Use.DEBUG_SYNC) {
@@ -270,46 +270,6 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            /*int M = 1;
-            float alpha = 1.0f;
-            float beta = 0.0f;
-
-            int PType = cudaDataType.CUDA_R_16F;
-            int CComputeType = cublasComputeType.CUBLAS_COMPUTE_16F;
-
-            int N = matrix.getRow();
-            int K = matrix.getColumn();
-            int SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_T, N, M, K, Pointer.to(new short[]{Float.floatToFloat16(alpha)}), matrix.data_gpu, PType, K, data_gpu,
-                    PType, size(), Pointer.to(new short[]{Float.floatToFloat16(beta)}), result.data_gpu, PType, K, CComputeType,
-                    cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
-
-            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS)
-            {
-                throw new ArithmeticException("Error!");
-            }*/
-
-            /*int row = matrix.getColumn();
-            int column = matrix.getRow();
-            CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "MatMulKernelT");
-            Pointer kernelParameters = Pointer.to(Pointer.to(result.getData_gpu()), Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
-            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
-            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
-            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
-
-            JCudaDriver.cuFuncSetAttribute(function, cudaFuncAttributeMaxDynamicSharedMemorySize, (BLOCK_SIZE + 1) * 2);
-
-            cuLaunchKernel(function,
-                    gridSizeX, gridSizeY, 1,      // Grid dimension
-                    blockSizeX, blockSizeY, 1,      // Block dimension
-                    (BLOCK_SIZE + 1) * 2, null,               // Shared memory size and stream
-                    kernelParameters, null // Kernel- and extra parameters
-            );*/
-
-            //long start0 = System.nanoTime();
-            //JCublas2.cublasSgemv(cublasHandle, cublasOperation.CUBLAS_OP_N, matrix.getColumn(), matrix.getRow(), Pointer.to(new float[]{1.0f}), matrix.data_gpu, matrix.getColumn(), data_gpu, 1, Pointer.to(new float[]{0.0f}), result.data_gpu, 1);
-
             int row = matrix.getRow();
             int column = matrix.getColumn();
             CUfunction function = new CUfunction();
@@ -438,7 +398,13 @@ public class NNVector extends NNArray {
         if (Use.GPU) {
             int n = size;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "MatAdd");
+            if (!isTYPE()) {
+                cuModuleGetFunction(function, helperModule, "matAdd_");
+            }
+            else
+            {
+                cuModuleGetFunction(function, helperModule, "matAdd_TYPE_");
+            }
             Pointer kernelParameters = Pointer.to(Pointer.to(this.data_gpu), Pointer.to(vector.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
@@ -450,8 +416,15 @@ public class NNVector extends NNArray {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                IsNan_float();
-                IsNan_float(vector);
+                if (!isTYPE()) {
+                    IsNan_float();
+                    IsNan_float(vector);
+                }
+                else
+                {
+                    IsNan();
+                    IsNan(vector);
+                }
             }
         }
     }
@@ -508,12 +481,12 @@ public class NNVector extends NNArray {
             int row = matrix.getRow();
             int column = matrix.getColumn();
             CUfunction function = new CUfunction();
-            if (!isHalf()) {
+            if (!isTYPE()) {
                 cuModuleGetFunction(function, helperModule, "addMatrix");
             }
             else
             {
-                cuModuleGetFunction(function, helperModule, "addMatrix_half");
+                cuModuleGetFunction(function, helperModule, "addMatrix_TYPE");
             }
             Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
             int blockSizeX = (int) Math.min(column, BLOCK_SIZE);
@@ -528,7 +501,7 @@ public class NNVector extends NNArray {
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
 
-                if (!isHalf()) {
+                if (!isTYPE()) {
                     matrix.IsNan_float(matrix);
                     IsNan_float();
                 }
@@ -553,18 +526,18 @@ public class NNVector extends NNArray {
 
     public void save(FileWriter writer) throws IOException {
         float[] hostData = null;
-        short[] hostData_half = null;
+        short[] hostData_TYPE = null;
         if (Use.GPU) {
-            if (!half) {
+            if (!TYPE) {
                 hostData = GetFirstSingleValueFloat(data_gpu, size);
             }
             else
             {
-                hostData_half = GetAllHalfValues(data_gpu, size);
+                hostData_TYPE = GetAllTYPEValues(data_gpu, size);
             }
         }
 
-        writer.write(half + "\n");
+        writer.write(TYPE + "\n");
         writer.write(size + "\n");
         for (int i = 0; i < size; i++) {
             if (Use.CPU) {
@@ -572,14 +545,14 @@ public class NNVector extends NNArray {
             }
             else
             {
-                if (!half) {
+                if (!TYPE) {
                     assert hostData != null;
                     writer.write(hostData[i] + " ");
                 }
                 else
                 {
-                    assert hostData_half != null;
-                    writer.write(hostData_half[i] + " ");
+                    assert hostData_TYPE != null;
+                    writer.write(hostData_TYPE[i] + " ");
                 }
             }
             if (i % 1000 == 0) {
@@ -611,8 +584,8 @@ public class NNVector extends NNArray {
     }
 
     public static NNVector read(Scanner scanner) {
-        boolean half = Boolean.parseBoolean(scanner.nextLine());
-        NNVector vector = new NNVector(Integer.parseInt(scanner.nextLine()), half);
+        boolean TYPE = Boolean.parseBoolean(scanner.nextLine());
+        NNVector vector = new NNVector(Integer.parseInt(scanner.nextLine()), TYPE);
         if (Use.CPU) {
             double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
             for (int j = 0; j < vector.size; j++) {
@@ -620,7 +593,7 @@ public class NNVector extends NNArray {
             }
         }
         else {
-            if (!vector.half) {
+            if (!vector.TYPE) {
                 double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();
                 cudaMemcpy(vector.data_gpu, Pointer.to(toFloatArray(arr)), (long) Sizeof.FLOAT * vector.size, cudaMemcpyHostToDevice);
             }

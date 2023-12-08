@@ -22,7 +22,8 @@ public class SRGAN extends GAN {
 
         //trainA discriminator
         float accuracyD = 0;
-        accuracyD += discriminator.train(output, getRealLabel(input.length), false);
+        float accuracyG = 0;
+        /*accuracyD += discriminator.train(output, getRealLabel(input.length), false);
         accuracyD += discriminator.train(fake, getFakeLabel(input.length), false);
 
         //trainA generator
@@ -37,7 +38,7 @@ public class SRGAN extends GAN {
         generator.train(errorRecognition);
 
         discriminator.setTrainable(true);
-        discriminator.update();
+        discriminator.update();*/
 
         return accuracyD + accuracyG;
     }

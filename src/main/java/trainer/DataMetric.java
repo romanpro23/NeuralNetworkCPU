@@ -1,7 +1,9 @@
 package trainer;
 
+import jcuda.driver.JCudaDriver;
 import nnarrays.NNArray;
 import nnarrays.NNVector;
+import utilities.Use;
 
 import java.util.Arrays;
 
@@ -13,8 +15,29 @@ public interface DataMetric {
         public int quality(NNArray[] ideal, NNArray[] output) {
             int counter = 0;
             for (int i = 0; i < ideal.length; i++) {
-                if (ideal[i].indexMaxElement() == output[i].indexMaxElement()) {
-                    counter++;
+                if ((Use.CPU) && (!Use.GPU)) {
+                    if (ideal[i].indexMaxElement() == output[i].indexMaxElement()) {
+                        counter++;
+                    }
+                }
+
+                if (Use.GPU)
+                {
+                    if (!ideal[i].isTYPE())
+                    {
+                        if (ideal[i].indexMaxElement() == output[i].indexMaxElement()) {
+                            counter++;
+                        }
+                    }
+                    else
+                    {
+                        NNArray ide = new NNArray(ideal[i].size());
+                        ide.TYPE2FloatVector(ideal[i]);
+
+                        if (ide.indexMaxElement() == output[i].indexMaxElement()) {
+                            counter++;
+                        }
+                    }
                 }
             }
             return counter;

@@ -26,10 +26,11 @@ public class TransformerModel {
     }
 
     public float train(NNArray[] input, NNArray[] output){
-        encoder.queryTrain(input);
+        /*encoder.queryTrain(input);
         float accuracy = decoder.train(input, NNArrays.toHotVector(NNArrays.isVector(output), sizeVocabulary));
-        encoder.train(NNArrays.empty(NNArrays.isMatrix(encoder.getOutputs())));
+        encoder.train(NNArrays.empty(NNArrays.isMatrix(encoder.getOutputs())));*/
 
+        int accuracy = 0;
         return accuracy;
     }
 }

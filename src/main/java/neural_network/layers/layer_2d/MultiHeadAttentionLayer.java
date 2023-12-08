@@ -53,11 +53,11 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
     private NNMatrix[] outputDecoder;
     private NNMatrix[] errorDecoder;
 
-    public MultiHeadAttentionLayer(int countHead, int sizeAttention, boolean half) {
-        this(countHead, sizeAttention, half, 0);
+    public MultiHeadAttentionLayer(int countHead, int sizeAttention, boolean TYPE) {
+        this(countHead, sizeAttention, TYPE, 0);
     }
 
-    public MultiHeadAttentionLayer(int countHead, int sizeAttention, boolean half, double dropout) {
+    public MultiHeadAttentionLayer(int countHead, int sizeAttention, boolean TYPE, double dropout) {
         super();
         this.hasEncoderLayer = false;
         this.useMask = false;
@@ -65,17 +65,17 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         this.sizeAttention = sizeAttention;
         this.dropout = (float) dropout;
         this.trainable = true;
-        this.half = half;
+        this.TYPE = TYPE;
         initializer = new Initializer.HeNormal();
     }
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(weight, derWeight);
+        optimizer.addDataOptimize(weight, derWeight, "Multi head attention layer");
         for (int i = 0; i < countHead; i++) {
-            optimizer.addDataOptimize(weightKey[i], derWeightKey[i]);
-            optimizer.addDataOptimize(weightQuery[i], derWeightQuery[i]);
-            optimizer.addDataOptimize(weightValue[i], derWeightValue[i]);
+            optimizer.addDataOptimize(weightKey[i], derWeightKey[i], "Multi head attention layer");
+            optimizer.addDataOptimize(weightQuery[i], derWeightQuery[i], "Multi head attention layer");
+            optimizer.addDataOptimize(weightValue[i], derWeightValue[i], "Multi head attention layer");
         }
     }
 
@@ -90,7 +90,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         outDepth = depth;
 
         if (useMask && mask == null) {
-            mask = new NNMatrix(width, width, half);
+            mask = new NNMatrix(width, width, TYPE);
             mask.fillUnderDiagonal(1);
         }
 
@@ -98,11 +98,11 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         derWeightValue = new NNMatrix[countHead];
         derWeightQuery = new NNMatrix[countHead];
 
-        derWeight = new NNMatrix(countHead * sizeAttention, depth, half);
+        derWeight = new NNMatrix(countHead * sizeAttention, depth, TYPE);
         for (int i = 0; i < countHead; i++) {
-            derWeightQuery[i] = new NNMatrix(depth, sizeAttention, half);
-            derWeightKey[i] = new NNMatrix(depth, sizeAttention, half);
-            derWeightValue[i] = new NNMatrix(depth, sizeAttention, half);
+            derWeightQuery[i] = new NNMatrix(depth, sizeAttention, TYPE);
+            derWeightKey[i] = new NNMatrix(depth, sizeAttention, TYPE);
+            derWeightValue[i] = new NNMatrix(depth, sizeAttention, TYPE);
         }
 
         if (!loadWeight) {
@@ -110,13 +110,13 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             weightValue = new NNMatrix[countHead];
             weightQuery = new NNMatrix[countHead];
 
-            weight = new NNMatrix(countHead * sizeAttention, depth, half);
+            weight = new NNMatrix(countHead * sizeAttention, depth, TYPE);
             initializer.initialize(weight);
 
             for (int i = 0; i < countHead; i++) {
-                weightQuery[i] = new NNMatrix(depth, sizeAttention, half);
-                weightKey[i] = new NNMatrix(depth, sizeAttention, half);
-                weightValue[i] = new NNMatrix(depth, sizeAttention, half);
+                weightQuery[i] = new NNMatrix(depth, sizeAttention, TYPE);
+                weightKey[i] = new NNMatrix(depth, sizeAttention, TYPE);
+                weightValue[i] = new NNMatrix(depth, sizeAttention, TYPE);
 
                 initializer.initialize(weightQuery[i]);
                 initializer.initialize(weightKey[i]);
@@ -176,7 +176,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         writer.write("Multi head attention layer\n");
         writer.write(countHead + "\n");
         writer.write(sizeAttention + "\n");
-        writer.write(half + "\n");
+        writer.write(TYPE + "\n");
         writer.write(dropout + "\n");
         writer.write(useMask + "\n");
         if(useMask)
@@ -250,7 +250,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         inputAtt[i] = new NNMatrix[countHead];
         outputAtt[i] = new NNMatrix[countHead];
 
-        attention[i] = new NNMatrix(width, countHead * sizeAttention, half);
+        attention[i] = new NNMatrix(width, countHead * sizeAttention, TYPE);
 
         for (int j = 0; j < countHead; j++) {
             if(hasEncoderLayer){
@@ -267,16 +267,16 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
             score[i][j].div((float) Math.sqrt(sizeAttention));
             if(useMask){
-                if (!score[i][j].isHalf()) {
+                if (!score[i][j].isTYPE()) {
                     score[i][j].mask(mask, 0, -1000000000.0f);
                 }
                 else
                 {
-                    score[i][j].mask(mask, 0, -65504.0f);
+                    score[i][j].mask(mask, 0, -1000000000.0f);
                 }
             }
 
-            inputAtt[i][j] = new NNMatrix(score[i][j], half);
+            inputAtt[i][j] = new NNMatrix(score[i][j], TYPE);
             inputAtt[i][j].softmax(score[i][j]);
 
             if (dropout != 0) {
@@ -298,10 +298,10 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
             derWeight.add(attention[i].transpose().dot(error));
         }
 
-        NNMatrix errorInput = new NNMatrix(input, half);
+        NNMatrix errorInput = new NNMatrix(input, TYPE);
 
         for (int j = 0; j < countHead; j++) {
-            NNMatrix errorOutAtt = new NNMatrix(outputAtt[i][j], half);
+            NNMatrix errorOutAtt = new NNMatrix(outputAtt[i][j], TYPE);
             errorOutAtt.addBackCopy(derAttention, j);
 
             NNMatrix errorInAtt = errorOutAtt.dotT(value[i][j]);
@@ -312,7 +312,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
                 errorInAtt.dropout(errorInAtt, dropout);
             }
 
-            NNMatrix errorScore = new NNMatrix(score[i][j], half);
+            NNMatrix errorScore = new NNMatrix(score[i][j], TYPE);
             errorScore.derSoftmax(inputAtt[i][j], errorInAtt);
             errorScore.div((float) Math.sqrt(sizeAttention));
 
@@ -361,7 +361,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
                 executor.execute(() -> {
                     if (hasEncoderLayer) {
-                        errorDecoder[i] = new NNMatrix(outputDecoder[i], half);
+                        errorDecoder[i] = new NNMatrix(outputDecoder[i], TYPE);
                     }
                     error[i] = errorAttention(errorNL[i], input[i], i);
                 });
@@ -375,7 +375,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
         if (Use.GPU) {
             for (int i = 0; i < input.length; i++) {
                 if (hasEncoderLayer) {
-                    errorDecoder[i] = new NNMatrix(outputDecoder[i], half);
+                    errorDecoder[i] = new NNMatrix(outputDecoder[i], TYPE);
                 }
                 error[i] = errorAttention(errorNL[i], input[i], i);
             }

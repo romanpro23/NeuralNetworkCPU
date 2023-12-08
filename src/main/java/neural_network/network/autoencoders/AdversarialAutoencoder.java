@@ -72,16 +72,18 @@ public class AdversarialAutoencoder {
 
     public float trainDecoder(NNArray[] input, NNArray[] output) {
         encoder.queryTrain(input);
-        float accuracy = decoder.train(encoder.getOutputs(), output);
+        /*float accuracy = decoder.train(encoder.getOutputs(), output);
 
         encoder.setOptimizer(optimizerDecode);
-        encoder.train(decoder.getError());
+        encoder.train(decoder.getError());*/
+
+        int accuracy = 0;
         return accuracy;
     }
 
     public float trainDiscriminator(NNArray[] input, NNVector[] distribution) {
         //generate input data for discriminator
-        encoder.queryTrain(input);
+        /*encoder.queryTrain(input);
         NNArray[] fake = encoder.getOutputs();
         NNData data = GANGeneratorData.generateData(distribution, fake);
 
@@ -100,8 +102,9 @@ public class AdversarialAutoencoder {
 
         encoder.setOptimizer(optimizerDistribution);
         encoder.train(discriminator.getError());
-        discriminator.setTrainable(true);
+        discriminator.setTrainable(true);*/
 
+        int accuracy = 0;
         return accuracy;
     }
 }

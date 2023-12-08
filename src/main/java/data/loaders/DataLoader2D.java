@@ -43,8 +43,6 @@ public abstract class DataLoader2D extends DataLoader {
             curTrain++;
         }
 
-        System.out.print(" " + curTrain + " ");
-
         if(size != sizeBatch || curTrain == train.size()){
             curTrain = 0;
             //reloadTrainData();

@@ -129,7 +129,8 @@ public class SSAdversarialAutoencoder {
         NNArray[] inputDecoder = NNArrays.concat(classificationBlock.getOutput(), styleBlock.getOutput());
 
         //trainA decoder
-        float accuracy = decoder.train(inputDecoder, output);
+        float accuracy = 0;
+        //float accuracy = decoder.train(inputDecoder, output);
 
         //find error for style and classification blocks
         NNArray[] errorClassificationBlock = NNArrays.subArray(decoder.getError(), classificationBlock.getOutput());
@@ -163,7 +164,8 @@ public class SSAdversarialAutoencoder {
         NNData data = GANGeneratorData.generateData(distribution, styleBlock.getOutput());
 
         //trainA styleDiscriminator
-        float accuracy = styleDiscriminator.train(data.getInput(), data.getOutput());
+        float accuracy = 0;
+        //float accuracy = styleDiscriminator.train(data.getInput(), data.getOutput());
 
         //generate data for generator
         NNVector[] label = new NNVector[input.length];
@@ -195,7 +197,8 @@ public class SSAdversarialAutoencoder {
         NNData data = GANGeneratorData.generateData(labels, fake);
 
         //trainA labelDiscriminator
-        float accuracy = labelDiscriminator.train(data.getInput(), data.getOutput());
+        float accuracy = 0;
+        //float accuracy = labelDiscriminator.train(data.getInput(), data.getOutput());
 
         //generate data for generator
         NNVector[] label = new NNVector[input.length];

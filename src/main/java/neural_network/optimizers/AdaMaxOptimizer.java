@@ -53,7 +53,7 @@ public class AdaMaxOptimizer extends Optimizer {
     }
 
     private void subDivSqrtNorm(NNArray w, NNArray m, NNArray v) {
-        float cur_lr = learningRate /  (b1t + 0.0000001f);
+        float cur_lr = learningRate /  (b1t + 0.00000001f);
         for (int i = 0; i < w.size(); i++) {
             w.getData()[i] -= cur_lr * m.getData()[i] / (v.getData()[i]);
         }

@@ -37,12 +37,12 @@ public final class NNArrays {
         for (int i = 0; i < arr.length; i++) {
             if (Use.CPU) {
                 GPU_Sleep();
-                arr[i] = new NNVector(batch[i], batch[i].half);
+                arr[i] = new NNVector(batch[i], batch[i].TYPE);
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
-                arr[i] = new NNVector(batch[i].size, batch[i].half);
+                arr[i] = new NNVector(batch[i].size, batch[i].TYPE);
                 arr[i].copy(batch[i]);
             }
         }
@@ -388,32 +388,30 @@ public final class NNArrays {
         }
 
         if (Use.GPU) {
-            float[] sum_gpu = new float[1];
+            int n = array.size;
+            Pointer data_gpu = new Pointer();
+            cudaMalloc(data_gpu, Sizeof.FLOAT);
+            cudaMemset(data_gpu, 0, Sizeof.FLOAT);
 
-            int PType;
-            if (!array.half) {
-                PType = cudaDataType.CUDA_R_32F;
-            }
-            else {
-                PType = cudaDataType.CUDA_R_16F;
-            }
-            int ResultType = cudaDataType.CUDA_R_32F;
-            int ExecutionType = cudaDataType.CUDA_R_32F;
-            int SUCCESS = JCublas2.cublasAsumEx(cublasHandle, array.size, array.data_gpu, PType, 1, Pointer.to(sum_gpu), ResultType, ExecutionType);
-            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS) {
-                throw new ArithmeticException("Error!");
-            }
-
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "sum");
+            Pointer kernelParameters = Pointer.to(Pointer.to(array.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                if (!array.half) {
-                    array.IsNan_float(array);
-                }
-                else
-                {
-                    array.IsNan(array);
-                }
+                array.IsNan_float(array);
             }
+
+            float[] sum_gpu = new float[n];
+            cudaMemcpy(Pointer.to(sum_gpu), data_gpu, Sizeof.FLOAT, cudaMemcpyDeviceToHost);
+            JCuda.cudaFree(data_gpu);
 
             sum = sum_gpu[0];
         }
@@ -426,12 +424,12 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
-        if (first.half != second.half)
+        if (first.TYPE != second.TYPE)
         {
-            throw new Exception("Half problem!!!");
+            throw new Exception("TYPE problem!!!");
         }
 
-        NNArray result = new NNArray(first.size, first.half);
+        NNArray result = new NNArray(first.size, first.TYPE);
 
         if (Use.CPU) {
             for (int i = 0; i < result.size; i++) {
@@ -442,12 +440,12 @@ public final class NNArrays {
         if (Use.GPU) {
             int n = result.size;
             CUfunction function = new CUfunction();
-            if (!first.half) {
+            if (!first.TYPE) {
                 cuModuleGetFunction(function, helperModule, "sub_gpu");
             }
             else
             {
-                cuModuleGetFunction(function, helperModule, "sub_gpu_half");
+                cuModuleGetFunction(function, helperModule, "sub_gpu_TYPE");
             }
             Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
@@ -460,7 +458,7 @@ public final class NNArrays {
             );
             if (Use.DEBUG_SYNC) {
                 JCudaDriver.cuCtxSynchronize();
-                if (!first.half) {
+                if (!first.TYPE) {
                     first.IsNan_float(first);
                     second.IsNan_float(second);
                     result.IsNan_float(result);
@@ -478,11 +476,16 @@ public final class NNArrays {
     }
 
     @SneakyThrows
-    public static NNArray sub_half_float(NNArray first, NNArray second) {
+    public static NNArray sub_bfloatAndFloat(NNArray first, NNArray second) {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
-        NNArray result = new NNArray(first.size);
+        if (first.TYPE == second.TYPE)
+        {
+            throw new Exception("TYPE problem!!!");
+        }
+
+        NNArray result = new NNArray(first.size, second.TYPE);
 
         if (Use.CPU) {
             for (int i = 0; i < result.size; i++) {
@@ -493,7 +496,7 @@ public final class NNArrays {
         if (Use.GPU) {
             int n = result.size;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "sub_half_float_gpu");
+            cuModuleGetFunction(function, helperModule, "sub_bfloatAndFloat");
             Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
@@ -504,10 +507,9 @@ public final class NNArrays {
                     kernelParameters, null // Kernel- and extra parameters
             );
             if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
-                first.IsNan_float(first);
+                first.IsNan(first);
                 second.IsNan_float(second);
-                result.IsNan_float(result);
+                result.IsNan(result);
             }
         }
 
@@ -515,11 +517,16 @@ public final class NNArrays {
     }
 
     @SneakyThrows
-    public static NNArray sub_float_half(NNArray first, NNArray second) {
+    public static NNArray sub_floatAndbFloat(NNArray first, NNArray second) {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
-        NNArray result = new NNArray(first.size);
+        if (first.TYPE == second.TYPE)
+        {
+            throw new Exception("TYPE problem!!!");
+        }
+
+        NNArray result = new NNArray(first.size, first.TYPE);
 
         if (Use.CPU) {
             for (int i = 0; i < result.size; i++) {
@@ -530,7 +537,7 @@ public final class NNArrays {
         if (Use.GPU) {
             int n = result.size;
             CUfunction function = new CUfunction();
-            cuModuleGetFunction(function, helperModule, "sub_float_half_gpu");
+            cuModuleGetFunction(function, helperModule, "sub_floatAndbFloat");
             Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
@@ -541,16 +548,14 @@ public final class NNArrays {
                     kernelParameters, null // Kernel- and extra parameters
             );
             if (Use.DEBUG_SYNC) {
-                JCudaDriver.cuCtxSynchronize();
                 first.IsNan_float(first);
-                second.IsNan_float(second);
-                result.IsNan_float(result);
+                second.IsNan(second);
+                result.IsNan(result);
             }
         }
 
         return result;
     }
-
 
     @SneakyThrows
     public static NNArray capsLoss(NNArray first, NNArray second) {
@@ -678,9 +683,9 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
-        if (first.half != second.half)
+        if (first.TYPE != second.TYPE)
         {
-            throw new Exception("Half problem!!!");
+            throw new Exception("TYPE problem!!!");
         }
 
 
@@ -695,12 +700,12 @@ public final class NNArrays {
         if (Use.GPU) {
             int n = first.size;
             CUfunction function = new CUfunction();
-            if (!first.half) {
+            if (!first.TYPE) {
                 cuModuleGetFunction(function, helperModule, "subAbs");
             }
             else
             {
-                cuModuleGetFunction(function, helperModule, "subAbs_half");
+                cuModuleGetFunction(function, helperModule, "subAbs_TYPE");
             }
             Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);

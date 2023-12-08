@@ -107,7 +107,7 @@
 //        NNTensor error = new NNTensor(input.shape());
 //        int depth = input.getDepth();
 //        int size = input.getColumns() * input.getRows();
-//        float epsilon = 0.0000001f;
+//        float epsilon = 0.00000001f;
 //
 //        derMean.div(size);
 //        derVar.mul(2.0f / (size));

@@ -8,8 +8,8 @@ import java.util.Scanner;
 
 public class GlobalMaxPooling2DLayer extends FlattenLayer2D {
 
-    public GlobalMaxPooling2DLayer(boolean half) {
-        super(half);
+    public GlobalMaxPooling2DLayer(boolean TYPE) {
+        super(TYPE);
     }
 
     @Override

@@ -47,9 +47,9 @@ public class TestNetwork {
         }
 
         for (int i = 0; i < 128; i++) {
-            long start = System.nanoTime();
+            /*long start = System.nanoTime();
             System.out.println(network.train(input, output) / (64 * 784 * 3));
-            System.out.println((System.nanoTime() - start) / 1000000);
+            System.out.println((System.nanoTime() - start) / 1000000);*/
         }
     }
 }

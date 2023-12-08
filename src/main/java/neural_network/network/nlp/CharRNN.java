@@ -22,7 +22,8 @@ public class CharRNN {
     public float train(NNArray[] input) {
         NNData1D data = getInputVector(NNArrays.isVector(input));
 
-        return network.train(data.getInput(), NNArrays.toHotVector(data.getOutput(), sizeVoc));
+        //return network.train(data.getInput(), NNArrays.toHotVector(data.getOutput(), sizeVoc));
+        return 0.0f;
     }
 
     private NNData1D getInputVector(NNVector[] rawData) {

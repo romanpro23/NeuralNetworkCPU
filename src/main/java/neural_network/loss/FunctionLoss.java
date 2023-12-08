@@ -49,7 +49,20 @@ public interface FunctionLoss {
             float accuracy = 0;
 
             for (int i = 0; i < outputs.length; i++) {
-                accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
+                if ((Use.CPU) && (!Use.GPU)) {
+                    accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
+                }
+
+                if (Use.GPU) {
+                    if (!idealOutputs[i].isTYPE())
+                    {
+                        accuracy += NNArrays.sum(NNArrays.sub(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
+                    }
+                    else
+                    {
+                        accuracy += NNArrays.sum(NNArrays.sub_bfloatAndFloat(idealOutputs[i], outputs[i]).pow2()) / ((float) outputs[i].size());
+                    }
+                }
             }
 
             return accuracy;
@@ -60,8 +73,23 @@ public interface FunctionLoss {
             NNArray[] error = new NNArray[outputs.length];
 
             for (int i = 0; i < error.length; i++) {
-                error[i] = NNArrays.sub(outputs[i], idealOutputs[i]);
-                error[i].mul(n / error[i].size());
+                if ((Use.CPU) && (!Use.GPU)) {
+                    error[i] = NNArrays.sub(outputs[i], idealOutputs[i]);
+                    error[i].mul(n / error[i].size());
+                }
+
+                if (Use.GPU) {
+                    if (!idealOutputs[i].isTYPE())
+                    {
+                        error[i] = NNArrays.sub(outputs[i], idealOutputs[i]);
+                        error[i].mul(n / error[i].size());
+                    }
+                    else
+                    {
+                        error[i] = NNArrays.sub_floatAndbFloat(outputs[i], idealOutputs[i]);
+                        error[i].mul(n / error[i].size());
+                    }
+                }
             }
 
             return error;

@@ -8,8 +8,8 @@ import java.util.Scanner;
 
 public class GlobalAveragePooling2DLayer extends FlattenLayer2D {
 
-    public GlobalAveragePooling2DLayer(boolean half) {
-        super(half);
+    public GlobalAveragePooling2DLayer(boolean TYPE) {
+        super(TYPE);
     }
 
     @Override

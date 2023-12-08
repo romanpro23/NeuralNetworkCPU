@@ -3,6 +3,7 @@ package trainer;
 import data.loaders.DataLoader;
 import data.network_train.NNData;
 import neural_network.network.NeuralNetwork;
+import nnarrays.NNArray;
 import nnarrays.NNMatrix;
 import utilities.Use;
 
@@ -32,31 +33,44 @@ public class DataTrainer {
     public float train(NeuralNetwork network, int sizeBatch, int countEpoch, int countUpdate, DataMetric dataMetric) {
         this.sizeBatch = sizeBatch;
         int counter = 0;
+        int lambda = 1;
         for (int i = 0; i < countEpoch; i++) {
             counter = 0;
             double accuracy = 0;
             int max = sizeTrainEpoch / sizeBatch;
             int cu = 0;
+            int cunt = 0;
+            int index = 0;
             System.out.print(" [");
+            int ddd = 10 * countEpoch;
+            int dd = sizeTrainEpoch / ddd;
             for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
-                accuracy += network.train(data.getInput(), data.getOutput(), false);
-                counter += dataMetric.quality(data.getOutput(), network.getOutputs());
+                network.train(data.getInput(), data.getOutput(), false, lambda);
                 cu++;
+                cunt++;
                 if(cu == countUpdate){
                     network.update();
                     cu = 0;
                 }
 
-                if(j % Math.max(1, (max / 26)) == 0) {
-                    System.out.print("=");
+                if(cunt == ddd){
+                    CallGarbageCollector();
+                    accuracy += lambda * network.accuracy(data.getOutput());
+                    counter += dataMetric.quality(data.getOutput(), network.getOutputs());
+                    cunt = 0;
+                    index++;
+                    System.out.print(" " + (j * sizeBatch + 1) + " ");
                 }
+                //if(j % Math.max(1, (max / 26)) == 0) {
+                //    System.out.print("=");
+                //}
             }
             System.out.println("]");
             System.out.println("\t\t\t" + (i + 1) + " ერა ");
             System.out.println("ტრენინგის მონაცემთა ნაკრების შედეგი: ");
-            System.out.println("სწორი პასუხების პროცენტი (მხოლოდ კლასიფიკაციისთვის)" + String.format("%.2f", counter * 1.0 / sizeTrainEpoch * 100) + " %");
-            System.out.println("სიზუსტე ტრენინგის მონაცემთა ბაზაში: " + String.format("%.5f", accuracy / sizeTrainEpoch));
+            System.out.println("სწორი პასუხების პროცენტი (მხოლოდ კლასიფიკაციისთვის)" + String.format("%.2f", counter * 1.0 / dd * 100) + " %");
+            System.out.println("სიზუსტე ტრენინგის მონაცემთა ბაზაში: " + String.format("%.5f", accuracy / dd));
 
             //score(network, dataMetric);
         }

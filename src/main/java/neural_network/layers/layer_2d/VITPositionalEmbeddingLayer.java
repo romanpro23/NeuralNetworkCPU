@@ -31,18 +31,18 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     private NNMatrix weight;
     private NNMatrix derWeight;
 
-    public VITPositionalEmbeddingLayer(boolean half) {
+    public VITPositionalEmbeddingLayer(boolean TYPE) {
         trainable = true;
-        this.half = half;
+        this.TYPE = TYPE;
     }
 
     @Override
     public void initialize(int[] size) {
         super.initialize(size);
 
-        derWeight = new NNMatrix(width, depth, half);
+        derWeight = new NNMatrix(width, depth, TYPE);
         if (!loadWeight) {
-            weight = new NNMatrix(width, depth, half);
+            weight = new NNMatrix(width, depth, TYPE);
         }
     }
 
@@ -57,7 +57,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
             for (int t = 0; t < output.length; t++) {
                 final int i = t;
                 executor.execute(() -> {
-                    this.output[i] = new NNMatrix(this.input[i], half);
+                    this.output[i] = new NNMatrix(this.input[i], TYPE);
                     this.output[i].copy(this.input[i]);
                     this.output[i].add(weight);
                 });
@@ -70,7 +70,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                this.output[i] = new NNMatrix(this.input[i], half);
+                this.output[i] = new NNMatrix(this.input[i], TYPE);
                 this.output[i].copy(this.input[i]);
                 this.output[i].add(weight);
             }
@@ -111,7 +111,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
 
     @Override
     public void initialize(Optimizer optimizer) {
-        optimizer.addDataOptimize(weight, derWeight);
+        optimizer.addDataOptimize(weight, derWeight, "VIT positional embedding layer");
     }
 
     @Override
@@ -123,7 +123,7 @@ public class VITPositionalEmbeddingLayer extends NeuralLayer2D {
     @Override
     public void save(FileWriter writer) throws IOException {
         writer.write("VIT positional embedding layer\n");
-        writer.write(this.half + "\n");
+        writer.write(this.TYPE + "\n");
         weight.save(writer);
         if(regularization != null) {
             regularization.write(writer);

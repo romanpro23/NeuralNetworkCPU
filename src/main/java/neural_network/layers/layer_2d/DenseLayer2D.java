@@ -37,12 +37,12 @@ public class DenseLayer2D extends NeuralLayer2D {
     private NNVector threshold;
     private NNVector derThreshold;
 
-    public DenseLayer2D(int countNeuron, boolean half) {
+    public DenseLayer2D(int countNeuron, boolean TYPE) {
         super();
         this.countNeuron = countNeuron;
         this.trainable = true;
         initializer = new Initializer.HeNormal();
-        this.half = half;
+        this.TYPE = TYPE;
     }
 
     @Override
@@ -80,7 +80,7 @@ public class DenseLayer2D extends NeuralLayer2D {
     public void save(FileWriter writer) throws IOException {
         writer.write("Dense layer 2D\n");
         writer.write(countNeuron + "\n");
-        writer.write(this.half + "\n");
+        writer.write(this.TYPE + "\n");
         threshold.save(writer);
         weight.save(writer);
         if (regularization != null) {
@@ -102,12 +102,12 @@ public class DenseLayer2D extends NeuralLayer2D {
         outWidth = width;
         outDepth = countNeuron;
 
-        derThreshold = new NNVector(countNeuron, this.half);
-        derWeight = new NNMatrix(depth, countNeuron, this.half);
+        derThreshold = new NNVector(countNeuron, this.TYPE);
+        derWeight = new NNMatrix(depth, countNeuron, this.TYPE);
 
         if (!loadWeight) {
-            threshold = new NNVector(countNeuron, this.half);
-            weight = new NNMatrix(depth, countNeuron, this.half);
+            threshold = new NNVector(countNeuron, this.TYPE);
+            weight = new NNMatrix(depth, countNeuron, this.TYPE);
             initializer.initialize(weight);
         }
     }

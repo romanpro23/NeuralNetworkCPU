@@ -113,7 +113,7 @@ public class SNConvolutionLayer extends NeuralLayer3D {
         u.addMul(v, weightM);
         u.l2norm();
 
-        return 0.0000001f + NNArrays.sum(v.mul(u.dotT(weightM)));
+        return 0.00000001f + NNArrays.sum(v.mul(u.dotT(weightM)));
     }
 
     @Override

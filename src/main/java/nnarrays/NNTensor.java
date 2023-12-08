@@ -46,8 +46,8 @@ public class NNTensor extends NNArray {
         initialize();
     }
 
-    public NNTensor(int rows, int columns, int depth, boolean half) {
-        super(depth * columns * rows, half);
+    public NNTensor(int rows, int columns, int depth, boolean TYPE) {
+        super(depth * columns * rows, TYPE);
         this.depth = depth;
         this.columns = columns;
         this.rows = rows;
@@ -84,8 +84,8 @@ public class NNTensor extends NNArray {
         initialize();
     }
 
-    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata, boolean half) {
-        super(data, sdata, half);
+    public NNTensor(int rows, int columns, int depth, float[] data, short[] sdata, boolean TYPE) {
+        super(data, sdata, TYPE);
         this.depth = depth;
         this.columns = columns;
         this.rows = rows;
@@ -106,13 +106,13 @@ public class NNTensor extends NNArray {
     public void set(int i, int j, int k, float value) {
         if (Use.CPU) {
             data[rowsIndex[i] + columnsIndex[j] + k] = value;
-            sdata[rowsIndex[i] + columnsIndex[j] + k] = Float.floatToFloat16(value);
+            sdata[rowsIndex[i] + columnsIndex[j] + k] = floatToBFloat16(value);
         }
 
         if (Use.GPU) {
             CUfunction function = new CUfunction();
             cuModuleGetFunction(function, helperModule, "set2");
-            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new short[]{Float.floatToFloat16(value)}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(new int[]{i}), Pointer.to(new int[]{j}), Pointer.to(new int[]{k}), Pointer.to(new int[]{columns}), Pointer.to(new int[]{depth}), Pointer.to(new short[]{floatToBFloat16(value)}));
             int blockSize = 1;
             int gridSizeX = 1;
             cuLaunchKernel(function,
@@ -1321,18 +1321,18 @@ public class NNTensor extends NNArray {
 
     public void save(FileWriter writer) throws IOException {
         float[] hostData = null;
-        short[] hostData_half = null;
+        short[] hostData_TYPE = null;
         if (Use.GPU) {
-            if (!half) {
+            if (!TYPE) {
                 hostData = GetFirstSingleValueFloat(data_gpu, size);
             }
             else
             {
-                hostData_half = GetAllHalfValues(data_gpu, size);
+                hostData_TYPE = GetAllTYPEValues(data_gpu, size);
             }
         }
 
-        writer.write(half + "\n");
+        writer.write(TYPE + "\n");
         writer.write(rows + " " + columns + " " + depth + "\n");
         for (int d = 0; d < rows; d++) {
             for (int i = 0; i < columns; i++) {
@@ -1342,14 +1342,14 @@ public class NNTensor extends NNArray {
                     }
                     else
                     {
-                        if (!half) {
+                        if (!TYPE) {
                             assert hostData != null;
                             writer.write(hostData[d * depth * columns + i * depth + j] + " ");
                         }
                         else
                         {
-                            assert hostData_half != null;
-                            writer.write(hostData_half[d * depth * columns + i * depth + j] + " ");
+                            assert hostData_TYPE != null;
+                            writer.write(hostData_TYPE[d * depth * columns + i * depth + j] + " ");
                         }
                     }
                 }
@@ -1360,9 +1360,9 @@ public class NNTensor extends NNArray {
     }
 
     public static NNTensor read(Scanner scanner) {
-        boolean half = Boolean.parseBoolean(scanner.nextLine());
+        boolean TYPE = Boolean.parseBoolean(scanner.nextLine());
         int[] size = Arrays.stream(scanner.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
-        NNTensor tensor = new NNTensor(size[0], size[1], size[2], half);
+        NNTensor tensor = new NNTensor(size[0], size[1], size[2], TYPE);
         if (Use.CPU) {
             int index = 0;
             for (int d = 0; d < tensor.rows; d++) {
@@ -1376,7 +1376,7 @@ public class NNTensor extends NNArray {
 
         if (Use.GPU) {
             int index = 0;
-            if (!tensor.half) {
+            if (!tensor.TYPE) {
                 float[] hostdata = new float[tensor.size];
                 for (int d = 0; d < tensor.rows; d++) {
                     double[] arr = Arrays.stream(scanner.nextLine().split(" ")).mapToDouble(Float::parseFloat).toArray();

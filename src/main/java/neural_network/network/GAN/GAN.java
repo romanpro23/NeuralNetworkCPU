@@ -96,8 +96,11 @@ public class GAN {
         NNArray[] random = randomDataGenerator(input.length);
 
         //trainA discriminator
-        float accuracyD = discriminator.train(generator.queryTrain(random), getFakeLabel(input.length), false);
-        accuracyD += discriminator.train(input, getRealLabel(input.length), false);
+        float accuracyD = 0;
+        discriminator.train(generator.queryTrain(random), getFakeLabel(input.length), false);
+        accuracyD += 1 * generator.accuracy(generator.getOutputs());
+        discriminator.train(input, getRealLabel(input.length), false);
+        accuracyD += 1 * discriminator.accuracy(discriminator.getOutputs());
         discriminator.update();
 
         //generate data for generator
@@ -107,7 +110,9 @@ public class GAN {
         discriminator.setTrainable(false);
         generator.queryTrain(random);
         //accuracy generator
-        float accuracyG = discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
+        discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
+        float accuracyG = 0;
+        accuracyG += 1 * discriminator.accuracy(generator.getOutputs());
         generator.train(discriminator.getError());
         discriminator.setTrainable(true);
 

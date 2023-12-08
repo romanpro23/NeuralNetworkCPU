@@ -27,7 +27,8 @@ public class Pix2PixGAN extends GAN {
 
         //trainA discriminator
         float accuracyD = 0;
-        accuracyD += discriminator.train(realInput, getRealLabel(input.length), false);
+        float accuracyG = 0;
+        /*accuracyD += discriminator.train(realInput, getRealLabel(input.length), false);
         accuracyD += discriminator.train(fakeInput, getFakeLabel(input.length), false);
 
         //trainA generator
@@ -43,7 +44,7 @@ public class Pix2PixGAN extends GAN {
         generator.train(errorGenerator);
 
         discriminator.setTrainable(true);
-        discriminator.update();
+        discriminator.update();*/
 
         return accuracyD + accuracyG;
     }

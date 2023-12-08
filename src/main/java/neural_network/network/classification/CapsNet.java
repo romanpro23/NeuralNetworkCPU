@@ -35,15 +35,16 @@ public class CapsNet {
     }
 
     public float train(NNArray[] input, NNArray[] output, float lambda){
-        float accuracy;
-        classificator.queryTrain(input);
+        float accuracy = 0;
+        /*classificator.queryTrain(input);
         maskLayer.generateOutput(layer.getOutput(), output);
         accuracy = decoder.train(maskLayer.getOutput(), input);
         maskLayer.generateError(decoder.getError());
         if(lambda != 1) {
             NNArrays.mul(maskLayer.getErrorNL(), lambda);
         }
-        accuracy += classificator.trainOutput(output);
+        accuracy += classificator.trainOutput(output);*/
+
 
         return accuracy;
     }

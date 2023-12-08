@@ -44,7 +44,7 @@ public class AdditionBlock extends LayersBlock {
         NNMatrix[] output = new NNMatrix[input.length];
 
         for (int i = 0; i < input.length; i++) {
-            output[i] = new NNMatrix(width, depth, input[i].isHalf());
+            output[i] = new NNMatrix(width, depth, input[i].isTYPE());
             output[i].add(input[i]);
             output[i].add(outputs[i]);
         }

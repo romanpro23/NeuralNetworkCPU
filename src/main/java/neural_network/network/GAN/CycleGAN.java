@@ -76,12 +76,12 @@ public class CycleGAN extends GAN {
         generator.queryTrain(input);
 
         float accuracy = 0;
-        accuracy += discriminator.train(output, getRealLabel(input.length), false, 0.5f);
+        /*accuracy += discriminator.train(output, getRealLabel(input.length), false, 0.5f);
         accuracy += discriminator.train(generator.getOutputs(), getFakeLabel(input.length), false, 0.5f);
 
         discriminator.setTrainable(false);
         accuracy += discriminator.train(generator.getOutputs(), getRealLabel(input.length), false);
-        discriminator.setTrainable(true);
+        discriminator.setTrainable(true);*/
 
         return accuracy;
     }
@@ -90,12 +90,12 @@ public class CycleGAN extends GAN {
         generatorInput.queryTrain(output);
 
         float accuracy = 0;
-        accuracy += discriminatorInput.train(input, getRealLabel(input.length), false, 0.5f);
+        /*accuracy += discriminatorInput.train(input, getRealLabel(input.length), false, 0.5f);
         accuracy += discriminatorInput.train(generatorInput.getOutputs(), getFakeLabel(input.length), false, 0.5f);
 
         discriminatorInput.setTrainable(false);
         accuracy += discriminatorInput.train(generatorInput.getOutputs(), getRealLabel(input.length), false);
-        discriminatorInput.setTrainable(true);
+        discriminatorInput.setTrainable(true);*/
 
         return accuracy;
     }
