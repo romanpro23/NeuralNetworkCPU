@@ -1242,15 +1242,15 @@ public class NNArray {
 
     public void subDivSqrt(NNArray nominator, NNArray denominator, float lr) {
         for (int i = 0; i < size; i++) {
-            data[i] -= (float) (lr * nominator.data[i] / (Math.sqrt(denominator.data[i]) + 0.00000001f));
+            data[i] -= (float) (lr * nominator.data[i] / (Math.sqrt(denominator.data[i]) + 0.0000001f));
         }
     }
 
     public void subDivSqrtNorm(NNArray nominator, NNArray denominator, float lr, float normN, float normD) {
         if (Use.CPU) {
-            float cur_lr = lr / (normN + 0.00000001f);
+            float cur_lr = lr / (normN + 0.0000001f);
             for (int i = 0; i < size; i++) {
-                data[i] -= (float) (cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.00000001f));
+                data[i] -= (float) (cur_lr * (nominator.data[i]) / (Math.sqrt(denominator.data[i] / normD) + 0.0000001f));
             }
         }
 
@@ -1603,17 +1603,9 @@ public class NNArray {
     }
 
     public String GetFirstSingleValue(PositionLoader loader, int n) {
-        if (!isTYPE()) {
-            float[] data_h = new float[n];
-            cudaMemcpy(Pointer.to(data_h), data_gpu, (long) n * Sizeof.FLOAT, cudaMemcpyDeviceToHost);
-            return loader.decodeString(data_h);
-        }
-        else
-        {
-            short[] data_h = new short[n];
-            cudaMemcpy(Pointer.to(data_h), data_gpu, (long) n * Sizeof.SHORT, cudaMemcpyDeviceToHost);
-            return loader.decodeString_TYPE(data_h);
-        }
+        float[] data_h = new float[n];
+        cudaMemcpy(Pointer.to(data_h), data_gpu, (long) n * Sizeof.FLOAT, cudaMemcpyDeviceToHost);
+        return loader.decodeString_new(data_h);
     }
 
     public float[] GetFirstSingleValueFloat(Pointer data_gpu, int n) {
@@ -2408,7 +2400,7 @@ public class NNArray {
                     ////////////////////////////////////////////////////////////
                     //       Normalization
                     ////////////////////////////////////////////////////////////
-                    "        float varSqrt = sqrtf(var + 0.00000001f);\n" +
+                    "        float varSqrt = sqrtf(var + 0.001f);\n" +
                     "        float* output = P[3][x];\n" +
                     "        index = y * depth;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
@@ -2452,7 +2444,7 @@ public class NNArray {
                     ////////////////////////////////////////////////////////////
                     //       Normalization
                     ////////////////////////////////////////////////////////////
-                    "        TYPE varSqrt = hsqrt(var + sh[5]);\n" +
+                    "        TYPE varSqrt = hsqrt(var + sh[14]);\n" +
                     "        TYPE* output = P[3][x];\n" +
                     "        index = y * depth;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
@@ -2477,7 +2469,7 @@ public class NNArray {
                     /////////////////////////////////////////////////////////////////
                     //       Der var
                     /////////////////////////////////////////////////////////////////
-                    "        float dVar_m = -0.5f * powf(var + 0.00000001f, -1.5f);\n" +
+                    "        float dVar_m = -0.5f * powf(var + 0.001f, -1.5f);\n" +
                     "        int index = y * depth;\n" +
                     "        float derVariance = 0.0f;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
@@ -2489,7 +2481,7 @@ public class NNArray {
                     /////////////////////////////////////////////////////////////////
                     "        dVar_m = 0.0f;\n" +
                     "        float derMean = 0.0f;\n" +
-                    "        float dMean = -1.0f / sqrtf(var + 0.00000001f);\n" +
+                    "        float dMean = -1.0f / sqrtf(var + 0.001f);\n" +
 
                     "        index = y * depth;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
@@ -2505,7 +2497,7 @@ public class NNArray {
                     "        derMean /= depth;\n" +
                     "        derVariance *= 2.0f / (depth);\n" +
 
-                    "        float _dVar = 1.0f / sqrtf(var + 0.00000001f);\n" +
+                    "        float _dVar = 1.0f / sqrtf(var + 0.001f);\n" +
                     "        index = y * depth;\n" +
                     "        for (int k = 0; k < depth; k++, index++) {\n" +
                     "            error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;\n" +
@@ -2527,7 +2519,7 @@ public class NNArray {
                     "    int x = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    int y = blockDim.y * blockIdx.y + threadIdx.y;\n" +
                     "    if (x < n && y < width) {\n" +
-                    "        TYPE sh5 = sh[5];\n" +
+                    "        TYPE sh5 = sh[14];\n" +
                     "        TYPE sh0 = sh[0];\n" +
                     "        TYPE dep = __int2TYPE_rn(depth);\n" +
                     "        TYPE* errorNL = P[0][x];\n" +
@@ -2854,8 +2846,8 @@ public class NNArray {
                     "{\n" +
                     "    int idx = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (idx < numElements) {\n" +
-                    "       float cur_lr = lr / (normN + 0.00000001f);\n" +
-                    "       data[idx] -= cur_lr * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.000001f);\n" +
+                    "       float cur_lr = lr / (normN + 0.0000001f);\n" +
+                    "       data[idx] -= cur_lr * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.0000001f);\n" +
                     "    }\n" +
                     "}\n" +
 

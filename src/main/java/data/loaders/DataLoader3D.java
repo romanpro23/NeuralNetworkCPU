@@ -41,7 +41,7 @@ public abstract class DataLoader3D extends DataLoader {
             curTrain++;
         }
 
-        System.out.print(" " + curTrain + " ");
+        //System.out.print(" " + curTrain + " ");
 
         if(size != sizeBatch || curTrain == train.size()){
             curTrain = 0;

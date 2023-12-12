@@ -1,10 +1,12 @@
 package test.speechtotext;
 
 import data.network_train.NNData2D;
+import data.network_train.NNData3D;
 import neural_network.activation.FunctionActivation;
 import neural_network.layers.layer_1d.DenseLayer;
 import neural_network.layers.layer_2d.*;
 import neural_network.layers.reshape.FlattenLayer2D;
+import neural_network.layers.reshape.ImagePatchesLayer;
 import neural_network.loss.FunctionLoss;
 import neural_network.network.NeuralNetwork;
 import neural_network.optimizers.AdamOptimizer;
@@ -76,7 +78,7 @@ public class speechtotext {
         //1////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new MultiHeadAttentionLayer(10, 48, false).setMask())
+                .addLayer(new MultiHeadAttentionLayer(4, 260, false).setMask())
         )
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
@@ -87,7 +89,7 @@ public class speechtotext {
         //2////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new MultiHeadAttentionLayer(10, 48, false).setMask())
+                .addLayer(new MultiHeadAttentionLayer(4, 260, false).setMask())
         )
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
@@ -98,7 +100,7 @@ public class speechtotext {
         //3////////////////////////////////////////////////////////////////////////////////////
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new MultiHeadAttentionLayer(10, 48, false).setMask())
+                .addLayer(new MultiHeadAttentionLayer(4, 260, false).setMask())
         )
         .addLayer(new AdditionBlock()
                 .addLayer(new NormalizationLayer2D(false))
@@ -106,160 +108,8 @@ public class speechtotext {
                 .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),false))
                 .addLayer(new DenseLayer2D(480, false))
         )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new MultiHeadAttentionLayer(10, 48, false).setMask())
-        )
-        .addLayer(new AdditionBlock()
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new DenseLayer2D(960, false))
-                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),false))
-                .addLayer(new DenseLayer2D(480, false))
-        )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new MultiHeadAttentionLayer(10, 48, false).setMask())
-        )
-        .addLayer(new AdditionBlock()
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new DenseLayer2D(960, false))
-                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),false))
-                .addLayer(new DenseLayer2D(480, false))
-        )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new NormalizationLayer2D(false))
-        .addLayer(new FlattenLayer2D(false))
-        .addLayer(new DenseLayer(176, false))
-        .setOptimizer(optimizer)
-        .setFunctionLoss(new FunctionLoss.MSE())
-        .setTrainable(true)
-        .create();*/
+        ////////////////////////////////////////////////////////////////////////////////////////
 
-        /*network = new NeuralNetwork();
-        network.addInputLayer(24, 480)
-        .addLayer(new VITPositionalEmbeddingLayer(true))
-        //1////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(8, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        //2////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(8, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        //3////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(8, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-                .addLayer(new TYPE2Float2D())
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new Float2TYPE2D())
-                .addLayer(new MultiHeadAttentionLayer(8, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-                .addLayer(new TYPE2Float2D())
-                .addLayer(new NormalizationLayer2D(false))
-                .addLayer(new Float2TYPE2D())
-                .addLayer(new DenseLayer2D(960, true))
-                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-                .addLayer(new DenseLayer2D(480, true))
-        )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new TYPE2Float2D())
-        .addLayer(new NormalizationLayer2D(false))
-        .addLayer(new FlattenLayer2D(false))
-        .addLayer(new DenseLayer(176, false))
-        .setOptimizer(optimizer)
-        .setFunctionLoss(new FunctionLoss.MSE())
-        .setTrainable(true)
-        .create();*/
-
-        /*network = new NeuralNetwork();///////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Floa
-        network.addInputLayer(24, 480)
-        .addLayer(new VITPositionalEmbeddingLayer(true))
-        //1/////////////////////////t2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(2, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        //2////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(2, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        //3////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new MultiHeadAttentionLayer(2, 64, true).setMask())
-        )
-        .addLayer(new AdditionBlock()
-            .addLayer(new TYPE2Float2D())
-            .addLayer(new NormalizationLayer2D(false))
-            .addLayer(new Float2TYPE2D())
-            .addLayer(new DenseLayer2D(960, true))
-            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),true))
-            .addLayer(new DenseLayer2D(480, true))
-        )
-        ///////////////////////////////////////////////////////////////////////////////////////
-        .addLayer(new TYPE2Float2D())
         .addLayer(new NormalizationLayer2D(false))
         .addLayer(new FlattenLayer2D(false))
         .addLayer(new DenseLayer(176, false))
@@ -271,13 +121,11 @@ public class speechtotext {
         optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
         /*for (int s = 0; s < 150; s++) {
-            NNData3D Data3D = loader.getNextTestData(1);
-            NNArray[] Output = Data3D.getOutput();
-            float[] resultReal =  GetFirstSingleValueFloatStatic(Output[0].getData_gpu(), 176);
-            String TextReal = loader.decodeString(resultReal);
+            NNData2D Data2D = loader.getNextTestData(1);
+            NNArray[] Output = Data2D.getOutput();
+            String TextReal =  Output[0].GetFirstSingleValue(loader, 176);
 
-            float[] result = GetFirstSingleValueFloatStatic(network.query(Data3D.getInput())[0].getData_gpu(), 176);
-            String Text = loader.decodeString(result);
+            String Text = network.query(Data2D.getInput())[0].GetFirstSingleValue(loader, 176);
 
             byte[] charset = Text.getBytes(StandardCharsets.UTF_8);
             String newstr = new String(charset, StandardCharsets.UTF_8);
@@ -292,7 +140,7 @@ public class speechtotext {
         network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf_.format(now_) + "_ka_speech_recognation.txt"));*/
 
         network.info();
-        DataTrainer trainer = new DataTrainer(15000, 15000, loader);
+        DataTrainer trainer = new DataTrainer(5000, 5000, loader);
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
@@ -313,10 +161,10 @@ public class speechtotext {
             //System.out.println((System.nanoTime() - start) / 1000000);
 
             for (int s = 0; s < 10; s++) {
-                NNData2D Data2D = loader.getNextTestData(1);
-                NNArray[] Output = Data2D.getOutput();
+                NNData2D Data3D = loader.getNextTrainData(1);
+                NNArray[] Output = Data3D.getOutput();
                 String resultReal = Output[0].GetFirstSingleValue(loader, 176);
-                String Text = network.query(Data2D.getInput())[0].GetFirstSingleValue(loader, 176);
+                String Text = network.query(Data3D.getInput())[0].GetFirstSingleValue(loader, 176);
 
                 byte[] charset = Text.getBytes(StandardCharsets.UTF_8);
                 String newstr = new String(charset, StandardCharsets.UTF_8);

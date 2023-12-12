@@ -1,8 +1,12 @@
 package neural_network.layers.layer_2d;
 
 import neural_network.layers.NeuralLayer;
+import neural_network.layers.layer_3d.NeuralLayer3D;
 import neural_network.optimizers.Optimizer;
-import nnarrays.*;
+import nnarrays.NNArray;
+import nnarrays.NNArrays;
+import nnarrays.NNMatrix;
+import nnarrays.NNTensor;
 import utilities.Use;
 
 import java.io.FileWriter;
@@ -12,17 +16,17 @@ import java.util.Scanner;
 import static utilities.Use.GPU_Sleep;
 import static utilities.Use.GPU_WakeUp;
 
-public class TYPE2Float2D extends NeuralLayer2D {
-    protected int depth, width;
+public class TYPE2Float3D extends NeuralLayer3D {
+    protected int height, width, depth;
     protected int countNeuron;
-    protected NNMatrix[] input;
-    protected NNMatrix[] output;
-    protected NNMatrix[] error;
-    protected NNMatrix[] errorNL;
+    protected NNTensor[] input;
+    protected NNTensor[] output;
+    protected NNTensor[] error;
+    protected NNTensor[] errorNL;
 
     @Override
     public int[] size() {
-        return new int[]{width, depth};
+        return new int[]{width, height, depth};
     }
 
     @Override
@@ -48,27 +52,29 @@ public class TYPE2Float2D extends NeuralLayer2D {
         //    throw new ExceptionInInitializerError("Error size pre layer!");
         //}
 
-        depth = size[1];
-        width = size[0];
-        countNeuron = depth * width;
+        height = size[0];
+        width = size[1];
+        depth = size[2];
+
+        countNeuron = depth * width * height;
     }
 
     @Override
     public void generateOutput(NNArray[] inputs) {
-        input = NNArrays.isMatrix(inputs);
-        output = new NNMatrix[inputs.length];
+        input = NNArrays.isTensor(inputs);
+        output = new NNTensor[inputs.length];
 
         if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn(), input[i].getData(), input[i].getSdata());
+                output[i] = new NNTensor(input[i].getRows(), input[i].getColumns(), input[i].getDepth(), input[i].getData(), input[i].getSdata());
             }
             GPU_WakeUp();
         }
 
         if (Use.GPU) {
             for (int i = 0; i < output.length; i++) {
-                output[i] = new NNMatrix(input[i].getRow(), input[i].getColumn());
+                output[i] = new NNTensor(input[i].getRows(), input[i].getColumns(), input[i].getDepth());
                 output[i].TYPE2FloatVector(input[i]);
             }
         }
@@ -81,25 +87,25 @@ public class TYPE2Float2D extends NeuralLayer2D {
 
     @Override
     public void generateError(NNArray[] errors) {
-        errorNL = getErrorNextLayer(errors);
-        error = new NNMatrix[errors.length];
+        /*errorNL = getErrorNextLayer(errors);
+        error = new NNTensor[errors.length];
 
         for (int i = 0; i < errors.length; i++) {
             if (Use.CPU) {
                 GPU_Sleep();
-                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn(), errorNL[i].getData(), errorNL[i].getSdata(), true);
+                error[i] = new NNTensor(errorNL[i].getRows(), errorNL[i].getColumns(), errorNL[i].getDepth(), errorNL[i].getData(), errorNL[i].getSdata(), true);
                 GPU_WakeUp();
             }
 
             if (Use.GPU) {
-                error[i] = new NNMatrix(errorNL[i].getRow(), errorNL[i].getColumn(), true);
+                error[i] = new NNTensor(errorNL[i].getRows(), errorNL[i].getColumns(), errorNL[i].getDepth(),true);
                 error[i].float2TYPEVector(errorNL[i]);
             }
-        }
+        }*/
     }
 
-    public NNMatrix[] getErrorNextLayer(NNArray[] error) {
-        NNMatrix[] errorNL = NNArrays.isMatrix(error);
+    public NNTensor[] getErrorNextLayer(NNArray[] error) {
+        NNTensor[] errorNL = NNArrays.isTensor(error);
 
         if (!nextLayers.isEmpty()) {
             for (int i = 0; i < errorNL.length; i++) {
@@ -121,7 +127,7 @@ public class TYPE2Float2D extends NeuralLayer2D {
         return error;
     }
 
-    public static TYPE2Float2D read(Scanner scanner){
-        return new TYPE2Float2D();
+    public static TYPE2Float3D read(Scanner scanner){
+        return new TYPE2Float3D();
     }
 }

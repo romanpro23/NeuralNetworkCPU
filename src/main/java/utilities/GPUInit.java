@@ -49,7 +49,7 @@ public class GPUInit {
                 floatToBFloat16(0.0356774f),//2
                 floatToBFloat16(0.5f),//3
                 floatToBFloat16(1.0f),//4
-                floatToBFloat16(0.00000001f),//5
+                floatToBFloat16(0.0000001f),//5
                 floatToBFloat16(-0.5f),//6
                 floatToBFloat16(-1.5f),//7
                 floatToBFloat16(-1.0f),//8
@@ -58,7 +58,7 @@ public class GPUInit {
                 floatToBFloat16(0.1070322f), //11
                 floatToBFloat16(65504.0f), //12
                 floatToBFloat16(65504.0f), //13
-                floatToBFloat16(100.0f), //14
+                floatToBFloat16(0.001f), //14
                 floatToBFloat16(0.005f), //15
                 floatToBFloat16(0.5f), //16
         };

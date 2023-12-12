@@ -2573,7 +2573,7 @@ $L__BB29_14:
 $L__BB29_15:
 	div.approx.ftz.f32 	%f44, %f85, %f9;
 	st.global.f32 	[%rd15], %f44;
-	add.ftz.f32 	%f45, %f44, 0f322BCC77;
+	add.ftz.f32 	%f45, %f44, 0f3A83126F;
 	sqrt.approx.ftz.f32 	%f19, %f45;
 	ld.global.u64 	%rd78, [%rd3+24];
 	cvta.to.global.u64 	%rd79, %rd78;
@@ -2910,7 +2910,7 @@ $L__BB30_14:
 	@%p13 bra 	$L__BB30_14;
 
 $L__BB30_15:
-	add.ftz.f32 	%f92, %f2, 0f322BCC77;
+	add.ftz.f32 	%f92, %f2, 0f3A83126F;
 	lg2.approx.ftz.f32 	%f93, %f92;
 	mul.ftz.f32 	%f94, %f93, 0fBFC00000;
 	ex2.approx.ftz.f32 	%f95, %f94;
@@ -4556,7 +4556,7 @@ $L__BB53_14:
 	@%p1 bra 	$L__BB54_2;
 
 	cvta.to.global.u64 	%rd4, %rd1;
-	add.ftz.f32 	%f4, %f2, 0f322BCC77;
+	add.ftz.f32 	%f4, %f2, 0f33D6BF95;
 	div.approx.ftz.f32 	%f5, %f1, %f4;
 	mul.wide.s32 	%rd5, %r1, 4;
 	add.s64 	%rd6, %rd4, %rd5;
@@ -4567,7 +4567,7 @@ $L__BB53_14:
 	ld.global.nc.f32 	%f8, [%rd8];
 	div.approx.ftz.f32 	%f9, %f8, %f3;
 	sqrt.approx.ftz.f32 	%f10, %f9;
-	add.ftz.f32 	%f11, %f10, 0f358637BD;
+	add.ftz.f32 	%f11, %f10, 0f33D6BF95;
 	div.approx.ftz.f32 	%f12, %f7, %f11;
 	cvta.to.global.u64 	%rd9, %rd3;
 	add.s64 	%rd10, %rd9, %rd5;

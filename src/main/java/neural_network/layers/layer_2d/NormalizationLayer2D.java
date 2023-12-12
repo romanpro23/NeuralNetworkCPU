@@ -72,8 +72,8 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             betta = new NNVector(depth, TYPE);
             gamma = new NNVector(depth, TYPE);
 
-            //gamma.fill(1.0f);
             gamma.fill(1.0f);
+            //.fill(0.01f);
         }
     }
 
@@ -474,6 +474,10 @@ public class NormalizationLayer2D extends NeuralLayer2D {
         layer.setRegularization(Regularization.read(scanner));
         layer.setTrainable(Boolean.parseBoolean(scanner.nextLine()));
         layer.loadWeight = true;
+
+        //layer.gamma = new NNVector(layer.gamma.size());
+        //layer.gamma.fill(0.01f);
+
         return layer;
     }
 }

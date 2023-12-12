@@ -452,7 +452,7 @@ __global__ void NormalizationLayerForward2D(float*** P, const float* __restrict_
         }
         var = var / depth;
         P[2][x][y] = var;
-        float varSqrt = sqrtf(var + 0.00000001f);
+        float varSqrt = sqrtf(var + 0.001f);
         float* output = P[3][x];
         index = y * depth;
         for (int k = 0; k < depth; k++, index++) {
@@ -472,7 +472,7 @@ __global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict
         float mean = P[3][x][y];
         float* error = P[4][x];
         float* output = P[5][x];
-        float dVar_m = -0.5f * powf(var + 0.00000001f, -1.5f);
+        float dVar_m = -0.5f * powf(var + 0.001f, -1.5f);
         int index = y * depth;
         float derVariance = 0.0f;
         for (int k = 0; k < depth; k++, index++) {
@@ -481,7 +481,7 @@ __global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict
         derVariance *= dVar_m;
         dVar_m = 0.0f;
         float derMean = 0.0f;
-        float dMean = -1.0f / sqrtf(var + 0.00000001f);
+        float dMean = -1.0f / sqrtf(var + 0.001f);
         index = y * depth;
         for (int k = 0; k < depth; k++, index++) {
             derMean += errorNL[index] * gamma[k];
@@ -491,7 +491,7 @@ __global__ void NormalizationLayerBackward2D(float*** P, const float* __restrict
         derMean += (-2.0f * derVariance * dVar_m) / depth;
         derMean /= depth;
         derVariance *= 2.0f / (depth);
-        float _dVar = 1.0f / sqrtf(var + 0.00000001f);
+        float _dVar = 1.0f / sqrtf(var + 0.001f);
         index = y * depth;
         for (int k = 0; k < depth; k++, index++) {
             error[index] = errorNL[index] * gamma[k] * _dVar + derVariance * (input[index] - mean) + derMean;
@@ -731,8 +731,8 @@ __global__ void subDivSqrtNorm(const float* __restrict__ nominator, const float*
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     if (idx < numElements) {
-       float cur_lr = lr / (normN + 0.00000001f);
-       data[idx] -= cur_lr * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.000001f);
+       float cur_lr = lr / (normN + 0.0000001f);
+       data[idx] -= cur_lr * (nominator[idx]) / (sqrtf(denominator[idx] / normD) + 0.0000001f);
     }
 }
 extern "C"

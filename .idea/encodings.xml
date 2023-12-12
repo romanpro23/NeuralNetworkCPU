@@ -2,6 +2,7 @@
 <project version="4">
   <component name="Encoding" defaultCharsetForPropertiesFiles="windows-1251">
     <file url="file://$PROJECT_DIR$/src/main/java/data/gan/GANGeneratorData.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/data/nlp/TextTranslateLoader.java" charset="windows-1252" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/capsule/CapsuleLayer.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/capsule/DigitCapsuleLayer.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/neural_network/layers/capsule/MaskLayer.java" charset="UTF-8" />
