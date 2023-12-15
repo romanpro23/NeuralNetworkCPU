@@ -42,7 +42,7 @@ public class DataTrainer {
             int cunt = 0;
             int index = 0;
             System.out.print(" [");
-            int ddd = 10 * countEpoch;
+            int ddd = 1 * countEpoch;
             int dd = sizeTrainEpoch / ddd;
             for (int j = 0; j < max; j++) {
                 NNData data = loader.getNextTrainData(Math.min(sizeBatch, sizeTrainEpoch - j * sizeBatch));
@@ -60,7 +60,7 @@ public class DataTrainer {
                     counter += dataMetric.quality(data.getOutput(), network.getOutputs());
                     cunt = 0;
                     index++;
-                    System.out.print(" " + (j * sizeBatch + 1) + " ");
+                    System.out.print("\r" + (j * sizeBatch) + " ");
                 }
                 //if(j % Math.max(1, (max / 26)) == 0) {
                 //    System.out.print("=");

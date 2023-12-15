@@ -18,6 +18,17 @@ __inline__ __device__ float InfinityCheck(float v)
     }
     return v;
 }
+__inline__ __device__ float InfinityCheck_TYPE(TYPE v)
+{
+    int r = __isinf(__bfloat162float(v));
+    if (r == 1) {
+        v = __float2bfloat16(FLT_MAX);
+    }
+    else if (r == -1) {
+        v = __float2bfloat16(-FLT_MAX);
+    }
+    return v;
+}
 extern "C"
 __global__ void fill(TYPE* A, TYPE alpha, int numElements)
 {
@@ -627,7 +638,7 @@ __global__ void derAbs(float* first, float* second, float* result, int numElemen
     int i = blockDim.x * blockIdx.x + threadIdx.x;
     if (i < numElements) {
        float diff = first[i] - second[i];
-       result[i] = diff / fabsf(diff) + 0.00000001f;
+       result[i] = diff / fabsf(diff + 0.00000001f);
     }
 }
 extern "C"
@@ -920,14 +931,14 @@ __global__ void Softmax_TYPE(const TYPE* __restrict__ input, TYPE* data, int col
        index = k * column;
        for (int i = 0; i < column; i++, index++) {
            TYPE d = exp(input[index] - max);
-           d = InfinityCheck(d);
+           d = InfinityCheck_TYPE(d);
            data[index] = d;
            sum = sum + d;
        }
        if (sum == sh[0]) {
            sum = sum + sh[5];
        }
-       sum = InfinityCheck(sum);
+       sum = InfinityCheck_TYPE(sum);
        index = k * column;
        for (int i = 0; i < column; i++, index++) {
            data[index] = data[index] / sum;

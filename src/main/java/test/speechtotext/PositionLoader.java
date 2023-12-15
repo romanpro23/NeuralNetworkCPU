@@ -32,8 +32,6 @@ public class PositionLoader extends DataLoader2D {
     private int maxLength = 0;
     private boolean addPaddingOnStart;
 
-    private int sizeBuffer = 5000;
-
     float constant = 1.0f;
 
     public PositionLoader(int countChars) throws Exception {
@@ -49,7 +47,7 @@ public class PositionLoader extends DataLoader2D {
             uaChars.put(NLP.SOS, '_');
             codeUaChars.put('_', NLP.SOS);
 
-            int key = 4;
+            int key = 1;
             for (int i = 0; i < countChars; i++) {
                 Character str = scanner.nextLine().charAt(0);
                 uaChars.put(key, str);
@@ -140,7 +138,7 @@ public class PositionLoader extends DataLoader2D {
                 /*for (int xx = 0; xx < width; xx++) {
                     for (int yy = 0; yy < height; yy++) {
                         Color color = new Color(img.getRGB(xx, yy));
-                        inputsData.set(xx, yy, transformData.transformR(color.getRed()));
+                        inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
                     }
                 }*/
 
@@ -206,7 +204,7 @@ public class PositionLoader extends DataLoader2D {
                         System.out.println(wwq);
                     }
 
-                    //if (wwq == 99) {
+                    //if (wwq == 999) {
                     //  return;
                     //}
 

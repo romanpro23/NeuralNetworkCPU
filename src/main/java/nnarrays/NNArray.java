@@ -1880,6 +1880,18 @@ public class NNArray {
                     "    return v;\n" +
                     "}\n" +
 
+                    "__inline__ __device__ float InfinityCheck_TYPE(TYPE v)\n" +
+                    "{\n" +
+                    "    int r = __isinf(__bfloat162float(v));\n" +
+                    "    if (r == 1) {\n" +
+                    "        v = __float2bfloat16(FLT_MAX);\n" +
+                    "    }\n" +
+                    "    else if (r == -1) {\n" +
+                    "        v = __float2bfloat16(-FLT_MAX);\n" +
+                    "    }\n" +
+                    "    return v;\n" +
+                    "}\n" +
+
                     "extern \"C\"\n" +
                     "__global__ void fill(TYPE* A, TYPE alpha, int numElements)\n" +
                     "{\n" +
@@ -2732,7 +2744,7 @@ public class NNArray {
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
                     "    if (i < numElements) {\n" +
                     "       float diff = first[i] - second[i];\n" +
-                    "       result[i] = diff / fabsf(diff) + 0.00000001f;\n" +
+                    "       result[i] = diff / fabsf(diff + 0.00000001f);\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -3055,14 +3067,14 @@ public class NNArray {
                     "       index = k * column;\n" +
                     "       for (int i = 0; i < column; i++, index++) {\n" +
                     "           TYPE d = exp(input[index] - max);\n" +
-                    "           d = InfinityCheck(d);\n" +
+                    "           d = InfinityCheck_TYPE(d);\n" +
                     "           data[index] = d;\n" +
                     "           sum = sum + d;\n" +
                     "       }\n" +
                     "       if (sum == sh[0]) {\n" +
                     "           sum = sum + sh[5];\n" +
                     "       }\n" +
-                    "       sum = InfinityCheck(sum);\n" +
+                    "       sum = InfinityCheck_TYPE(sum);\n" +
                     "       index = k * column;\n" +
                     "       for (int i = 0; i < column; i++, index++) {\n" +
                     "           data[index] = data[index] / sum;\n" +

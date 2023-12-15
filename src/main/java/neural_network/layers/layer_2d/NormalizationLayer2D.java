@@ -73,7 +73,7 @@ public class NormalizationLayer2D extends NeuralLayer2D {
             gamma = new NNVector(depth, TYPE);
 
             gamma.fill(1.0f);
-            //.fill(0.01f);
+            //gamma.fill(0.01f);
         }
     }
 
