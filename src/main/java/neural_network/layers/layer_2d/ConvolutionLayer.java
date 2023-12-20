@@ -5,6 +5,7 @@ import neural_network.initialization.Initializer;
 import neural_network.optimizers.Optimizer;
 import neural_network.regularization.Regularization;
 import nnarrays.*;
+import utilities.Use;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,6 +13,9 @@ import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static utilities.Use.GPU_Sleep;
+import static utilities.Use.GPU_WakeUp;
 
 public class ConvolutionLayer extends NeuralLayer2D {
     //trainable parts
@@ -82,18 +86,31 @@ public class ConvolutionLayer extends NeuralLayer2D {
         this.input = NNArrays.isMatrix(inputs);
         output = new NNMatrix[inputs.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if ((Use.CPU) && (!Use.GPU)) {
+            GPU_Sleep();
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    output[i] = new NNMatrix(outWidth, outDepth);
+                    output[i].convolution(input[i], weight, step, padding);
+                    output[i].add(threshold);
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+            GPU_WakeUp();
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 output[i] = new NNMatrix(outWidth, outDepth);
                 output[i].convolution(input[i], weight, step, padding);
                 output[i].add(threshold);
-            });
+            }
         }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
-        }
+
     }
 
     @Override
@@ -101,10 +118,29 @@ public class ConvolutionLayer extends NeuralLayer2D {
         errorNL = getErrorNextLayer(errors);
         error = new NNMatrix[errors.length];
 
-        ExecutorService executor = Executors.newFixedThreadPool(input.length);
-        for (int t = 0; t < input.length; t++) {
-            final int i = t;
-            executor.execute(() -> {
+        if ((Use.CPU) && (!Use.GPU)) {
+            GPU_Sleep();
+            ExecutorService executor = Executors.newFixedThreadPool(input.length);
+            for (int t = 0; t < input.length; t++) {
+                final int i = t;
+                executor.execute(() -> {
+                    error[i] = new NNMatrix(width, depth);
+                    error[i].transposeConvolution(errorNL[i].stride(step), weight, padding);
+
+                    if (trainable) {
+                        derWeight.convolution(input[i], errorNL[i], step, padding);
+                        derThreshold.add(errorNL[i]);
+                    }
+                });
+            }
+            executor.shutdown();
+            while (!executor.isTerminated()) {
+            }
+            GPU_WakeUp();
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < input.length; i++) {
                 error[i] = new NNMatrix(width, depth);
                 error[i].transposeConvolution(errorNL[i].stride(step), weight, padding);
 
@@ -112,10 +148,7 @@ public class ConvolutionLayer extends NeuralLayer2D {
                     derWeight.convolution(input[i], errorNL[i], step, padding);
                     derThreshold.add(errorNL[i]);
                 }
-            });
-        }
-        executor.shutdown();
-        while (!executor.isTerminated()) {
+            }
         }
 
         if (trainable && regularization != null) {

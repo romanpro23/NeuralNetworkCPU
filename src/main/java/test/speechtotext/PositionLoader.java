@@ -138,7 +138,7 @@ public class PositionLoader extends DataLoader2D {
                 /*for (int xx = 0; xx < width; xx++) {
                     for (int yy = 0; yy < height; yy++) {
                         Color color = new Color(img.getRGB(xx, yy));
-                        inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
+                        inputsData.set(xx, yy, transformData.transformR(color.getRed()));
                     }
                 }*/
 
@@ -187,7 +187,7 @@ public class PositionLoader extends DataLoader2D {
                         }
                     }*/
 
-                    NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);
+                    NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);//true
 
                     inputsDataNew.ClearCpuData();
                     inputsData = null;
@@ -205,7 +205,7 @@ public class PositionLoader extends DataLoader2D {
                     }
 
                     //if (wwq == 999) {
-                    //  return;
+                    //    return;
                     //}
 
                     wwq++;

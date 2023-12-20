@@ -809,6 +809,18 @@ __global__ void fillUnderDiagonal(int column, float val, float* data, int numEle
     }
 }
 extern "C"
+__global__ void stride(const float* __restrict__ data, float* result, int stride, float row, float column)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < row) {
+        int inputIndex = i * column;
+        int outputIndex = i * stride * column;
+        for (int k = 0; k < column; k++, inputIndex++, outputIndex++) {
+            result[outputIndex] = data[inputIndex];
+        }
+    }
+}
+extern "C"
 __global__ void fillUnderDiagonal_TYPE(int column, TYPE val, TYPE* data, int numElements)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -860,6 +872,18 @@ __global__ void matvec_kernel(const float * __restrict__ dA, const float * __res
         __syncthreads();
     }
     if (tid < nRows) dy[tid] = y_val;
+}
+extern "C"
+__global__ void dot_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)
+{
+    int h = blockDim.x * blockIdx.x + threadIdx.x;
+    if (h < rows) {
+       double s = 0.0f;
+       for (int j = 0; j < columns; j++) {
+           s += A[j] * B[h * columns + j];
+       }
+       C[h] = s;
+    }
 }
 extern "C"
 __global__ void matvec_kernel_TYPE(const TYPE* __restrict__ dA, const TYPE* __restrict__ dx, TYPE* __restrict__ dy, const unsigned int nRows, const unsigned int nCols)
@@ -1000,6 +1024,155 @@ __global__ void matrixMulti_TYPE(TYPE* A_d, TYPE* B_d, TYPE* C_d, int m, int k, 
     }
     if(row<m && col<k)
         C_d[col+row*k] = sum;
+}
+#define Mask_width 5 
+#define Mask_radius Mask_width / 2
+#define TILE_WIDTH 16
+#define w (TILE_WIDTH + Mask_width - 1)
+#define clamp(x) (min(max((x), 0.0), 1.0))
+extern "C"
+__global__ void convolution2D(float *I, const float* __restrict__ M, float *P, int channels, int width, int height) {
+    __shared__ float N_ds[w][w];
+    int k;
+    for (k = 0; k < channels; k++) {
+        int dest = threadIdx.y * TILE_WIDTH + threadIdx.x,
+                destY = dest / w, destX = dest % w,
+                srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius,
+                srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius,
+                src = (srcY * width + srcX) * channels + k;
+        if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)
+            N_ds[destY][destX] = I[src];
+        else
+            N_ds[destY][destX] = 0;
+        dest = threadIdx.y * TILE_WIDTH + threadIdx.x + TILE_WIDTH * TILE_WIDTH;
+        destY = dest / w, destX = dest % w;
+        srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius;
+        srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius;
+        src = (srcY * width + srcX) * channels + k;
+        if (destY < w) {
+            if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)
+                N_ds[destY][destX] = I[src];
+            else
+                N_ds[destY][destX] = 0;
+        }
+        __syncthreads();
+        float accum = 0;
+        int y, x;
+        for (y = 0; y < Mask_width; y++)
+            for (x = 0; x < Mask_width; x++)
+                accum += N_ds[threadIdx.y + y][threadIdx.x + x] * M[y * Mask_width + x];
+        y = blockIdx.y * TILE_WIDTH + threadIdx.y;
+        x = blockIdx.x * TILE_WIDTH + threadIdx.x;
+        if (y < height && x < width)
+            P[(y * width + x) * channels + k] = clamp(accum);
+        __syncthreads();
+    }
+}
+extern "C"
+__global__ void transposeConvolution2D(float *I, const float* __restrict__ M, float *P, int channels, int width, int height) {
+    __shared__ float N_ds[w][w];
+    int k;
+    for (k = 0; k < channels; k++) {
+        int dest = threadIdx.y * TILE_WIDTH + threadIdx.x,
+                destY = dest / w, destX = dest % w,
+                srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius,
+                srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius,
+                src = (srcY * width + srcX) * channels + k;
+        if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)
+            N_ds[destY][destX] = I[src];
+        else
+            N_ds[destY][destX] = 0;
+        dest = threadIdx.y * TILE_WIDTH + threadIdx.x + TILE_WIDTH * TILE_WIDTH;
+        destY = dest / w, destX = dest % w;
+        srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius;
+        srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius;
+        src = (srcY * width + srcX) * channels + k;
+        if (destY < w) {
+            if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)
+                N_ds[destY][destX] = I[src];
+            else
+                N_ds[destY][destX] = 0;
+        }
+        __syncthreads();
+        float accum = 0;
+        int y, x;
+        for (y = 0; y < Mask_width; y++)
+            for (x = 0; x < Mask_width; x++)
+                accum += N_ds[threadIdx.y + y][threadIdx.x + x] * M[y * Mask_width + x];
+        y = blockIdx.y * TILE_WIDTH + threadIdx.y;
+        x = blockIdx.x * TILE_WIDTH + threadIdx.x;
+        if (y < height && x < width)
+            P[(y * width + x) * channels + k] = clamp(accum);
+        __syncthreads();
+    }
+}
+extern "C"
+__global__ void Conv2D(float *input, const float* __restrict__ weight, float *data, int pad, int step, int i_row, int i_column, int w_row, int w_column, int w_depth, int d_row, int d_column) {
+    const int t = blockIdx.x * blockDim.x + threadIdx.x;
+    const int d = blockIdx.y * blockDim.y + threadIdx.y;
+    if (t < d_row && d < w_row) {
+       float val = 0.0f;
+       int x0, inputIndex, weightIndex, x = -pad + t * step, outputIndex = (t * d_column) + d;
+       for (int j = 0; j < w_column; j++) {
+           x0 = x + j;
+           if (x0 < 0 || x0 >= i_row) {
+               continue;
+           }
+           weightIndex = d * w_column * w_depth + j * w_depth;
+           inputIndex = x0 * i_column;
+           for (int c = 0; c < w_depth; c++, inputIndex++, weightIndex++) {
+               val += input[inputIndex] * weight[weightIndex];
+           }
+       }
+       data[outputIndex] = val;
+   }
+}
+extern "C"
+__global__ void TransposeConv2D(const float* __restrict__ input, const float* __restrict__ weight, float *data, int padding, int i_row, int i_column, int w_row, int w_column, int w_depth, int d_column) {
+    const int t = blockIdx.x * blockDim.x + threadIdx.x;
+    const int d = blockIdx.y * blockDim.y + threadIdx.y;
+    if (t < d_column && d < w_depth) {
+        float val = 0.0f;
+        int pad = w_column - 1 - padding;
+        int sCore = w_column - 1;
+        int x = -pad + t;
+        int outputIndex = (t * d_column) + d;
+        int sC, x0, weightIndex, inputIndex;
+        for (int j = 0; j < w_column; j++) {
+            x0 = x + j;
+            if (x0 < 0 || x0 >= i_row) {
+                continue;
+            }
+            sC = sCore - j;
+            weightIndex = sC * w_depth + d;
+            inputIndex = x0 * i_column;
+            for (int c = 0; c < w_row; c++, inputIndex++) {
+                val += input[inputIndex] * weight[c * w_depth * w_column + weightIndex];
+            }
+        }
+        data[outputIndex] = val;
+   }
+}
+extern "C"
+__global__ void Convolution(const float* __restrict__ input, const float* __restrict__ error, float *data, int pad, int step, int i_row, int i_column, int r_row, int r_column, int d_row, int d_column, int d_depth) {
+    const int t = blockIdx.x * blockDim.x + threadIdx.x;
+    const int d = blockIdx.y * blockDim.y + threadIdx.y;
+    if (t < r_row && d < d_row) {
+        int x = -pad + t * step;
+        int outputIndex = (t * r_column) + d;
+        int y0, weightIndex, inputIndex;
+        for (int j = 0; j < d_column; j++) {
+            y0 = x + j;
+            if (y0 < 0 || y0 >= i_row) {
+                continue;
+            }
+            inputIndex = y0 * i_column;
+            weightIndex = d * d_depth * d_column + j * d_depth;
+            for (int c = 0; c < d_depth; c++, inputIndex++, weightIndex++) {
+                atomicAdd(&data[weightIndex], input[inputIndex] * error[outputIndex]);
+            }
+        }
+   }
 }
 extern "C"
 __global__ void derSoftmax(const float* __restrict__ output, const float* __restrict__ error, float* data, int row, int column)

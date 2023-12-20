@@ -1283,6 +1283,7 @@ public class NNTensor extends NNArray {
             return this;
         }
         NNTensor result = new NNTensor(rows * stride, columns * stride, depth);
+
         int inputIndex, outpuIndex, i_s, j_s;
         for (int i = 0; i < rows; i++) {
             i_s = i * stride;
@@ -1299,23 +1300,45 @@ public class NNTensor extends NNArray {
     }
 
     public void convolution(NNMatrix input, NNMatrix error, int step, int pad) {
+
         int y0, inputIndex, weightIndex, outputIndex;
 
-        for (int y = -pad, h = 0; h < error.getRow(); y += step, h++) {
-            outputIndex = error.getRowIndex()[h];
-            for (int d = 0; d < rows; d++, outputIndex++) {
-                for (int j = 0; j < columns; j++) {
-                    y0 = y + j;
-                    if (y0 < 0 || y0 >= input.getRow()) {
-                        continue;
-                    }
-                    inputIndex = input.getRowIndex()[y0];
-                    weightIndex = rowsIndex[d] + columnsIndex[j];
-                    for (int c = 0; c < depth; c++, inputIndex++, weightIndex++) {
-                        data[weightIndex] += input.data[inputIndex] * error.data[outputIndex];
+        if (Use.CPU) {
+            for (int y = -pad, h = 0; h < error.getRow(); y += step, h++) {
+                outputIndex = error.getRowIndex()[h];
+                for (int d = 0; d < rows; d++, outputIndex++) {
+                    for (int j = 0; j < columns; j++) {
+                        y0 = y + j;
+                        if (y0 < 0 || y0 >= input.getRow()) {
+                            continue;
+                        }
+                        inputIndex = input.getRowIndex()[y0];
+                        weightIndex = rowsIndex[d] + columnsIndex[j];
+                        for (int c = 0; c < depth; c++, inputIndex++, weightIndex++) {
+                            data[weightIndex] += input.data[inputIndex] * error.data[outputIndex];
+                        }
                     }
                 }
             }
+        }
+
+        if (Use.GPU) {
+            int r_row = error.getRow();
+            int row = rows;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "Convolution");
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(error.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{pad}), Pointer.to(new int[]{step}), Pointer.to(new int[]{input.getRow()}), Pointer.to(new int[]{input.getColumn()}), Pointer.to(new int[]{error.getRow()}), Pointer.to(new int[]{error.getColumn()}), Pointer.to(new int[]{getRows()}), Pointer.to(new int[]{getColumns()}), Pointer.to(new int[]{getDepth()}));
+            int blockSizeX = (int) Math.min(r_row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) r_row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) row / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
     }
 

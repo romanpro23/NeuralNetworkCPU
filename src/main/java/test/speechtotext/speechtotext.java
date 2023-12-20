@@ -44,6 +44,33 @@ public class speechtotext {
                 .create();
 
         /*network = new NeuralNetwork();
+        network.addInputLayer(480, 24)
+        .addLayer(new TYPE2Float2D())
+        .addLayer(new VITPositionalEmbeddingLayer(false))
+        .addLayer(new ConvolutionLayer(24, 24))
+        .addLayer(new ConvolutionLayer(24, 24))
+        .addLayer(new ConvolutionLayer(24, 24))
+        .addLayer(new ConvolutionLayer(24, 24))
+        .addLayer(new ConvolutionLayer(24, 24))
+        .addLayer(new AdditionBlock()
+                .addLayer(new NormalizationLayer2D(false))
+                .addLayer(new MultiHeadAttentionLayer(2, 100, false).setMask())
+        )
+        .addLayer(new AdditionBlock()
+                .addLayer(new NormalizationLayer2D(false))
+                .addLayer(new DenseLayer2D(48, false))
+                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(),false))
+                .addLayer(new DenseLayer2D(24, false))
+        )
+        .addLayer(new NormalizationLayer2D(false))
+        .addLayer(new FlattenLayer2D(false))
+        .addLayer(new DenseLayer(176, false))
+        .setOptimizer(optimizer)
+        .setFunctionLoss(new FunctionLoss.MSE())
+        .setTrainable(true)
+        .create();*/
+
+        /*network = new NeuralNetwork();
         network.addInputLayer(24, 480)
         .addLayer(new TYPE2Float2D())
         .addLayer(new VITPositionalEmbeddingLayer(false))
@@ -111,7 +138,7 @@ public class speechtotext {
 
         for (int i = 0; i < 1000; i++) {
             //long start = System.nanoTime();
-            trainer.train(network, 20, 1, new DataMetric.Top1());
+            trainer.train(network, 10, 1, new DataMetric.Top1());
 
             network.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt"));
@@ -130,12 +157,12 @@ public class speechtotext {
             for (int s = 0; s < 10; s++) {
                 NNData2D Data2D = loader.getNextTrainData(1);
                 NNArray[] Output = Data2D.getOutput();
-                String resultReal = Output[0].GetFirstSingleValue(loader, 176);
+                /*String resultReal = Output[0].GetFirstSingleValue(loader, 176);
                 String Text = network.query(Data2D.getInput())[0].GetFirstSingleValue(loader, 176);
 
                 byte[] charset = Text.getBytes(StandardCharsets.UTF_8);
                 String newstr = new String(charset, StandardCharsets.UTF_8);
-                System.out.println(newstr);
+                System.out.println(newstr);*/
 
                 CallGarbageCollector();
             }

@@ -815,53 +815,94 @@ public class NNMatrix extends NNArray {
         int x0, inputIndex, weightIndex, outputIndex;
         float val;
 
-        for (int x = -pad, w = 0; w < row; x += step, w++) {
-            outputIndex = rowIndex[w];
-            for (int d = 0; d < weight.getRows(); d++, outputIndex++) {
-                val = 0;
-                for (int j = 0; j < weight.getColumns(); j++) {
-                    x0 = x + j;
-                    if (x0 < 0 || x0 >= input.row) {
-                        continue;
+        if (Use.CPU) {
+            for (int x = -pad, w = 0; w < row; x += step, w++) {
+                outputIndex = rowIndex[w];
+                for (int d = 0; d < weight.getRows(); d++, outputIndex++) {
+                    val = 0;
+                    for (int j = 0; j < weight.getColumns(); j++) {
+                        x0 = x + j;
+                        if (x0 < 0 || x0 >= input.row) {
+                            continue;
+                        }
+                        weightIndex = weight.getRowsIndex()[d] + weight.getColumnsIndex()[j];
+                        inputIndex = input.rowIndex[x0];
+                        for (int c = 0; c < weight.getDepth(); c++, inputIndex++, weightIndex++) {
+                            val += input.data[inputIndex] * weight.data[weightIndex];
+                        }
                     }
-                    weightIndex = weight.getRowsIndex()[d] + weight.getColumnsIndex()[j];
-                    inputIndex = input.rowIndex[x0];
-                    for (int c = 0; c < weight.getDepth(); c++, inputIndex++, weightIndex++) {
-                        val += input.data[inputIndex] * weight.data[weightIndex];
-                    }
+                    data[outputIndex] = val;
                 }
-                data[outputIndex] = val;
             }
+        }
+
+        if (Use.GPU) {
+            CUfunction function = new CUfunction();
+            Pointer kernelParameters = null;
+            cuModuleGetFunction(function, helperModule, "Conv2D");
+            kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(weight.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{pad}), Pointer.to(new int[]{step}), Pointer.to(new int[]{input.getRow()}), Pointer.to(new int[]{input.getColumn()}), Pointer.to(new int[]{weight.getRows()}), Pointer.to(new int[]{weight.getColumns()}), Pointer.to(new int[]{weight.getDepth()}), Pointer.to(new int[]{getRow()}), Pointer.to(new int[]{getColumn()}));
+            int blockSizeX = (int) Math.min(this.row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(weight.getRows(), Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) this.row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) weight.getRows() / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
     }
 
     public void transposeConvolution(NNMatrix input, NNTensor weight, int padding) {
-        int x0, inputIndex, weightIndex, outputIndex;
-        int pad = weight.getColumns() - 1 - padding;
-        int sCore = weight.getColumns() - 1;
-        int sC;
+        if (Use.CPU) {
+            int x0, inputIndex, weightIndex, outputIndex;
+            int pad = weight.getColumns() - 1 - padding;
+            int sCore = weight.getColumns() - 1;
+            int sC;
 
-        float val;
+            float val;
 
-        for (int x = -pad, w = 0; w < row; x++, w++) {
-            outputIndex = rowIndex[w];
-            for (int d = 0; d < weight.getDepth(); d++, outputIndex++) {
-                val = 0;
-                for (int j = 0; j < weight.getColumns(); j++) {
-                    x0 = x + j;
-                    if (x0 < 0 || x0 >= input.row) {
-                        continue;
+            for (int x = -pad, w = 0; w < row; x++, w++) {
+                outputIndex = rowIndex[w];
+                for (int d = 0; d < weight.getDepth(); d++, outputIndex++) {
+                    val = 0;
+                    for (int j = 0; j < weight.getColumns(); j++) {
+                        x0 = x + j;
+                        if (x0 < 0 || x0 >= input.row) {
+                            continue;
+                        }
+                        sC = sCore - j;
+                        weightIndex = weight.getColumnsIndex()[sC] + d;
+                        inputIndex = input.rowIndex[x0];
+
+                        for (int c = 0; c < weight.getRows(); c++, inputIndex++) {
+                            val += input.data[inputIndex] * weight.data[weight.getRowsIndex()[c] + weightIndex];
+                        }
                     }
-                    sC = sCore - j;
-                    weightIndex = weight.getColumnsIndex()[sC] + d;
-                    inputIndex = input.rowIndex[x0];
-
-                    for (int c = 0; c < weight.getRows(); c++, inputIndex++) {
-                        val += input.data[inputIndex] * weight.data[weight.getRowsIndex()[c] + weightIndex];
-                    }
+                    data[outputIndex] = val;
                 }
-                data[outputIndex] = val;
             }
+        }
+
+        if (Use.GPU) {
+            int row = this.row;
+            int column = this.column;
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "TransposeConv2D");
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(weight.data_gpu), Pointer.to(data_gpu), Pointer.to(new int[]{padding}), Pointer.to(new int[]{input.getRow()}), Pointer.to(new int[]{input.getColumn()}), Pointer.to(new int[]{weight.getRows()}), Pointer.to(new int[]{weight.getColumns()}), Pointer.to(new int[]{weight.getDepth()}), Pointer.to(new int[]{getColumn()}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(weight.getDepth(), Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) weight.getDepth() / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
     }
 
@@ -985,13 +1026,33 @@ public class NNMatrix extends NNArray {
             return this;
         }
         NNMatrix result = new NNMatrix(row * stride, column);
-        int inputIndex, outpuIndex;
-        for (int i = 0; i < row; i++) {
-            inputIndex = rowIndex[i];
-            outpuIndex = result.rowIndex[i * stride];
-            for (int k = 0; k < column; k++, inputIndex++, outpuIndex++) {
-                result.data[outpuIndex] = data[inputIndex];
+        if (Use.CPU) {
+            int inputIndex, outpuIndex;
+            for (int i = 0; i < row; i++) {
+                inputIndex = rowIndex[i];
+                outpuIndex = result.rowIndex[i * stride];
+                for (int k = 0; k < column; k++, inputIndex++, outpuIndex++) {
+                    result.data[outpuIndex] = data[inputIndex];
+                }
             }
+        }
+        else
+        {
+            CUfunction function = new CUfunction();
+            Pointer kernelParameters = null;
+            cuModuleGetFunction(function, helperModule, "stride");
+            kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{stride}), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int blockSizeY = (int) Math.min(column, Math.pow(BLOCK_SIZE, (double) 1 / 2));
+            int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
+            int gridSizeY = (int) Math.ceil((double) column / blockSizeY);
+
+            cuLaunchKernel(function,
+                    gridSizeX, gridSizeY, 1,      // Grid dimension
+                    blockSizeX, blockSizeY, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
         }
         return result;
     }

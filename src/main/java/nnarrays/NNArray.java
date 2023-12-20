@@ -123,7 +123,7 @@ public class NNArray {
             this.data_gpu = new Pointer();
             if (!TYPE) {
                 cudaMalloc(this.data_gpu, (long) Sizeof.FLOAT * this.size);
-                cudaMemcpy(this.data_gpu, Pointer.to(_sdata), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
+                cudaMemcpy(this.data_gpu, Pointer.to(_data), (long) Sizeof.FLOAT * this.size, cudaMemcpyHostToDevice);
             }
             else
             {
@@ -2932,6 +2932,19 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
+                    "__global__ void stride(const float* __restrict__ data, float* result, int stride, float row, float column)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < row) {\n" +
+                    "        int inputIndex = i * column;\n" +
+                    "        int outputIndex = i * stride * column;\n" +
+                    "        for (int k = 0; k < column; k++, inputIndex++, outputIndex++) {\n" +
+                    "            result[outputIndex] = data[inputIndex];\n" +
+                    "        }\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
                     "__global__ void fillUnderDiagonal_TYPE(int column, TYPE val, TYPE* data, int numElements)\n" +
                     "{\n" +
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
@@ -2990,6 +3003,19 @@ public class NNArray {
                     "        __syncthreads();\n" +
                     "    }\n" +
                     "    if (tid < nRows) dy[tid] = y_val;\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void dot_VectorAndMatrix(const float* __restrict__ A, const float* __restrict__ B, float* C, int rows, int columns)\n" +
+                    "{\n" +
+                    "    int h = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (h < rows) {\n" +
+                    "       double s = 0.0f;\n" +
+                    "       for (int j = 0; j < columns; j++) {\n" +
+                    "           s += A[j] * B[h * columns + j];\n" +
+                    "       }\n" +
+                    "       C[h] = s;\n" +
+                    "    }\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +
@@ -3140,6 +3166,170 @@ public class NNArray {
                     "    }\n" +
                     "    if(row<m && col<k)\n" +
                     "        C_d[col+row*k] = sum;\n" +
+                    "}\n" +
+
+                    "#define Mask_width 5 \n" +
+                    "#define Mask_radius Mask_width / 2\n" +
+                    "#define TILE_WIDTH 16\n" +
+                    "#define w (TILE_WIDTH + Mask_width - 1)\n" +
+                    "#define clamp(x) (min(max((x), 0.0), 1.0))\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void convolution2D(float *I, const float* __restrict__ M, float *P, int channels, int width, int height) {\n" +
+                    "    __shared__ float N_ds[w][w];\n" +
+                    "    int k;\n" +
+                    "    for (k = 0; k < channels; k++) {\n" +
+                            // First batch loading
+                    "        int dest = threadIdx.y * TILE_WIDTH + threadIdx.x,\n" +
+                    "                destY = dest / w, destX = dest % w,\n" +
+                    "                srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius,\n" +
+                    "                srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius,\n" +
+                    "                src = (srcY * width + srcX) * channels + k;\n" +
+                    "        if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)\n" +
+                    "            N_ds[destY][destX] = I[src];\n" +
+                    "        else\n" +
+                    "            N_ds[destY][destX] = 0;\n" +
+
+                            // Second batch loading
+                    "        dest = threadIdx.y * TILE_WIDTH + threadIdx.x + TILE_WIDTH * TILE_WIDTH;\n" +
+                    "        destY = dest / w, destX = dest % w;\n" +
+                    "        srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius;\n" +
+                    "        srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius;\n" +
+                    "        src = (srcY * width + srcX) * channels + k;\n" +
+                    "        if (destY < w) {\n" +
+                    "            if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)\n" +
+                    "                N_ds[destY][destX] = I[src];\n" +
+                    "            else\n" +
+                    "                N_ds[destY][destX] = 0;\n" +
+                    "        }\n" +
+                    "        __syncthreads();\n" +
+
+                    "        float accum = 0;\n" +
+                    "        int y, x;\n" +
+                    "        for (y = 0; y < Mask_width; y++)\n" +
+                    "            for (x = 0; x < Mask_width; x++)\n" +
+                    "                accum += N_ds[threadIdx.y + y][threadIdx.x + x] * M[y * Mask_width + x];\n" +
+                    "        y = blockIdx.y * TILE_WIDTH + threadIdx.y;\n" +
+                    "        x = blockIdx.x * TILE_WIDTH + threadIdx.x;\n" +
+                    "        if (y < height && x < width)\n" +
+                    "            P[(y * width + x) * channels + k] = clamp(accum);\n" +
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void transposeConvolution2D(float *I, const float* __restrict__ M, float *P, int channels, int width, int height) {\n" +
+                    "    __shared__ float N_ds[w][w];\n" +
+                    "    int k;\n" +
+                    "    for (k = 0; k < channels; k++) {\n" +
+                            // First batch loading
+                    "        int dest = threadIdx.y * TILE_WIDTH + threadIdx.x,\n" +
+                    "                destY = dest / w, destX = dest % w,\n" +
+                    "                srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius,\n" +
+                    "                srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius,\n" +
+                    "                src = (srcY * width + srcX) * channels + k;\n" +
+                    "        if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)\n" +
+                    "            N_ds[destY][destX] = I[src];\n" +
+                    "        else\n" +
+                    "            N_ds[destY][destX] = 0;\n" +
+
+                    // Second batch loading
+                    "        dest = threadIdx.y * TILE_WIDTH + threadIdx.x + TILE_WIDTH * TILE_WIDTH;\n" +
+                    "        destY = dest / w, destX = dest % w;\n" +
+                    "        srcY = blockIdx.y * TILE_WIDTH + destY - Mask_radius;\n" +
+                    "        srcX = blockIdx.x * TILE_WIDTH + destX - Mask_radius;\n" +
+                    "        src = (srcY * width + srcX) * channels + k;\n" +
+                    "        if (destY < w) {\n" +
+                    "            if (srcY >= 0 && srcY < height && srcX >= 0 && srcX < width)\n" +
+                    "                N_ds[destY][destX] = I[src];\n" +
+                    "            else\n" +
+                    "                N_ds[destY][destX] = 0;\n" +
+                    "        }\n" +
+                    "        __syncthreads();\n" +
+
+                    "        float accum = 0;\n" +
+                    "        int y, x;\n" +
+                    "        for (y = 0; y < Mask_width; y++)\n" +
+                    "            for (x = 0; x < Mask_width; x++)\n" +
+                    "                accum += N_ds[threadIdx.y + y][threadIdx.x + x] * M[y * Mask_width + x];\n" +
+                    "        y = blockIdx.y * TILE_WIDTH + threadIdx.y;\n" +
+                    "        x = blockIdx.x * TILE_WIDTH + threadIdx.x;\n" +
+                    "        if (y < height && x < width)\n" +
+                    "            P[(y * width + x) * channels + k] = clamp(accum);\n" +
+                    "        __syncthreads();\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void Conv2D(float *input, const float* __restrict__ weight, float *data, int pad, int step, int i_row, int i_column, int w_row, int w_column, int w_depth, int d_row, int d_column) {\n" +
+                    "    const int t = blockIdx.x * blockDim.x + threadIdx.x;\n" +
+                    "    const int d = blockIdx.y * blockDim.y + threadIdx.y;\n" +
+                    "    if (t < d_row && d < w_row) {\n" +
+                    "       float val = 0.0f;\n" +
+                    "       int x0, inputIndex, weightIndex, x = -pad + t * step, outputIndex = (t * d_column) + d;\n" +
+                    "       for (int j = 0; j < w_column; j++) {\n" +
+                    "           x0 = x + j;\n" +
+                    "           if (x0 < 0 || x0 >= i_row) {\n" +
+                    "               continue;\n" +
+                    "           }\n" +
+                    "           weightIndex = d * w_column * w_depth + j * w_depth;\n" +
+                    "           inputIndex = x0 * i_column;\n" +
+                    "           for (int c = 0; c < w_depth; c++, inputIndex++, weightIndex++) {\n" +
+                    "               val += input[inputIndex] * weight[weightIndex];\n" +
+                    "           }\n" +
+                    "       }\n" +
+                    "       data[outputIndex] = val;\n" +
+                    "   }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void TransposeConv2D(const float* __restrict__ input, const float* __restrict__ weight, float *data, int padding, int i_row, int i_column, int w_row, int w_column, int w_depth, int d_column) {\n" +
+                    "    const int t = blockIdx.x * blockDim.x + threadIdx.x;\n" +
+                    "    const int d = blockIdx.y * blockDim.y + threadIdx.y;\n" +
+                    "    if (t < d_column && d < w_depth) {\n" +
+                    "        float val = 0.0f;\n" +
+                    "        int pad = w_column - 1 - padding;\n" +
+                    "        int sCore = w_column - 1;\n" +
+                    "        int x = -pad + t;\n" +
+                    "        int outputIndex = (t * d_column) + d;\n" +
+                    "        int sC, x0, weightIndex, inputIndex;\n" +
+                    "        for (int j = 0; j < w_column; j++) {\n" +
+                    "            x0 = x + j;\n" +
+                    "            if (x0 < 0 || x0 >= i_row) {\n" +
+                    "                continue;\n" +
+                    "            }\n" +
+                    "            sC = sCore - j;\n" +
+                    "            weightIndex = sC * w_depth + d;\n" +
+                    "            inputIndex = x0 * i_column;\n" +
+
+                    "            for (int c = 0; c < w_row; c++, inputIndex++) {\n" +
+                    "                val += input[inputIndex] * weight[c * w_depth * w_column + weightIndex];\n" +
+                    "            }\n" +
+                    "        }\n" +
+                    "        data[outputIndex] = val;\n" +
+                    "   }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void Convolution(const float* __restrict__ input, const float* __restrict__ error, float *data, int pad, int step, int i_row, int i_column, int r_row, int r_column, int d_row, int d_column, int d_depth) {\n" +
+                    "    const int t = blockIdx.x * blockDim.x + threadIdx.x;\n" +
+                    "    const int d = blockIdx.y * blockDim.y + threadIdx.y;\n" +
+                    "    if (t < r_row && d < d_row) {\n" +
+                    "        int x = -pad + t * step;\n" +
+                    "        int outputIndex = (t * r_column) + d;\n" +
+                    "        int y0, weightIndex, inputIndex;\n" +
+                    "        for (int j = 0; j < d_column; j++) {\n" +
+                    "            y0 = x + j;\n" +
+                    "            if (y0 < 0 || y0 >= i_row) {\n" +
+                    "                continue;\n" +
+                    "            }\n" +
+                    "            inputIndex = y0 * i_column;\n" +
+                    "            weightIndex = d * d_depth * d_column + j * d_depth;\n" +
+                    "            for (int c = 0; c < d_depth; c++, inputIndex++, weightIndex++) {\n" +
+                    "                atomicAdd(&data[weightIndex], input[inputIndex] * error[outputIndex]);\n" +
+                    "            }\n" +
+                    "        }\n" +
+                    "   }\n" +
                     "}\n" +
 
                     "extern \"C\"\n" +

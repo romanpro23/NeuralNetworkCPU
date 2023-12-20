@@ -83,70 +83,22 @@ public class NNVector extends NNArray {
             }
         }
         if (Use.GPU) {
-            int M = 1;
-            float alpha = 1.0f;
-            float beta = 0.0f;
-
-            int SUCCESS = 0;
             if (!matrix.TYPE) {
+                int row =  matrix.getRow();
+                int column =  matrix.getColumn();
                 CUfunction function = new CUfunction();
-                if (!matrix.isTYPE()) {
-                    cuModuleGetFunction(function, helperModule, "matvec_kernel");
-                }
-                else
-                {
-                    cuModuleGetFunction(function, helperModule, "matvec_kernel_TYPE");
-                }
-                Pointer kernelParameters = Pointer.to(Pointer.to(matrix.data_gpu), Pointer.to(data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{matrix.getRow()}), Pointer.to(new int[]{matrix.getColumn()}));
-                int BDIM = 32;
-                int gridSizeX = (int) Math.ceil((double) matrix.getRow() / BDIM);
+                cuModuleGetFunction(function, helperModule, "dot_VectorAndMatrix");
+                Pointer kernelParameters = Pointer.to(Pointer.to(data_gpu), Pointer.to(matrix.data_gpu), Pointer.to(result.data_gpu),  Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+                int blockSizeX = (int) Math.min(row, Math.pow(BLOCK_SIZE, 1));
+                int gridSizeX = (int) Math.ceil((double) row / blockSizeX);
 
-                SUCCESS = cuLaunchKernel(function,
+                cuLaunchKernel(function,
                         gridSizeX, 1, 1,      // Grid dimension
-                        BDIM, 1, 1,      // Block dimension
+                        blockSizeX, 1, 1,      // Block dimension
                         0, null,               // Shared memory size and stream
                         kernelParameters, null // Kernel- and extra parameters
                 );
-
-
-                /*int PType = cudaDataType.CUDA_R_32F;
-                int CComputeType = cublasComputeType.CUBLAS_COMPUTE_32F;
-
-                int N = matrix.getRow();
-                int K = matrix.getColumn();
-                SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_N, N, M, K, Pointer.to(new float[]{alpha}), matrix.data_gpu, PType, K, data_gpu,
-                        PType, size(), Pointer.to(new float[]{beta}), result.data_gpu, PType, N, CComputeType,
-                        cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
-
-                if (Use.DEBUG_SYNC) {
-                    JCudaDriver.cuCtxSynchronize();
-                    IsNan_float();
-                    IsNan_float(matrix);
-                    IsNan_float(result);
-                }*/
-            }
-            else
-            {
-                /*int PType = cudaDataType.CUDA_R_16F;
-                int CComputeType = cublasComputeType.CUBLAS_COMPUTE_16F;
-
-                int N = matrix.getRow();
-                int K = matrix.getColumn();
-                SUCCESS = JCublas2.cublasGemmEx_new(cublasHandle, cublasOperation.CUBLAS_OP_T, cublasOperation.CUBLAS_OP_N, N, M, K, Pointer.to(new short[]{floatToBFloat16(alpha)}), matrix.data_gpu, PType, K, data_gpu,
-                        PType, size(), Pointer.to(new short[]{floatToBFloat16(beta)}), result.data_gpu, PType, N, CComputeType,
-                        cublasGemmAlgo.CUBLAS_GEMM_DEFAULT);
-
-                if (Use.DEBUG_SYNC) {
-                    JCudaDriver.cuCtxSynchronize();
-                    IsNan();
-                    IsNan(matrix);
-                    IsNan(result);
-                }*/
-            }
-
-            if (cublasStatus.CUBLAS_STATUS_SUCCESS != SUCCESS)
-            {
-                throw new ArithmeticException("Error!");
+                if (Use.DEBUG_SYNC) JCudaDriver.cuCtxSynchronize();
             }
         }
 
