@@ -204,9 +204,9 @@ public class PositionLoader extends DataLoader2D {
                         System.out.println(wwq);
                     }
 
-                    //if (wwq == 999) {
-                    //    return;
-                    //}
+                    if (wwq == 2999) {
+                        return;
+                    }
 
                     wwq++;
                 }

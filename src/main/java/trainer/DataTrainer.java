@@ -9,6 +9,7 @@ import utilities.Use;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static neural_network.layers.NeuralLayer.CallGarbageCollector;
 
@@ -30,7 +31,7 @@ public class DataTrainer {
         return train(network, sizeBatch, countEpoch, 1, dataMetric);
     }
 
-    public float train(NeuralNetwork network, int sizeBatch, int countEpoch, int countUpdate, DataMetric dataMetric) {
+    public float train(NeuralNetwork network, int sizeBatch, int countEpoch, int countUpdate, DataMetric dataMetric)  {
         this.sizeBatch = sizeBatch;
         int counter = 0;
         int lambda = 1;
@@ -65,6 +66,14 @@ public class DataTrainer {
                 //if(j % Math.max(1, (max / 26)) == 0) {
                 //    System.out.print("=");
                 //}
+
+                /*try {
+                    TimeUnit.MILLISECONDS.sleep(100);
+                }
+                catch(InterruptedException ex)
+                {
+
+                }*/
             }
             System.out.println("]");
             System.out.println("\t\t\t" + (i + 1) + " ერა ");
