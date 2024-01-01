@@ -139,6 +139,12 @@ public class NNVector extends NNArray {
         return result;
     }
 
+    public void ClearCpuData()
+    {
+        data = null;
+        sdata = null;
+    }
+
     @SneakyThrows
     public void setRowFromMatrix(NNMatrix input, int n_row) {
         if (size != input.getColumn()) {

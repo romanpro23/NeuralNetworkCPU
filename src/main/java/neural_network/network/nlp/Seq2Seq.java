@@ -39,7 +39,7 @@ public class Seq2Seq {
         encoder.queryTrain(input);
 
         float accuracy = 0;
-        //float accuracy = decoder.train(getInputDecoder(NNArrays.isVector(output)), getOutputDecoder(NNArrays.isVector(output)));
+        decoder.train(getInputDecoder(NNArrays.isVector(output)), getOutputDecoder(NNArrays.isVector(output)));
         encoder.train(NNArrays.empty(NNArrays.isMatrix(encoder.getOutputs())));
 
         return accuracy;

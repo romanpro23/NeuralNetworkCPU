@@ -1987,20 +1987,17 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void imageVector(const TYPE* __restrict__ A, TYPE* C, int rows, int columns, int depth, int sizeKernel)\n" +
+                    "__global__ void imageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
                     "    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
                     "    const int z = blockDim.z * blockIdx.z + threadIdx.z;\n" +
                     "    if (h < rows && w < columns && z < sizeKernel)\n" +
                     "    {\n" +
-                    "        int sizeKernel_X_depth = sizeKernel * depth;\n" +
-                    "        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;\n" +
-                    "        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;\n" +
-                    "        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;\n" +
                     "        for (int k = 0; k < sizeKernel; k++) {\n" +
                     "            int indexInput = (h + z) * depth * columns + (w + k) * depth;\n" +
-                    "            for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
+                    "            for (int c = 0; c < depth; c++, indexInput++) {\n" +
+                    "                int index = h * columns + w * sizeKernel + z * sizeKernel + k * depth + c;\n" +
                     "                C[index] = A[indexInput];\n" +
                     "            }\n" +
                     "        }\n" +
@@ -2008,20 +2005,17 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
-                    "__global__ void backImageVector(const TYPE* __restrict__ A, TYPE* C, int rows, int columns, int depth, int sizeKernel)\n" +
+                    "__global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)\n" +
                     "{\n" +
                     "    const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;\n" +
                     "    const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;\n" +
                     "    const int z = blockDim.z * blockIdx.z + threadIdx.z;\n" +
                     "    if (h < rows && w < columns && z < sizeKernel)\n" +
                     "    {\n" +
-                    "        int sizeKernel_X_depth = sizeKernel * depth;\n" +
-                    "        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;\n" +
-                    "        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;\n" +
-                    "        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;\n" +
                     "        for (int k = 0; k < sizeKernel; k++) {\n" +
                     "            int indexInput = (h + z) * depth * columns + (w + k) * depth;\n" +
-                    "            for (int c = 0; c < depth; c++, index++, indexInput++) {\n" +
+                    "            for (int c = 0; c < depth; c++, indexInput++) {\n" +
+                    "                int index = h * columns + w * sizeKernel + z * sizeKernel + k * depth + c;\n" +
                     "                C[indexInput] = A[index];\n" +
                     "            }\n" +
                     "        }\n" +
@@ -2061,6 +2055,15 @@ public class NNArray {
                     "            sum = sum + A[i] * B[index];\n" +
                     "       }\n" +
                     "       C[j] = sum;\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void toHotVector(const float* __restrict__ batch, float* arr, int col, int n)\n" +
+                    "{\n" +
+                    "    int j = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (j < n) {\n" +
+                    "       arr[j * col + ((int) batch[j])] = 1;\n" +
                     "    }\n" +
                     "}\n" +
 
@@ -2932,6 +2935,24 @@ public class NNArray {
                     "}\n" +
 
                     "extern \"C\"\n" +
+                    "__global__ void crossEntropy(float* first, float* second, float* result, int numElements)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < numElements) {\n" +
+                    "        result[i] = (float) (first[i] * log(second[i] + 0.00000001f));\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
+                    "__global__ void derCrossEntropy(float* idealOutputs, float* outputs, float* result, int numElements)\n" +
+                    "{\n" +
+                    "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
+                    "    if (i < numElements) {\n" +
+                    "        result[i] = -idealOutputs[i] / (outputs[i] + 0.00000001f);\n" +
+                    "    }\n" +
+                    "}\n" +
+
+                    "extern \"C\"\n" +
                     "__global__ void stride(const float* __restrict__ data, float* result, int stride, float row, float column)\n" +
                     "{\n" +
                     "    int i = blockDim.x * blockIdx.x + threadIdx.x;\n" +
@@ -3063,7 +3084,7 @@ public class NNArray {
                     "           float d = expf(input[index] - max);\n" +
                     "           d = InfinityCheck(d);\n" +
                     "           data[index] = d;\n" +
-                    "           sum = sum + d;\n" +
+                    "           sum += d;\n" +
                     "       }\n" +
                     "       if (sum == 0.0f) {\n" +
                     "           sum = sum + sh[5];\n" +

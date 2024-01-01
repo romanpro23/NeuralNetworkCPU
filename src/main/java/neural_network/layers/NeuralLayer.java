@@ -123,6 +123,7 @@ public abstract class NeuralLayer {
                 case "Modulated deformable convolution layer 3D" -> layers.add(DeformableV2ConvolutionLayer.read(scanner));
                 case "Float to TYPE 2D" -> layers.add(Float2TYPE2D.read(scanner));
                 case "TYPE to float 2D" -> layers.add(TYPE2Float2D.read(scanner));
+                case "TYPE to float 3D" -> layers.add(TYPE2Float3D.read(scanner));
             }
             layer = scanner.nextLine();
         }

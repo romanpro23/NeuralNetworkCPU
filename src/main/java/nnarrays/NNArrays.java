@@ -23,8 +23,7 @@ import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.BLOCK_SIZE;
 import static utilities.GPUInit.cublasHandle;
 import static utilities.GPUInit.helperModule;
-import static utilities.Use.GPU_Sleep;
-import static utilities.Use.GPU_WakeUp;
+import static utilities.Use.*;
 
 public final class NNArrays {
 
@@ -76,9 +75,36 @@ public final class NNArrays {
         NNMatrix[] arr = new NNMatrix[batch.length];
         for (int i = 0; i < arr.length; i++) {
             arr[i] = new NNMatrix(batch[i].size, sizeVoc);
-            for (int j = 0; j < batch[i].size; j++) {
-                arr[i].set(j, (int) batch[i].data[j], 1);
+            if (Use.CPU) {
+                for (int j = 0; j < batch[i].size; j++) {
+                    arr[i].set(j, (int) batch[i].data[j], 1);
+                }
             }
+
+            if (Use.GPU) {
+                int n = batch[i].size;
+                CUfunction function = new CUfunction();
+                cuModuleGetFunction(function, helperModule, "toHotVector");
+
+                Pointer kernelParameters = Pointer.to(Pointer.to(batch[i].data_gpu), Pointer.to(arr[i].data_gpu), Pointer.to(new int[]{arr[i].getColumn()}), Pointer.to(new int[]{n}));
+                int blockSize = Math.min(n, BLOCK_SIZE);
+                int gridSizeX = (int) Math.ceil((double) n / blockSize);
+                cuLaunchKernel(function,
+                        gridSizeX, 1, 1,      // Grid dimension
+                        blockSize, 1, 1,      // Block dimension
+                        0, null,               // Shared memory size and stream
+                        kernelParameters, null // Kernel- and extra parameters
+                );
+            }
+        }
+
+        return arr;
+    }
+
+    public static NNMatrix toHotVector(NNVector v, int sizeVoc, int WordCount) {
+        NNMatrix arr = new NNMatrix(WordCount, sizeVoc);
+        for (int j = 0; j < v.size; j++) {
+            arr.set(j, (int) v.data[j], 1);
         }
 
         return arr;
@@ -99,8 +125,18 @@ public final class NNArrays {
 
     public static NNMatrix[] toMatrix(NNArray[] batch, int height, int width) {
         NNMatrix[] arr = new NNMatrix[batch.length];
-        for (int i = 0; i < arr.length; i++) {
-            arr[i] = new NNMatrix(height, width, batch[i].data, batch[i].sdata);
+
+        if (Use.CPU) {
+            for (int i = 0; i < arr.length; i++) {
+                arr[i] = new NNMatrix(height, width, batch[i].data, batch[i].sdata);
+            }
+        }
+
+        if (Use.GPU) {
+            for (int i = 0; i < arr.length; i++) {
+                arr[i] = new NNMatrix(height, width, batch[i].TYPE);
+                arr[i].copy(batch[i]);
+            }
         }
 
         return arr;
@@ -590,9 +626,35 @@ public final class NNArrays {
         if (first.size != second.size) {
             throw new Exception("Vector has difference size");
         }
+
         NNArray result = new NNArray(first.size);
-        for (int i = 0; i < result.size; i++) {
-            result.data[i] = (float) (first.data[i] * log(second.data[i] + 0.00000001f));
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = (float) (first.data[i] * log(second.data[i] + 0.00000001f));
+            }
+        }
+
+        if (Use.GPU) {
+            int n = result.size;
+            Pointer data_gpu = new Pointer();
+            cudaMalloc(data_gpu, Sizeof.FLOAT);
+            cudaMemset(data_gpu, 0, Sizeof.FLOAT);
+
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "crossEntropy");
+            Pointer kernelParameters = Pointer.to(Pointer.to(first.data_gpu), Pointer.to(second.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+            }
         }
 
         return result;
@@ -811,8 +873,33 @@ public final class NNArrays {
             throw new Exception("Vector has difference size");
         }
         NNArray result = new NNArray(outputs.size);
-        for (int i = 0; i < result.size; i++) {
-            result.data[i] = -idealOutputs.data[i] / (outputs.data[i] + 0.00000001f);
+
+        if (Use.CPU) {
+            for (int i = 0; i < result.size; i++) {
+                result.data[i] = -idealOutputs.data[i] / (outputs.data[i] + 0.00000001f);
+            }
+        }
+
+        if (Use.GPU) {
+            int n = result.size;
+            Pointer data_gpu = new Pointer();
+            cudaMalloc(data_gpu, Sizeof.FLOAT);
+            cudaMemset(data_gpu, 0, Sizeof.FLOAT);
+
+            CUfunction function = new CUfunction();
+            cuModuleGetFunction(function, helperModule, "derCrossEntropy");
+            Pointer kernelParameters = Pointer.to(Pointer.to(idealOutputs.data_gpu), Pointer.to(outputs.data_gpu), Pointer.to(result.data_gpu), Pointer.to(new int[]{n}));
+            int blockSize = Math.min(n, BLOCK_SIZE);
+            int gridSizeX = (int) Math.ceil((double) n / blockSize);
+            cuLaunchKernel(function,
+                    gridSizeX, 1, 1,      // Grid dimension
+                    blockSize, 1, 1,      // Block dimension
+                    0, null,               // Shared memory size and stream
+                    kernelParameters, null // Kernel- and extra parameters
+            );
+            if (Use.DEBUG_SYNC) {
+                JCudaDriver.cuCtxSynchronize();
+            }
         }
 
         return result;

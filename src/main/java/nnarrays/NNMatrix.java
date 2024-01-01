@@ -198,6 +198,7 @@ public class NNMatrix extends NNArray {
 
     public NNVector[] toVectors() {
         NNVector[] vectors = new NNVector[row];
+
         for (int i = 0; i < row; i++) {
             vectors[i] = new NNVector(column);
             System.arraycopy(data, rowIndex[i], vectors[i].data, 0, column);
@@ -1103,7 +1104,7 @@ public class NNMatrix extends NNArray {
             {
                 cuModuleGetFunction(function, helperModule, "Softmax_TYPE");
             }
-            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{row}), Pointer.to(new int[]{column}));
+            Pointer kernelParameters = Pointer.to(Pointer.to(input.data_gpu), Pointer.to(this.data_gpu), Pointer.to(new int[]{column}), Pointer.to(new int[]{n}));
             int blockSize = Math.min(n, BLOCK_SIZE);
             int gridSizeX = (int) Math.ceil((double) n / blockSize);
 

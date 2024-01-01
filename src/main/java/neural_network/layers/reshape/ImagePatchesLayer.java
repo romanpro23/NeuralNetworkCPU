@@ -88,7 +88,7 @@ public class ImagePatchesLayer extends NeuralLayer {
         this.output = new NNMatrix[input.length];
         this.patches = new NNMatrix[input.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(inputs.length);
             for (int t = 0; t < inputs.length; t++) {
@@ -207,7 +207,7 @@ public class ImagePatchesLayer extends NeuralLayer {
         if (returnGradient)
             error = new NNTensor[errors.length];
 
-        if (Use.CPU) {
+        if ((Use.CPU) && (!Use.GPU)) {
             GPU_Sleep();
             ExecutorService executor = Executors.newFixedThreadPool(input.length);
             for (int t = 0; t < input.length; t++) {

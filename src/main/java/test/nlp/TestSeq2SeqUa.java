@@ -4,6 +4,7 @@ import data.network_train.NNData1D;
 import data.nlp.UaFictionLoader;
 import neural_network.layers.layer_2d.DenseLayer2D;
 import neural_network.layers.layer_2d.SoftmaxLayer2D;
+import neural_network.layers.layer_2d.VITPositionalEmbeddingLayer;
 import neural_network.layers.recurrent.*;
 import neural_network.layers.reshape.EmbeddingLayer;
 import neural_network.loss.FunctionLoss;
@@ -22,15 +23,16 @@ public class TestSeq2SeqUa {
         Bidirectional gru;
         NeuralNetwork encoder = new NeuralNetwork()
                 .addInputLayer(100)
-                .addLayer(new EmbeddingLayer(1000, 64).setTrainable(true))
-                .addLayer(gru = new Bidirectional(new RecurrentLayer(128, 0.2, true).setTrainable(true)))
+
+                //.addLayer(new EmbeddingLayer(1000, 64).setTrainable(true))
+                //.addLayer(gru = new Bidirectional(new RecurrentLayer(128, 0.2, true).setTrainable(true)))
                 .setOptimizer(optEncoder = new AdamOptimizer())
                 .create();
 
         NeuralNetwork decoder = new NeuralNetwork()
                 .addInputLayer(100)
-                .addLayer(new EmbeddingLayer(1000, 64).setTrainable(true))
-                .addLayer(new RecurrentLayer(256, 0.2, true))
+                //.addLayer(new EmbeddingLayer(1000, 64).setTrainable(true))
+                //.addLayer(new RecurrentLayer(256, 0.2, true))
                 .addLayer(new DenseLayer2D(1000, false).setTrainable(true))
                 .addLayer(new SoftmaxLayer2D())
                 .setFunctionLoss(new FunctionLoss.CrossEntropy())

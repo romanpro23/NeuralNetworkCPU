@@ -114,40 +114,34 @@ __global__ void matAdd_TYPE_(TYPE* A, const TYPE* __restrict__ B, int numElement
     }
 }
 extern "C"
-__global__ void imageVector(const TYPE* __restrict__ A, TYPE* C, int rows, int columns, int depth, int sizeKernel)
+__global__ void imageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)
 {
     const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;
     const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;
     const int z = blockDim.z * blockIdx.z + threadIdx.z;
     if (h < rows && w < columns && z < sizeKernel)
     {
-        int sizeKernel_X_depth = sizeKernel * depth;
-        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;
-        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;
-        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;
         for (int k = 0; k < sizeKernel; k++) {
             int indexInput = (h + z) * depth * columns + (w + k) * depth;
-            for (int c = 0; c < depth; c++, index++, indexInput++) {
+            for (int c = 0; c < depth; c++, indexInput++) {
+                int index = h * columns + w * sizeKernel + z * sizeKernel + k * depth + c;
                 C[index] = A[indexInput];
             }
         }
     }
 }
 extern "C"
-__global__ void backImageVector(const TYPE* __restrict__ A, TYPE* C, int rows, int columns, int depth, int sizeKernel)
+__global__ void backImageVector(const float* __restrict__ A, float* C, int rows, int columns, int depth, int sizeKernel)
 {
     const int h = (blockDim.x * blockIdx.x + threadIdx.x) * sizeKernel;
     const int w = (blockDim.y * blockIdx.y + threadIdx.y) * sizeKernel;
     const int z = blockDim.z * blockIdx.z + threadIdx.z;
     if (h < rows && w < columns && z < sizeKernel)
     {
-        int sizeKernel_X_depth = sizeKernel * depth;
-        int sizeKernel_X_sizeKernel_X_depth_ = sizeKernel_X_depth * sizeKernel;
-        int columns_X_sizeKernel_X_sizeKernel_X_depth = sizeKernel_X_sizeKernel_X_depth_ * columns / sizeKernel;
-        int index = z * sizeKernel_X_depth + w / sizeKernel * sizeKernel_X_sizeKernel_X_depth_ + h / sizeKernel * columns_X_sizeKernel_X_sizeKernel_X_depth;
         for (int k = 0; k < sizeKernel; k++) {
             int indexInput = (h + z) * depth * columns + (w + k) * depth;
-            for (int c = 0; c < depth; c++, index++, indexInput++) {
+            for (int c = 0; c < depth; c++, indexInput++) {
+                int index = h * columns + w * sizeKernel + z * sizeKernel + k * depth + c;
                 C[indexInput] = A[index];
             }
         }
@@ -184,6 +178,14 @@ __global__ void dotT_VectorAndMatrix(const float* __restrict__ A, const float* _
             sum = sum + A[i] * B[index];
        }
        C[j] = sum;
+    }
+}
+extern "C"
+__global__ void toHotVector(const float* __restrict__ batch, float* arr, int col, int n)
+{
+    int j = blockDim.x * blockIdx.x + threadIdx.x;
+    if (j < n) {
+       arr[j * col + ((int) batch[j])] = 1;
     }
 }
 extern "C"
@@ -809,6 +811,22 @@ __global__ void fillUnderDiagonal(int column, float val, float* data, int numEle
     }
 }
 extern "C"
+__global__ void crossEntropy(float* first, float* second, float* result, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        result[i] = (float) (first[i] * log(second[i] + 0.00000001f));
+    }
+}
+extern "C"
+__global__ void derCrossEntropy(float* idealOutputs, float* outputs, float* result, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        result[i] = -idealOutputs[i] / (outputs[i] + 0.00000001f);
+    }
+}
+extern "C"
 __global__ void stride(const float* __restrict__ data, float* result, int stride, float row, float column)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -926,7 +944,7 @@ __global__ void Softmax(const float* __restrict__ input, float* data, int column
            float d = expf(input[index] - max);
            d = InfinityCheck(d);
            data[index] = d;
-           sum = sum + d;
+           sum += d;
        }
        if (sum == 0.0f) {
            sum = sum + sh[5];

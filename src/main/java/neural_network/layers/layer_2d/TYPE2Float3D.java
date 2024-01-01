@@ -42,7 +42,7 @@ public class TYPE2Float3D extends NeuralLayer3D {
 
     @Override
     public void save(FileWriter writer) throws IOException {
-        writer.write("TYPE to float 2D\n");
+        writer.write("TYPE to float 3D\n");
         writer.flush();
     }
 

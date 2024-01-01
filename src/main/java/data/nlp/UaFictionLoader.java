@@ -37,8 +37,8 @@ public class UaFictionLoader extends DataLoader1D {
 
     @SneakyThrows
     private void loadData() {
-        Scanner scannerUaV = new Scanner(new File("D:\\datasets\\nlp\\Ukrainian\\ua_voc.txt"));
-        Scanner scanner = new Scanner(new File("D:\\datasets\\nlp\\Ukrainian\\ua_fiction.txt"));
+        Scanner scannerUaV = new Scanner(new File("C:\\Levani\\vocabulary.txt"));
+        Scanner scanner = new Scanner(new File("C:\\Levani\\vocabulary.txt"));
 
         uaVocabulary = new LinkedHashMap<>();
         uaWords = new LinkedHashMap<>();
@@ -59,7 +59,7 @@ public class UaFictionLoader extends DataLoader1D {
         }
 
         while (scanner.hasNextLine()) {
-            String[] data = scanner.nextLine().split("[ ,.:;!?/()\"*%»«]");
+            String[] data = scanner.nextLine().split("[ ,.:;!?/()\"*%ï¿½ï¿½]");
 
             if(data.length >= 3) {
                 int inputSize = data.length / 2 + 1;

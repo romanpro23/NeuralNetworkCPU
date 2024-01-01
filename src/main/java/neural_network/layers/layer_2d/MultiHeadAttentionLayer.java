@@ -267,13 +267,7 @@ public class MultiHeadAttentionLayer extends NeuralLayer2D {
 
             score[i][j].div((float) Math.sqrt(sizeAttention));
             if(useMask){
-                if (!score[i][j].isTYPE()) {
-                    score[i][j].mask(mask, 0, -1000000000.0f);
-                }
-                else
-                {
-                    score[i][j].mask(mask, 0, -1000000000.0f);
-                }
+                score[i][j].mask(mask, 0, -1000000000.0f);
             }
 
             inputAtt[i][j] = new NNMatrix(score[i][j], TYPE);

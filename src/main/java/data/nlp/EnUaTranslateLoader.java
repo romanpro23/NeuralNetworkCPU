@@ -44,7 +44,7 @@ public class EnUaTranslateLoader extends DataLoader1D {
 
     @SneakyThrows
     private void loadData() {
-        Scanner scannerEnV = new Scanner(new File("D:/datasets/nlp/ua/en.txt"));
+        /*Scanner scannerEnV = new Scanner(new File("D:/datasets/nlp/ua/en.txt"));
         Scanner scannerUaV = new Scanner(new File("D:/datasets/nlp/ua/ua.txt"));
         Scanner scanner = new Scanner(new File("D:/datasets/nlp/ua/en-ua.txt"));
 
@@ -92,7 +92,7 @@ public class EnUaTranslateLoader extends DataLoader1D {
             train.add(new ImageData1D(input, output));
         }
 
-        Collections.shuffle(train);
+        Collections.shuffle(train);*/
     }
 
     public NNVector getUaVector(String[] uaWords){

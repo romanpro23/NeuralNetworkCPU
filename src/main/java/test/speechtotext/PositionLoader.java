@@ -5,9 +5,7 @@ import data.network_train.NNData2D;
 import data.nlp.NLP;
 import jcuda.Pointer;
 import jcuda.Sizeof;
-import nnarrays.NNMatrix;
-import nnarrays.NNTensor;
-import nnarrays.NNVector;
+import nnarrays.*;
 import utilities.Use;
 import data.nlp.UaFictionLoader;
 
@@ -22,8 +20,9 @@ import static jcuda.runtime.JCuda.cudaMemcpy;
 import static jcuda.runtime.cudaMemcpyKind.cudaMemcpyHostToDevice;
 import static nnarrays.NNArray.bFloat16ToFloat;
 import static nnarrays.NNArray.floatToBFloat16;
+import static utilities.Use.*;
 
-public class PositionLoader extends DataLoader2D {
+public class PositionLoader extends DataLoader3D {
     private LinkedHashMap<Integer, Character> uaChars;
     private LinkedHashMap<Integer, String> uaWords;
     private LinkedHashMap<Character, Integer> codeUaChars;
@@ -32,30 +31,61 @@ public class PositionLoader extends DataLoader2D {
     private int maxLength = 0;
     private boolean addPaddingOnStart;
 
-    float constant = 1.0f;
+    float constant = 1.0f;//sizeVocabulary / 10.0f;
 
     public PositionLoader(int countChars) throws Exception {
-        uaChars = new LinkedHashMap<>();
-        codeUaChars = new LinkedHashMap<>();
+
         train = new ArrayList<>();
         test = new ArrayList<>();
 
-        try {
-            Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_chars.txt"), StandardCharsets.UTF_8);
-            uaChars.put(NLP.PAD, ' ');
-            codeUaChars.put(' ', NLP.PAD);
-            uaChars.put(NLP.SOS, '_');
-            codeUaChars.put('_', NLP.SOS);
+        if (WorkingWithCharacter) {
+            uaChars = new LinkedHashMap<>();
+            codeUaChars = new LinkedHashMap<>();
 
-            int key = 1;
-            for (int i = 0; i < countChars; i++) {
-                Character str = scanner.nextLine().charAt(0);
-                uaChars.put(key, str);
-                codeUaChars.put(str, key);
-                key += 1;
+            try {
+                Scanner scanner = new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_chars.txt"), StandardCharsets.UTF_8);
+                uaChars.put(NLP.UNK, NLP._UNK_CHAR);
+                codeUaChars.put(NLP._UNK_CHAR, NLP.UNK);
+                uaChars.put(NLP.PAD, ' ');
+                codeUaChars.put(' ', NLP.PAD);
+
+                int key = 3;
+                for (int i = 0; i < countChars; i++) {
+                    Character str = scanner.nextLine().charAt(0);
+                    uaChars.put(key, str);
+                    codeUaChars.put(str, key);
+                    key += 1;
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        }
+        else
+        {
+            Scanner scannerUaV = null;
+            try {
+                scannerUaV = new Scanner(new File("C:\\Levani\\vocabulary.txt"));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+
+            uaVocabulary = new LinkedHashMap<>();
+            uaWords = new LinkedHashMap<>();
+
+            uaVocabulary.put(NLP._SOS, NLP.SOS);
+            uaWords.put(NLP.SOS, NLP._SOS);
+            uaVocabulary.put(NLP._EOS, NLP.EOS);
+            uaWords.put(NLP.EOS, NLP._EOS);
+            uaVocabulary.put(NLP._UNK, NLP.UNK);
+            uaWords.put(NLP.UNK, NLP._UNK);
+            uaVocabulary.put(NLP._PAD, NLP.PAD);
+            uaWords.put(NLP.PAD, NLP._PAD);
+
+            for (int i = 5; i < sizeVocabulary; i++) {
+                String str = scannerUaV.nextLine();
+                uaVocabulary.put(str, i);
+                uaWords.put(i, str);
+            }
         }
 
         reloadTrainData();
@@ -72,31 +102,6 @@ public class PositionLoader extends DataLoader2D {
         File[] listOfFiles = folder.listFiles();
 
         TransformData transformData = new TransformData.Sigmoid();
-
-        /*Scanner scannerUaV = null;
-        try {
-            scannerUaV = new Scanner(new File("C:\\Levani\\vocabulary.txt"));
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-
-        uaVocabulary = new LinkedHashMap<>();
-        uaWords = new LinkedHashMap<>();
-
-        uaVocabulary.put(NLP._SOS, NLP.SOS);
-        uaWords.put(NLP.SOS, NLP._SOS);
-        uaVocabulary.put(NLP._EOS, NLP.EOS);
-        uaWords.put(NLP.EOS, NLP._EOS);
-        uaVocabulary.put(NLP._UNK, NLP.UNK);
-        uaWords.put(NLP.UNK, NLP._UNK);
-        uaVocabulary.put(NLP._PAD, NLP.PAD);
-        uaWords.put(NLP.PAD, NLP._PAD);
-
-        for (int i = 5; i < 71470; i++) {
-            String str = scannerUaV.nextLine();
-            uaVocabulary.put(str, i);
-            uaWords.put(i, str);
-        }*/
 
         int wwq = 0;
         for (File afile : listOfFiles) {
@@ -124,23 +129,23 @@ public class PositionLoader extends DataLoader2D {
                     }
                 }
 
-                NNMatrix inputsData = new NNMatrix(24, size_width, false);
+                NNTensor inputsData = new NNTensor(size_width, 24, 1,false);
 
                 Use.GPU = false;
-
-                for (int xx = 0; xx < width; xx++) {
-                    for (int yy = 0; yy < height; yy++) {
-                        Color color = new Color(img.getRGB(xx, yy));
-                        inputsData.set(yy, width - xx - 1, transformData.transformR(color.getRed()));
-                    }
-                }
 
                 /*for (int xx = 0; xx < width; xx++) {
                     for (int yy = 0; yy < height; yy++) {
                         Color color = new Color(img.getRGB(xx, yy));
-                        inputsData.set(xx, yy, transformData.transformR(color.getRed()));
+                        inputsData.set(yy, width - xx - 1, transformData.transformR(color.getRed()));
                     }
                 }*/
+
+                for (int xx = 0; xx < width; xx++) {
+                    for (int yy = 0; yy < height; yy++) {
+                        Color color = new Color(img.getRGB(xx, yy));
+                        inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
+                    }
+                }
 
                 Use.GPU = true;
 
@@ -153,7 +158,7 @@ public class PositionLoader extends DataLoader2D {
                 }
 
                 if (!Objects.equals(label.toString(), "")) {
-                    int c = 176;
+                    /*int c = WordCount;
                     //label = label.substring(0, c);//!!!
                     int sss = c - label.length();
                     if (sss < 0) {
@@ -164,47 +169,44 @@ public class PositionLoader extends DataLoader2D {
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
-                    }
+                    }*/
                     String labelNew = label.toString();
-                    for (int ww = 0; ww < sss; ww++) {
+                    /*for (int ww = 0; ww < sss; ww++) {
                         label.append("_");
-                    }
-
-                    NNVector output_ = codeString(label.toString(), false);
-
-                    /*String[] data_ = labelNew.split("[ ,.:;!?/()\"*%��–„“-]");
-                    NNVector output = getUaVector(data_, output_);
-
-                    c = 26;
-                    int sss = c - (data_.length + 2);
-                    if (sss < 0) {
-                        try {
-                            //System.out.println("!!!: " + sss);
-                            //continue;
-                            throw new Exception("!!!: " + sss);
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
                     }*/
 
-                    NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);//true
+                    NNVector output_;
+                    NNVector output;
+                    if (WorkingWithCharacter) {
+                        output = codeString(label.toString(), false);
+                        //output = NNArrays.toHotVector(output_, sizeVocabulary, WordCount);
+                    }
+                    else {
+                        output_ = new NNVector(WordCount, false);
+
+                        String[] data_ = labelNew.split("[ ,.:;!?/()\"*%��–„“-]");
+                        output = getUaVector(data_, output_);
+                    }
+
+                    NNTensor inputsDataNew = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData(), inputsData.getSdata(), true);//true
 
                     inputsDataNew.ClearCpuData();
                     inputsData = null;
                     inputsDataNew.ClearCpuData();
 
-                    codeStringNew(output_, false);
+                    codeStringNew(output, false);
+                    output.ClearCpuData();
 
                     Use.CPU = false;
 
-                    train.add(new ImageData2D(inputsDataNew, output_));
+                    train.add(new ImageData3D(inputsDataNew, output));
                     //test.add(new ImageData2D(inputsDataNew, output));
 
                     if (wwq % 100 == 0) {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 2999) {
+                    if (wwq == 299) {
                         return;
                     }
 
@@ -218,6 +220,11 @@ public class PositionLoader extends DataLoader2D {
 
     public NNVector getUaVector(String[] uaWords, NNVector input){
         //NNVector input;
+
+        for (int i = 0; i < input.size(); i++) {
+            input.set(i, NLP.EOS / constant/* + 1*/);
+        }
+
         int index;
         int start = 1;
         int end = uaWords.length + 1;
@@ -240,29 +247,34 @@ public class PositionLoader extends DataLoader2D {
             }
         } else {
             //input = new NNVector(uaWords.length + 2);
-            input.set(0, NLP.SOS);
+            input.set(0, NLP.SOS / constant/* + 1*/);
         }
 
         for (int i = start; i < end; i++) {
             Integer data = uaVocabulary.get(uaWords[i-start]);
             index = Objects.requireNonNullElse(data, NLP.UNK);
-            input.set(i, index);
+            input.set(i, ((float) index) / constant/* + 1*/);
         }
-        input.set(end, NLP.EOS);
+        input.set(end, NLP.EOS / constant/* + 1*/);
 
-        return input;
+        return input;/*NNArrays.toHotVector(input, sizeVocabulary, WordCount);*///!!!!
     }
 
     public NNVector codeString(String text, boolean TYPE) {
         char[] chars = text.toCharArray();
 
-        NNVector input = new NNVector(text.length(), TYPE);
+        NNVector input = new NNVector(WordCount, TYPE);
+
         for (int i = 0; i < chars.length; i++) {
             float value = ((float) codeUaChars.get(chars[i]) / constant/* + 1*/);
             input.set(i, value);
         }
 
         return input;
+    }
+
+    public void codeStringNew(NNMatrix v, boolean TYPE) {
+        cudaMemcpy(v.getData_gpu(), Pointer.to(v.getData()), (long) Sizeof.FLOAT * v.size(), cudaMemcpyHostToDevice);
     }
 
     public void codeStringNew(NNVector v, boolean TYPE) {
@@ -281,33 +293,34 @@ public class PositionLoader extends DataLoader2D {
     }
 
     public String decodeString_new(float[] input) {
-        /*StringBuilder string = new StringBuilder();
-        for (int i = 0; i < 26; i++) {
-            /*if (input.get(i) == NLP.EOS) {
-                break;
-            }*/
-            //String Char = (uaWords.get((int) (Math.round((input[i]/* - 1*/) * constant))));
-           // if (Char != null) {
-            ///    string.append(Char + " ");
-            //}
-        //}*/
-        /*for (int i = 24; i < input.length - 24; i++) {
-            /*if (input.get(i) == NLP.EOS) {
-                break;
-            }*/
-         //   Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/) * constant))));
-         //   if (Char != null) {
-         //       string.append(Char);
-         //  }
-        //}
-
         StringBuilder string = new StringBuilder();
-        for (int i = 0; i < input.length; i++) {
-
-           Character Char = (uaChars.get((int) (Math.round((input[i]/* - 1*/) * constant))));
-           if (Char != null) {
-               string.append(Char);
-          }
+        if (WorkingWithCharacter) {
+            for (int i = 0; i < input.length; i++) {
+                Character Char = (uaChars.get((int) (Math.round((input[i]) * constant))));
+                if (Char != null) {
+                    string.append(Char);
+                }
+            }
+            /*Use.CPU = true;
+            Use.GPU = false;
+            NNMatrix arr = new NNMatrix(WordCount, sizeVocabulary, input, null, false);
+            NNVector[] words = arr.toVectors();
+            for (int i = 0; i < words.length; i++) {
+                Character Char = (uaChars.get((int) (Math.round((words[i].indexMaxElement()) * constant))));
+                if (Char != null) {
+                    string.append(Char);
+                }
+            }
+            Use.GPU = true;
+            Use.CPU = false;*/
+        }
+        else {
+            for (int i = 0; i < input.length; i++) {
+                String Char = (uaWords.get((int) (Math.round((input[i]) * constant))));
+                if (Char != null) {
+                    string.append(Char).append(" ");
+                }
+            }
         }
 
         return string.toString();
