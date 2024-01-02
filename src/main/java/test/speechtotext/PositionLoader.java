@@ -22,7 +22,7 @@ import static nnarrays.NNArray.bFloat16ToFloat;
 import static nnarrays.NNArray.floatToBFloat16;
 import static utilities.Use.*;
 
-public class PositionLoader extends DataLoader3D {
+public class PositionLoader extends DataLoader2D {
     private LinkedHashMap<Integer, Character> uaChars;
     private LinkedHashMap<Integer, String> uaWords;
     private LinkedHashMap<Character, Integer> codeUaChars;
@@ -31,7 +31,7 @@ public class PositionLoader extends DataLoader3D {
     private int maxLength = 0;
     private boolean addPaddingOnStart;
 
-    float constant = 1.0f;//sizeVocabulary / 10.0f;
+    float constant = 0.1f;//sizeVocabulary / 10.0f;
 
     public PositionLoader(int countChars) throws Exception {
 
@@ -129,7 +129,7 @@ public class PositionLoader extends DataLoader3D {
                     }
                 }
 
-                NNTensor inputsData = new NNTensor(size_width, 24, 1,false);
+                NNMatrix inputsData = new NNMatrix(size_width, 24,false);
 
                 Use.GPU = false;
 
@@ -143,7 +143,7 @@ public class PositionLoader extends DataLoader3D {
                 for (int xx = 0; xx < width; xx++) {
                     for (int yy = 0; yy < height; yy++) {
                         Color color = new Color(img.getRGB(xx, yy));
-                        inputsData.set(xx, yy, 0, transformData.transformR(color.getRed()));
+                        inputsData.set(xx, yy, transformData.transformR(color.getRed()));
                     }
                 }
 
@@ -188,7 +188,7 @@ public class PositionLoader extends DataLoader3D {
                         output = getUaVector(data_, output_);
                     }
 
-                    NNTensor inputsDataNew = new NNTensor(inputsData.getRows(), inputsData.getColumns(), inputsData.getDepth(), inputsData.getData(), inputsData.getSdata(), true);//true
+                    NNMatrix inputsDataNew = new NNMatrix(inputsData.getRow(), inputsData.getColumn(), inputsData.getData(), inputsData.getSdata(), true);//true
 
                     inputsDataNew.ClearCpuData();
                     inputsData = null;
@@ -199,7 +199,7 @@ public class PositionLoader extends DataLoader3D {
 
                     Use.CPU = false;
 
-                    train.add(new ImageData3D(inputsDataNew, output));
+                    train.add(new ImageData2D(inputsDataNew, output));
                     //test.add(new ImageData2D(inputsDataNew, output));
 
                     if (wwq % 100 == 0) {

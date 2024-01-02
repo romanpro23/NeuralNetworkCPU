@@ -48,7 +48,7 @@ public class speechtotext {
         PositionLoader loader = new PositionLoader(44);
         loader.setUseReverse(false);
 
-        Optimizer optimizer = new AdamOptimizer();
+        Optimizer optimizer = new AdamOptimizer(0.0001);
 
         /*T = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
                 .setFunctionLoss(new FunctionLoss.MSE())
@@ -57,21 +57,33 @@ public class speechtotext {
                 .create();*/
 
         TransformerVisual transformer = new TransformerVisual();
-        transformer.addInputLayer(480, 24, 1);
-        transformer.addTYPE2Float3DLayer();
-        transformer.addImagePatchesLayer(8, 128);
-        transformer.addLayer(new ConvolutionLayer(128, 3, 1, 1));
+        transformer.addInputLayer(480, 24);
+        transformer.addTYPE2Float2DLayer();
+        transformer.addLayer(new AdditionBlock()
+                .addLayer(new DenseLayer2D(24 * 2, false))
+                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+                .addLayer(new DenseLayer2D(24, false)));
         transformer.addLayer(new NormalizationLayer2D(false));
-        transformer.addLayer(new ConvolutionLayer(128, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(70, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(70, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
+        transformer.addLayer(new AdditionBlock()
+                .addLayer(new DenseLayer2D(100 * 2, false))
+                .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+                .addLayer(new DenseLayer2D(100, false)));
         transformer.addLayer(new NormalizationLayer2D(false));
-        transformer.addLayer(new ConvolutionLayer(128, 3, 1, 1));
-        transformer.addLayer(new NormalizationLayer2D(false));
-        transformer.addLayer(new ConvolutionLayer(128, 3, 1, 1));
-        transformer.addLayer(new NormalizationLayer2D(false));
-        transformer.addLayer(new ConvolutionLayer(256, 3, 1, 1));
-        transformer.addVITPositionalEmbedding();
-        transformer.addEncoderBlock(8, 180,256);
-        transformer.addLayer(new FlattenLayer2D(false));
+        transformer.addLayer(new DenseLayer2D(200, false));
+        transformer.addFlattenLayer();
         transformer.addDenseLayer1D(WordCount);
         T = transformer.createTransformer();
         T.setFunctionLoss(new FunctionLoss.MSE());
@@ -79,19 +91,18 @@ public class speechtotext {
         T.create();
 
         /*TransformerVisual transformer = new TransformerVisual();
-        transformer.addInputLayer(480, 24, 1);
-        transformer.addTYPE2Float3DLayer();
-        transformer.addImagePatchesLayer(8, 128);
+        transformer.addInputLayer(480, 24);
+        transformer.addTYPE2Float2DLayer();
+        transformer.addLayer(new ConvolutionLayer(24, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(24, 3, 1, 1));
         transformer.addVITPositionalEmbedding();
-        transformer.addEncoderBlock(8, 180,128);
-        transformer.addEncoderBlock(8, 180,128);
-        transformer.addEncoderBlock(8, 180,128);
-        transformer.addLayer(new FlattenLayer2D(false));
+        transformer.addEncoderBlock(2, 480,24);
+        transformer.addFlattenLayer();
         transformer.addDenseLayer1D(WordCount);
         T = transformer.createTransformer();
-        T.setFunctionLoss(new FunctionLoss.CategoricalCrossEntropy());
+        T.setFunctionLoss(new FunctionLoss.MSE());
         T.setOptimizer(optimizer);
-        T.create();*/
+        T.create();
 
         //optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
@@ -116,10 +127,10 @@ public class speechtotext {
 
         T.info();//77350
         //decoder.info();//77350
-        DataTrainer trainer = new DataTrainer(2000, 2000, loader);
+        DataTrainer trainer = new DataTrainer(5000, 5000, loader);
 
         for (int i = 0; i < 1000; i++) {
-            trainer.train(T, 2, 1, 1, new DataMetric.Top1());
+            trainer.train(T, 10, 1, 1, new DataMetric.Top1());
 
             T.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt"));
             optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt"));
@@ -136,10 +147,10 @@ public class speechtotext {
             //System.out.println((System.nanoTime() - start) / 1000000);
 
             for (int s = 0; s < 10; s++) {
-                NNData3D Data3D = loader.getNextTrainData(1);
-                //NNMatrix[] Output = NNArrays.toHotVector(Data3D.getOutput(), sizeVocabulary);
-                String resultReal = Data3D.getOutput()[0].GetFirstSingleValue(loader, WordCount/* * sizeVocabulary*/);
-                String Text = T.query(Data3D.getInput())[0].GetFirstSingleValue(loader, WordCount/* * sizeVocabulary*/);
+                NNData2D Data2D = loader.getNextTrainData(1);
+                //NNMatrix[] Output = NNArrays.toHotVector(Data2D.getOutput(), sizeVocabulary);
+                String resultReal = Data2D.getOutput()[0].GetFirstSingleValue(loader, WordCount/* * sizeVocabulary*/);
+                String Text = T.query(Data2D.getInput())[0].GetFirstSingleValue(loader, WordCount/* * sizeVocabulary*/);
 
                 byte[] charset = Text.getBytes(StandardCharsets.UTF_8);
                 String newstr = new String(charset, StandardCharsets.UTF_8);
