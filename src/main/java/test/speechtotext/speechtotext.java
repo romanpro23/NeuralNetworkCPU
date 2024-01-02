@@ -48,15 +48,15 @@ public class speechtotext {
         PositionLoader loader = new PositionLoader(44);
         loader.setUseReverse(false);
 
-        Optimizer optimizer = new AdamOptimizer(0.0001);
+        Optimizer optimizer = new AdamOptimizer(0.00005);
 
-        /*T = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
+        T = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setOptimizer(optimizer)
                 .setTrainable(true)
-                .create();*/
+                .create();
 
-        TransformerVisual transformer = new TransformerVisual();
+        /*TransformerVisual transformer = new TransformerVisual();
         transformer.addInputLayer(480, 24);
         transformer.addTYPE2Float2DLayer();
         transformer.addLayer(new AdditionBlock()
@@ -64,23 +64,23 @@ public class speechtotext {
                 .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
                 .addLayer(new DenseLayer2D(24, false)));
         transformer.addLayer(new NormalizationLayer2D(false));
-        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(70, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(70, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(80, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(90, 3, 1));
-        transformer.addLayer(new ConvolutionLayer(100, 3, 1));
+        transformer.addLayer(new ConvolutionLayer(100, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(70, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(70, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(80, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(90, 3, 1, 1));
+        transformer.addLayer(new ConvolutionLayer(200, 3, 1, 1));
         transformer.addLayer(new AdditionBlock()
-                .addLayer(new DenseLayer2D(100 * 2, false))
+                .addLayer(new DenseLayer2D(200 * 2, false))
                 .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
-                .addLayer(new DenseLayer2D(100, false)));
+                .addLayer(new DenseLayer2D(200, false)));
         transformer.addLayer(new NormalizationLayer2D(false));
         transformer.addLayer(new DenseLayer2D(200, false));
         transformer.addFlattenLayer();
@@ -88,7 +88,7 @@ public class speechtotext {
         T = transformer.createTransformer();
         T.setFunctionLoss(new FunctionLoss.MSE());
         T.setOptimizer(optimizer);
-        T.create();
+        T.create();*/
 
         /*TransformerVisual transformer = new TransformerVisual();
         transformer.addInputLayer(480, 24);
@@ -102,9 +102,9 @@ public class speechtotext {
         T = transformer.createTransformer();
         T.setFunctionLoss(new FunctionLoss.MSE());
         T.setOptimizer(optimizer);
-        T.create();
+        T.create();*/
 
-        //optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
+        optimizer.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation_optimizer.txt")));
 
         /*for (int s = 0; s < 150; s++) {
             NNData2D Data2D = loader.getNextTestData(1);
@@ -140,8 +140,8 @@ public class speechtotext {
                 LocalDateTime now = LocalDateTime.now();
                 System.out.println(dtf.format(now));
 
-                T.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation.txt"));
-                optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation_optimizer.txt"));
+                //T.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation.txt"));
+                //optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation_optimizer.txt"));
             }
 
             //System.out.println((System.nanoTime() - start) / 1000000);

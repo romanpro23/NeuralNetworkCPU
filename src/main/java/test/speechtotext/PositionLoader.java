@@ -31,7 +31,7 @@ public class PositionLoader extends DataLoader2D {
     private int maxLength = 0;
     private boolean addPaddingOnStart;
 
-    float constant = 0.1f;//sizeVocabulary / 10.0f;
+    float constant = 1.0f;//sizeVocabulary / 10.0f;
 
     public PositionLoader(int countChars) throws Exception {
 
@@ -206,9 +206,9 @@ public class PositionLoader extends DataLoader2D {
                         System.out.println(wwq);
                     }
 
-                    if (wwq == 299) {
-                        return;
-                    }
+                    //if (wwq == 299) {
+                    //    return;
+                    //}
 
                     wwq++;
                 }
