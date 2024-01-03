@@ -127,7 +127,7 @@ public class speechtotext {
 
         T.info();//77350
         //decoder.info();//77350
-        DataTrainer trainer = new DataTrainer(5000, 5000, loader);
+        DataTrainer trainer = new DataTrainer(77350, 77350, loader);
 
         for (int i = 0; i < 1000; i++) {
             trainer.train(T, 10, 1, 1, new DataMetric.Top1());
@@ -140,8 +140,8 @@ public class speechtotext {
                 LocalDateTime now = LocalDateTime.now();
                 System.out.println(dtf.format(now));
 
-                //T.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation.txt"));
-                //optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation_optimizer.txt"));
+                T.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation.txt"));
+                optimizer.save(new FileWriter("C:/Levani/NeuralNetworkCPU/data/"+dtf.format(now) + "_ka_speech_recognation_optimizer.txt"));
             }
 
             //System.out.println((System.nanoTime() - start) / 1000000);

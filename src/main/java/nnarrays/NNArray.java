@@ -3346,9 +3346,11 @@ public class NNArray {
                     "            }\n" +
                     "            inputIndex = y0 * i_column;\n" +
                     "            weightIndex = d * d_depth * d_column + j * d_depth;\n" +
+                    "            float tmp = 0;\n" +
                     "            for (int c = 0; c < d_depth; c++, inputIndex++, weightIndex++) {\n" +
-                    "                atomicAdd(&data[weightIndex], input[inputIndex] * error[outputIndex]);\n" +
+                    "                tmp += input[inputIndex] * error[outputIndex];\n" +
                     "            }\n" +
+                    "            data[weightIndex] = tmp;\n" +
                     "        }\n" +
                     "   }\n" +
                     "}\n" +

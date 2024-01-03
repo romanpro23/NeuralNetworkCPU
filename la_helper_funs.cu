@@ -1186,9 +1186,11 @@ __global__ void Convolution(const float* __restrict__ input, const float* __rest
             }
             inputIndex = y0 * i_column;
             weightIndex = d * d_depth * d_column + j * d_depth;
+            float tmp = 0;
             for (int c = 0; c < d_depth; c++, inputIndex++, weightIndex++) {
-                atomicAdd(&data[weightIndex], input[inputIndex] * error[outputIndex]);
+                tmp += input[inputIndex] * error[outputIndex];
             }
+            data[weightIndex] = tmp;
         }
    }
 }
