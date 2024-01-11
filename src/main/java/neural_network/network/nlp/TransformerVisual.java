@@ -163,8 +163,8 @@ public class TransformerVisual {
         return this;
     }
 
-    public TransformerVisual addDenseLayer1D(int wordCount){
-        transformer.addLayer(new DenseLayer(wordCount, false));
+    public TransformerVisual addDenseLayer1D(int countNeuron){
+        transformer.addLayer(new DenseLayer(countNeuron, false));
 
         return this;
     }

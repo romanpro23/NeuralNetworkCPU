@@ -115,6 +115,10 @@ public class DenseLayer extends DenseNeuralLayer {
         if (!loadWeight) {
             threshold = new NNVector(countNeuron, TYPE);
             weight = new NNMatrix(countNeuron, size[0], TYPE);
+            if (countNeuron > size[0]) {
+                weight = new NNMatrix(countNeuron, size[0], TYPE);
+            }
+            else
             initializer.initialize(weight);
         }
     }

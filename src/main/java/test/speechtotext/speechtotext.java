@@ -48,13 +48,78 @@ public class speechtotext {
         PositionLoader loader = new PositionLoader(44);
         loader.setUseReverse(false);
 
-        Optimizer optimizer = new AdamOptimizer(0.00005);
+        Optimizer optimizer = new AdamOptimizer(0.00005);//0.00005
 
         T = NeuralNetwork.read(new Scanner(new File("C:/Levani/NeuralNetworkCPU/data/ka_speech_recognation.txt")))
                 .setFunctionLoss(new FunctionLoss.MSE())
                 .setOptimizer(optimizer)
                 .setTrainable(true)
                 .create();
+
+        /*TransformerVisual transformer = new TransformerVisual();
+        transformer.addInputLayer(480, 24);
+        transformer.addTYPE2Float2DLayer();
+        transformer.addLayer(new ConvolutionLayer(180, 8, 1, 4));
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(180, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new DenseLayer2D(150 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(180, false))
+        );
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(180, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new DenseLayer2D(150 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(180, false))
+        );
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(180, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new DenseLayer2D(150 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(180, false))
+        );
+        transformer.addFlattenLayer();
+        transformer.addDenseLayer1D(WordCount);
+        T = transformer.createTransformer();
+        T.setFunctionLoss(new FunctionLoss.MSE());
+        T.setOptimizer(optimizer);
+        T.create();*/
+
+        /*TransformerVisual transformer = new TransformerVisual();
+        transformer.addInputLayer(480, 24);
+        transformer.addTYPE2Float2DLayer();
+        transformer.addLayer(new ConvolutionLayer(150, 8, 1, 4));
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(100, 3, 1, 1))
+            .addLayer(new DenseLayer2D(100 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(150, false))
+        );
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(100, 3, 1, 1))
+            .addLayer(new DenseLayer2D(100 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(150, false))
+        );
+        transformer.addLayer(new AdditionBlock()
+            .addLayer(new ConvolutionLayer(150, 3, 1, 1))
+            .addLayer(new ConvolutionLayer(100, 3, 1, 1))
+            .addLayer(new DenseLayer2D(100 * 2, false))
+            .addLayer(new ActivationLayer2D(new FunctionActivation.GELU(), false))
+            .addLayer(new DenseLayer2D(150, false))
+        );
+        transformer.addFlattenLayer();
+        transformer.addDenseLayer1D(WordCount);
+        T = transformer.createTransformer();
+        T.setFunctionLoss(new FunctionLoss.MSE());
+        T.setOptimizer(optimizer);
+        T.create();*/
+
 
         /*TransformerVisual transformer = new TransformerVisual();
         transformer.addInputLayer(480, 24);

@@ -68,6 +68,7 @@ public class JCudaHelper {
                 .append("-m ").append(modelString).append(' ')
                 .append("-ptx ").append(cuFile.getAbsolutePath()).append(' ')
                 .append("-o ").append(ptxFile.getAbsolutePath())
+                //.append("-fmad=false ")
                 .toString()
                 ;
         execNvcc(command);

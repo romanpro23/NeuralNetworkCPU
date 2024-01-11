@@ -10,6 +10,7 @@ import nnarrays.NNVector;
 public abstract class DenseNeuralLayer extends NeuralLayer {
     @Getter
     protected int countNeuron;
+    protected int countNeuronHide;
     protected NNVector[] input;
     protected NNVector[] output;
     protected NNVector[] error;
