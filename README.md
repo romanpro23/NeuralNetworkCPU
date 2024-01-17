@@ -30,8 +30,6 @@ NeuralNetwork network = new NeuralNetwork()
                 .addActivationLayer(new FunctionActivation.ReLU())
                 .addLayer(new DenseLayer(10).setTrainable(false))
                 .addLayer(new ActivationLayer(new FunctionActivation.Softmax()))
-                .setOptimizer(new AdamOptimizer())
-                .setFunctionLoss(new FunctionLoss.CrossEntropy())
                 .create();
 ```
 
@@ -54,7 +52,7 @@ _**Model settings - optimizers, loss functions, regularizers, and more**_
 
 The library implements a lot of different elements that are needed to train neural networks.
 
-For example, there is a large number of different optimizers that are not available in any other machine learning library, and you can choose any of them for your needs. Or, if necessary, you can easily create your own by simply inheriting from an optimizer class. 
+For example, there is a large number of different _optimizers_ that are not available in any other machine learning library, and you can choose any of them for your needs. Or, if necessary, you can easily create your own by simply inheriting from an optimizer class. 
 ```
 public class MomentumOptimizer extends Optimizer {
     /**
@@ -83,7 +81,24 @@ public class MomentumOptimizer extends Optimizer {
 
 Below you can see a list of currently available optimizers:
 
-![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/2064fdb4-3782-4c1c-90b2-85e80ac4f14b)
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/192aeb3c-a7b7-40fa-b3b7-fdaf5eb65671)
+
+If you need to use some standard _loss function_, why write it from 0 if everything you need is already implemented in the library?
+
+Also, to get started, we need to _initialize_ the weights of the neural layers with some values, and you can use any of the available initializers for this. The library contains all known initializers, and you can easily use them in your development.
+
+If you have problems with retraining, try using _regularizers_ in your neural layers. Regularizers are implemented in the library, and thanks to the well-thought-out structure of layers, you can add a regularizer to a layer immediately when creating it.
+
+If you need to set the parameters for a neural network right when you create it, for example, you are building a classification model, here's how to do it:
+
+```
+        NeuralNetwork vgg = NeuralNetwork
+                .read(new Scanner(new File("/Imagenet/vgg16.txt")))
+                .setFunctionLoss(new FunctionLoss.MSE())
+                .setOptimizer(new AdamOptimizer())
+                .create();
+```
+
 
 
 
