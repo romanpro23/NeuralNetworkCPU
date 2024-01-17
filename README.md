@@ -99,8 +99,53 @@ If you need to set the parameters for a neural network right when you create it,
                 .create();
 ```
 
+_**Implemented architectures**_
 
+If you don't want to spend your time building popular models, you can use ready-made solutions, saving a lot of your own time. It is done quite simply and quickly:
 
+```
+        NeuralNetwork mobilenetV1 = new MobileNet()
+                .createMobileNetV1(64,64, 3, 0.5, 200,0.2)
+                .setFunctionLoss(new FunctionLoss.CrossEntropy())
+                .setOptimizer(optimizer)
+                .create();
+```
+
+Or if you want to model your architecture based on an existing one, then use the following mechanisms available in code:
+
+```
+        NeuralNetwork inceptionV3 = new Inception()
+                .addInputLayer(64, 64, 3)
+                .addConvolutionLayer(16, 3, 2,1)
+                .addConvolutionLayer(16, 3)
+                .addConvolutionLayer(32, 3)
+                .addMaxPoolingLayer(3, 2)
+                .addConvolutionLayer(40, 1)
+                .addConvolutionLayer(96, 3)
+                .addMaxPoolingLayer(3, 2)
+                .addInceptionA(16, 2)
+                .addInceptionA(32, 2)
+                .addInceptionA(32, 2)
+                .addInceptionB()
+                .addInceptionC(5, 128/2, 2)
+                .addInceptionC(5, 160/2, 2)
+                .addInceptionC(5, 160/2, 2)
+                .addInceptionC(5, 192/2, 2)
+                .addInceptionD(5, 2)
+                .addInceptionE(2)
+                .addInceptionE(2)
+                .addGlobalAveragePoolingLayer()
+                .addDropoutLayer(0.4)
+                .addDenseLayer(200, new FunctionActivation.Softmax())
+                .createInception()
+                .setFunctionLoss(new FunctionLoss.CrossEntropy())
+                .setOptimizer(new AdamOptimizer())
+                .create();
+```
+
+In addition, in the library you will find other architectures, _autoencoders, GAN, recurrent models with attention_ for working with text, _transformers, capsule neural networks_ and others.
+
+_Serialization and deserialization_ in a human-readable format is also implemented. You can train a neural network, save it to a file, and then use it wherever you need it.
 
 _**Additional resources**_
 
