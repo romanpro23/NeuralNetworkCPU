@@ -147,6 +147,19 @@ In addition, in the library you will find other architectures, _autoencoders, GA
 
 _Serialization and deserialization_ in a human-readable format is also implemented. You can train a neural network, save it to a file, and then use it wherever you need it.
 
+_**Ready sets of data**_
+
+Since training any network requires data, the library has collected the most popular datasets in the data package, which are immediately available in a format read by neural networks.
+You can create your own datasets simply by inheriting from the Loader class and writing the necessary logic.
+```
+public abstract class DataLoader {
+    public abstract NNData getNextTrainData(int sizeBatch);
+
+    public abstract NNData getNextTestData(int sizeBatch);
+}
+```
+Links to the data are at the very end of this tutorial.
+
 _**Additional resources**_
 
 Find some datasets, that used in this library:
