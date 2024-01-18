@@ -160,6 +160,22 @@ public abstract class DataLoader {
 ```
 Links to the data are at the very end of this tutorial.
 
+_**Examples of work**_
+
+_GAN_
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/e7e89fe1-1aba-4d24-9202-8f024a0cd155)
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/c922a050-af22-48ef-9f97-36b2648b6a59)
+
+_Autoencoders_
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/5baa537d-fa07-4dc0-9f3c-05301315d7e9)
+
+_As a convolutional neural network sees_
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/11fabb21-2ed1-4ab6-9842-e41009862ca8)
+![image](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/9dbc50b0-6d29-4218-9ebc-9cc944c8fdbf)
+
+_Style transfer_
+![result_style20](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/26948237-02a1-4247-a798-18bb5805b951)   ![result_style23](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/770c2d59-7e41-4419-aec1-92db097718ce)   ![result_style24](https://github.com/romanpro23/NeuralNetworkCPU/assets/87851373/3b4d3651-abd2-4c96-b6af-133647e87193)
+
 _**Additional resources**_
 
 Find some datasets, that used in this library:
