@@ -1,5 +1,6 @@
-**Neural Network CPU
-Library deep learning on java.**
+**Neural Network CPU**
+
+**Library deep learning on java.**
 
 This library will provide you with a wide range of possibilities for implementing various neural networks. You can get acquainted with them below:
 
